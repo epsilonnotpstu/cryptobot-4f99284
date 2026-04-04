@@ -1,0 +1,6 @@
+{
+	"appId": "com.cryptobot.prime",
+	"appName": "CryptoBot Prime",
+	"webDir": "dist",
+	"bundledWebRuntime": false
+}

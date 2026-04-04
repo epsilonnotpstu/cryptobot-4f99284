@@ -1,0 +1,1285 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
+.prodash-page {
+  --prodash-bg: radial-gradient(circle at 12% 8%, rgba(56, 189, 248, 0.28), transparent 36%),
+    radial-gradient(circle at 86% 92%, rgba(45, 212, 191, 0.2), transparent 32%),
+    linear-gradient(145deg, #040711 0%, #0b1324 50%, #121c32 100%);
+  --prodash-surface: linear-gradient(160deg, rgba(12, 20, 38, 0.86), rgba(9, 16, 30, 0.78));
+  --prodash-card: linear-gradient(155deg, rgba(14, 25, 45, 0.92), rgba(11, 20, 37, 0.82));
+  --prodash-border: rgba(148, 163, 184, 0.2);
+  --prodash-soft-border: rgba(148, 163, 184, 0.14);
+  --prodash-text: #f8fbff;
+  --prodash-muted: #9cb1cb;
+  --prodash-positive: #1ad287;
+  --prodash-negative: #ff6c78;
+  position: relative;
+  min-height: 100vh;
+  padding: 1.2rem;
+  padding-bottom: calc(1.2rem + 86px + env(safe-area-inset-bottom));
+  background: var(--prodash-bg);
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  color: var(--prodash-text);
+  overflow: hidden;
+}
+
+.prodash-background-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(70px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.prodash-background-orb-left {
+  width: 380px;
+  height: 380px;
+  top: -110px;
+  left: -80px;
+  background: rgba(56, 189, 248, 0.25);
+}
+
+.prodash-background-orb-right {
+  width: 350px;
+  height: 350px;
+  right: -110px;
+  bottom: -140px;
+  background: rgba(45, 212, 191, 0.22);
+}
+
+.prodash-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1240px;
+  margin: 0 auto;
+  border-radius: 28px;
+  border: 1px solid var(--prodash-border);
+  background: var(--prodash-surface);
+  box-shadow: 0 45px 95px rgba(2, 6, 23, 0.58);
+  backdrop-filter: blur(14px);
+  padding: 1.15rem;
+}
+
+.prodash-content-area {
+  min-height: 320px;
+}
+
+.prodash-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 0.9rem;
+}
+
+.prodash-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(13, 23, 40, 0.96);
+  color: #d9f2ff;
+  cursor: pointer;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.prodash-icon-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(70, 211, 255, 0.55);
+  box-shadow: 0 15px 28px rgba(70, 211, 255, 0.2);
+}
+
+.prodash-chat-btn {
+  border-color: rgba(70, 211, 255, 0.44);
+  background: linear-gradient(145deg, rgba(70, 211, 255, 0.24), rgba(24, 184, 239, 0.17));
+}
+
+.prodash-brand-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.prodash-brand-block p {
+  margin: 0 0 0.16rem;
+  font-size: 0.73rem;
+  color: #83a6c6;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.prodash-brand-block strong {
+  display: block;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.06rem;
+  color: #ecf9ff;
+}
+
+.prodash-page-notice {
+  margin: 0 0 0.72rem;
+  color: #74dffb;
+  font-size: 0.85rem;
+}
+
+.prodash-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 14px;
+  border: 1px solid rgba(251, 113, 133, 0.38);
+  background: linear-gradient(120deg, rgba(64, 22, 35, 0.7), rgba(25, 33, 56, 0.64));
+  padding: 0.83rem 0.95rem;
+  margin-bottom: 0.78rem;
+}
+
+.prodash-notice-pill {
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff7f96, #ff627f);
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.23rem 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.prodash-notice p {
+  margin: 0;
+  flex: 1;
+  color: #e8edf7;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prodash-notice i {
+  color: #9fb6d0;
+  font-size: 0.82rem;
+}
+
+.prodash-grid {
+  display: grid;
+  grid-template-columns: 1.06fr 0.94fr;
+  gap: 0.95rem;
+}
+
+.prodash-left-column,
+.prodash-right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.prodash-wallet-card,
+.prodash-promo-card,
+.prodash-market-card,
+.prodash-panel-card {
+  border: 1px solid var(--prodash-soft-border);
+  background: var(--prodash-card);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.prodash-wallet-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-radius: 22px;
+  padding: 1.05rem;
+}
+
+.prodash-wallet-copy p {
+  margin: 0 0 0.26rem;
+  color: var(--prodash-muted);
+  font-size: 0.9rem;
+}
+
+.prodash-eye-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(12, 20, 36, 0.9);
+  color: #a8bdd6;
+  cursor: pointer;
+}
+
+.prodash-wallet-copy h1 {
+  margin: 0.33rem 0 0.15rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(1.52rem, 3.1vw, 2.25rem);
+  color: #f4fbff;
+  letter-spacing: -0.02em;
+}
+
+.prodash-wallet-copy h1 span {
+  margin-left: 0.45rem;
+  font-size: 0.94rem;
+  color: #a2b7cf;
+}
+
+.prodash-wallet-copy small {
+  color: #8ea5bf;
+  font-size: 0.79rem;
+}
+
+.prodash-wallet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.58rem;
+}
+
+.prodash-deposit-btn,
+.prodash-logout-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 0.68rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.prodash-deposit-btn {
+  background: linear-gradient(140deg, #49d8ff, #14b8ef);
+  color: #02222f;
+}
+
+.prodash-logout-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #c6d7ea;
+  border: 1px solid var(--prodash-soft-border);
+}
+
+.prodash-deposit-btn:hover,
+.prodash-logout-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.prodash-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.prodash-quick-item {
+  border: 1px solid var(--prodash-soft-border);
+  border-radius: 16px;
+  background: rgba(14, 25, 43, 0.84);
+  padding: 0.7rem 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.42rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.prodash-quick-item span {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(70, 211, 255, 0.38);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #90e9ff;
+  background: rgba(11, 18, 33, 0.9);
+}
+
+.prodash-quick-item strong {
+  font-size: 0.78rem;
+  color: #daebff;
+}
+
+.prodash-quick-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(70, 211, 255, 0.58);
+}
+
+.prodash-promos {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.prodash-promo-card {
+  border-radius: 18px;
+  padding: 0.96rem;
+}
+
+.prodash-promo-primary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(145deg, rgba(16, 27, 51, 0.93), rgba(20, 39, 72, 0.77));
+}
+
+.prodash-promo-primary h3,
+.prodash-promo-paper h3 {
+  margin: 0 0 0.25rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.22rem;
+  color: #ebf6ff;
+}
+
+.prodash-promo-primary p,
+.prodash-promo-mini p,
+.prodash-promo-primary small {
+  margin: 0;
+  color: #95abc3;
+  font-size: 0.84rem;
+}
+
+.prodash-promo-icon,
+.prodash-paper-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+}
+
+.prodash-promo-icon {
+  background: linear-gradient(145deg, rgba(70, 211, 255, 0.31), rgba(25, 184, 239, 0.26));
+  color: #9eefff;
+}
+
+.prodash-promo-dual {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.prodash-promo-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(145deg, rgba(14, 25, 45, 0.92), rgba(12, 21, 38, 0.8));
+}
+
+.prodash-promo-mini h4 {
+  margin: 0 0 0.24rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.1rem;
+  color: #e6f4ff;
+}
+
+.prodash-mini-badge {
+  min-width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #b4eefe;
+  background: rgba(70, 211, 255, 0.16);
+  border: 1px solid rgba(70, 211, 255, 0.35);
+  font-weight: 700;
+}
+
+.prodash-sale-badge {
+  min-width: 58px;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: #fbe8ef;
+  background: rgba(255, 108, 120, 0.22);
+  border-color: rgba(255, 108, 120, 0.38);
+}
+
+.prodash-promo-paper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(145deg, rgba(15, 30, 54, 0.92), rgba(11, 24, 43, 0.85));
+}
+
+.prodash-promo-paper button {
+  margin-top: 0.38rem;
+  border: none;
+  border-radius: 11px;
+  background: linear-gradient(140deg, #49d8ff, #14b8ef);
+  color: #052531;
+  font-weight: 800;
+  padding: 0.54rem 1.1rem;
+  cursor: pointer;
+}
+
+.prodash-paper-icon {
+  background: rgba(70, 211, 255, 0.2);
+  color: #a7efff;
+}
+
+.prodash-market-card {
+  border-radius: 22px;
+  padding: 0.95rem;
+}
+
+.prodash-market-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.78rem;
+}
+
+.prodash-market-header h2 {
+  margin: 0 0 0.17rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.24rem;
+  color: #e9f6ff;
+}
+
+.prodash-market-header p {
+  margin: 0;
+  color: #8fa8c4;
+  font-size: 0.83rem;
+}
+
+.prodash-live-dot {
+  border-radius: 999px;
+  align-self: flex-start;
+  padding: 0.33rem 0.74rem;
+  background: rgba(26, 210, 135, 0.16);
+  color: #85f5c5;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.prodash-market-highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.72rem;
+}
+
+.prodash-market-highlights article {
+  border-radius: 14px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(10, 18, 34, 0.76);
+  padding: 0.66rem;
+}
+
+.prodash-market-highlights p {
+  margin: 0 0 0.17rem;
+  font-size: 0.72rem;
+  color: #89a2bd;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prodash-market-highlights strong {
+  display: block;
+  margin-bottom: 0.12rem;
+  color: #e8f7ff;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.prodash-market-highlights small {
+  color: #9ab0c7;
+  font-size: 0.77rem;
+}
+
+.prodash-market-highlights small.is-up {
+  color: var(--prodash-positive);
+  font-weight: 800;
+}
+
+.prodash-market-highlights small.is-down {
+  color: var(--prodash-negative);
+  font-weight: 800;
+}
+
+.prodash-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.22rem;
+  border-radius: 12px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(11, 20, 36, 0.82);
+  padding: 0.2rem;
+  margin-bottom: 0.68rem;
+}
+
+.prodash-tabs button {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #9cb1cb;
+  padding: 0.52rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.prodash-tabs button.active {
+  background: linear-gradient(130deg, rgba(70, 211, 255, 0.24), rgba(25, 184, 239, 0.21));
+  color: #dff9ff;
+  box-shadow: 0 8px 16px rgba(12, 80, 112, 0.28);
+}
+
+.prodash-market-table {
+  border-radius: 14px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(9, 16, 30, 0.88);
+  overflow: hidden;
+}
+
+.prodash-market-head {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 0.84fr;
+  padding: 0.7rem 0.84rem;
+  font-size: 0.73rem;
+  color: #8ca4be;
+  font-weight: 800;
+  background: rgba(21, 32, 54, 0.84);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.prodash-market-status {
+  padding: 0.76rem 0.84rem;
+  color: #9db4cf;
+  font-size: 0.84rem;
+}
+
+.prodash-market-error {
+  color: var(--prodash-negative);
+}
+
+.prodash-market-body {
+  max-height: 510px;
+  overflow: auto;
+}
+
+.prodash-market-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 0.84fr;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.8rem 0.84rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  animation: prodashRowEnter 0.32s ease both;
+}
+
+.prodash-market-symbol strong {
+  display: block;
+  margin-bottom: 0.08rem;
+  color: #eaf7ff;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.prodash-market-symbol span {
+  color: #88a3bf;
+  font-size: 0.75rem;
+}
+
+.prodash-market-row p {
+  margin: 0;
+  font-weight: 800;
+  color: #d8f4ff;
+  font-size: 0.88rem;
+}
+
+.prodash-market-row > span {
+  justify-self: start;
+  border-radius: 999px;
+  padding: 0.34rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.prodash-change-up {
+  background: rgba(26, 210, 135, 0.16);
+  color: #66edb3;
+}
+
+.prodash-change-down {
+  background: rgba(255, 108, 120, 0.16);
+  color: #ff9aa6;
+}
+
+.prodash-panel-card {
+  border-radius: 24px;
+  padding: 1rem;
+}
+
+.prodash-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.prodash-panel-header h2 {
+  margin: 0;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.4rem;
+  color: #edf8ff;
+}
+
+.prodash-back-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(11, 18, 34, 0.86);
+  color: #b6cae2;
+  cursor: pointer;
+}
+
+.prodash-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.prodash-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #95b0cc;
+}
+
+.prodash-form input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(11, 20, 36, 0.76);
+  color: #e8f7ff;
+  padding: 0.72rem 0.84rem;
+  outline: none;
+}
+
+.prodash-form input:focus {
+  border-color: rgba(70, 211, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(70, 211, 255, 0.12);
+}
+
+.prodash-form input[readonly] {
+  background: rgba(11, 20, 36, 0.5);
+  color: #7f98b4;
+  cursor: not-allowed;
+}
+
+.prodash-form select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(11, 20, 36, 0.76);
+  color: #e8f7ff;
+  padding: 0.72rem 0.84rem;
+  outline: none;
+}
+
+.prodash-form select:focus {
+  border-color: rgba(70, 211, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(70, 211, 255, 0.12);
+}
+
+.prodash-submit-btn {
+  margin-top: 0.2rem;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4be0ff, #16b9ef);
+  color: #052531;
+  padding: 0.78rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.prodash-submit-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.prodash-form-error {
+  margin: 0;
+  color: #ff9aa6;
+  font-size: 0.83rem;
+}
+
+.prodash-form-notice {
+  margin: 0;
+  color: #7ce8ff;
+  font-size: 0.83rem;
+}
+
+.prodash-avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.prodash-avatar-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 1px solid rgba(70, 211, 255, 0.5);
+  background: rgba(13, 24, 44, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8ceaff;
+  overflow: hidden;
+  font-size: 1.45rem;
+}
+
+.prodash-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.prodash-avatar-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 10px;
+  border: 1px solid rgba(70, 211, 255, 0.45);
+  background: rgba(17, 36, 60, 0.88);
+  color: #9defff;
+  font-size: 0.8rem;
+  padding: 0.55rem 0.78rem;
+  cursor: pointer;
+}
+
+.prodash-avatar-edit-btn input {
+  display: none;
+}
+
+.prodash-drawer-kyc-row {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.prodash-kyc-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.58rem;
+  border: 1px solid transparent;
+  letter-spacing: 0.02em;
+}
+
+.prodash-kyc-chip.is-pending {
+  background: rgba(250, 204, 21, 0.16);
+  color: #fde68a;
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+.prodash-kyc-chip.is-authenticated {
+  background: rgba(52, 211, 153, 0.16);
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.prodash-kyc-chip.is-rejected {
+  background: rgba(251, 113, 133, 0.15);
+  color: #fda4af;
+  border-color: rgba(251, 113, 133, 0.35);
+}
+
+.prodash-auth-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.58rem;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #c9d8e9;
+  font-size: 0.69rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.prodash-wallet-tags {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.prodash-lock-note {
+  margin: 0.38rem 0 0;
+  color: #facc15;
+  font-size: 0.76rem;
+}
+
+.prodash-deposit-btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  opacity: 0.55;
+  transform: none;
+}
+
+.prodash-quick-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.prodash-kyc-card {
+  max-width: 680px;
+}
+
+.prodash-kyc-form {
+  gap: 0.8rem;
+}
+
+.prodash-kyc-hint {
+  color: #8ca8c6;
+  font-size: 0.75rem;
+}
+
+.prodash-file-name {
+  color: #b7cbe2;
+  font-size: 0.78rem;
+}
+
+.prodash-chat-overlay,
+.prodash-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(2, 6, 23, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem;
+}
+
+.prodash-chat-modal {
+  width: min(980px, 100%);
+  height: min(760px, 92vh);
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(165deg, #f5f7fb, #e9eef7);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.prodash-chat-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.88rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  background: #f8fafc;
+}
+
+.prodash-chat-agent-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #f3c54a;
+  color: #111827;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prodash-chat-agent-copy strong {
+  display: block;
+  color: #1f2937;
+  font-size: 1.05rem;
+}
+
+.prodash-chat-agent-copy p {
+  margin: 0.08rem 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.prodash-chat-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.prodash-chat-header button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 50%;
+  background: #eef2f7;
+  color: #374151;
+  cursor: pointer;
+}
+
+.prodash-chat-body {
+  flex: 1;
+  background: radial-gradient(circle at center, rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: #e6edf6;
+}
+
+.prodash-chat-footer {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 0.56rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.26);
+  background: #f8fafc;
+}
+
+.prodash-chat-footer button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #e5e7eb;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.prodash-chat-footer input {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0.68rem 0.95rem;
+  outline: none;
+}
+
+.prodash-chat-footer .prodash-chat-send {
+  background: #f3c54a;
+  color: #111827;
+}
+
+.prodash-success-popup {
+  width: min(360px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(74, 222, 128, 0.42);
+  background: linear-gradient(170deg, rgba(9, 20, 34, 0.98), rgba(11, 26, 45, 0.95));
+  color: #e5f8ff;
+  text-align: center;
+  padding: 1.2rem 1rem;
+}
+
+.prodash-success-popup i {
+  font-size: 2rem;
+  color: #4ade80;
+}
+
+.prodash-success-popup h3 {
+  margin: 0.5rem 0 0.32rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.prodash-success-popup p {
+  margin: 0;
+  color: #9bc0dc;
+  font-size: 0.88rem;
+}
+
+.prodash-success-popup button {
+  margin-top: 0.82rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(130deg, #4be0ff, #16b9ef);
+  color: #052531;
+  font-weight: 800;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+}
+
+.prodash-placeholder-card {
+  min-height: 260px;
+}
+
+.prodash-placeholder-card h2 {
+  margin: 0 0 0.4rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.35rem;
+}
+
+.prodash-placeholder-card p {
+  margin: 0;
+  color: #93abc7;
+}
+
+.prodash-placeholder-note {
+  margin-top: 0.65rem !important;
+  color: #72dffb !important;
+}
+
+.prodash-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border: none;
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.prodash-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 60;
+  width: min(360px, 88vw);
+  background: linear-gradient(160deg, rgba(8, 15, 28, 0.98), rgba(12, 22, 38, 0.98));
+  border-right: 1px solid var(--prodash-soft-border);
+  box-shadow: 24px 0 48px rgba(2, 6, 23, 0.56);
+  padding: 1.05rem 0.85rem;
+  transform: translateX(-105%);
+  transition: transform 0.24s ease;
+  overflow: auto;
+}
+
+.prodash-drawer.is-open {
+  transform: translateX(0);
+}
+
+.prodash-drawer-user {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.7rem;
+  border-radius: 16px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(13, 24, 44, 0.88);
+  padding: 0.75rem;
+  margin-bottom: 0.8rem;
+}
+
+.prodash-drawer-avatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 1px solid rgba(70, 211, 255, 0.45);
+  background: rgba(9, 18, 34, 0.92);
+  color: #8ceaff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.prodash-drawer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.prodash-drawer-user strong {
+  display: block;
+  color: #f0faff;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.prodash-drawer-user p,
+.prodash-drawer-user span {
+  margin: 0.2rem 0 0;
+  color: #8fa6c1;
+  font-size: 0.81rem;
+}
+
+.prodash-drawer-menu {
+  display: grid;
+}
+
+.prodash-drawer-menu button {
+  border: none;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #d0e3f7;
+  padding: 0.72rem 0.64rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  cursor: pointer;
+}
+
+.prodash-drawer-menu button:hover {
+  background: rgba(70, 211, 255, 0.1);
+}
+
+.prodash-drawer-menu span {
+  text-align: left;
+}
+
+.prodash-drawer-menu button i:first-child {
+  color: #8ceaff;
+}
+
+.prodash-drawer-menu button i:last-child {
+  color: #7f95b0;
+  font-size: 0.74rem;
+}
+
+.prodash-drawer-logout {
+  margin-top: 0.3rem;
+  color: #ffb7c0 !important;
+}
+
+.prodash-floating-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 40;
+  width: min(740px, calc(100vw - 22px));
+  border-radius: 18px;
+  border: 1px solid var(--prodash-soft-border);
+  background: linear-gradient(160deg, rgba(9, 18, 34, 0.95), rgba(11, 22, 39, 0.95));
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.58);
+  padding: 0.42rem;
+  padding-bottom: calc(0.42rem + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.prodash-floating-nav button {
+  min-height: 62px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  padding: 0.48rem 0.3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  color: #96aec9;
+  cursor: pointer;
+}
+
+.prodash-floating-nav button i {
+  font-size: 0.9rem;
+}
+
+.prodash-floating-nav button span {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.prodash-floating-nav button.active {
+  border-color: rgba(70, 211, 255, 0.45);
+  background: linear-gradient(140deg, rgba(70, 211, 255, 0.2), rgba(25, 184, 239, 0.14));
+  color: #dff9ff;
+}
+
+@keyframes prodashRowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1100px) {
+  .prodash-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prodash-market-body {
+    max-height: 390px;
+  }
+}
+
+@media (max-width: 768px) {
+  .prodash-page {
+    padding: 0.72rem;
+    padding-bottom: calc(0.72rem + 78px + env(safe-area-inset-bottom));
+  }
+
+  .prodash-shell {
+    border-radius: 22px;
+    padding: 0.72rem;
+  }
+
+  .prodash-brand-block strong {
+    font-size: 0.92rem;
+  }
+
+  .prodash-wallet-card {
+    flex-direction: column;
+  }
+
+  .prodash-wallet-actions {
+    flex-direction: row;
+  }
+
+  .prodash-quick-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .prodash-promo-dual {
+    grid-template-columns: 1fr;
+  }
+
+  .prodash-market-head,
+  .prodash-market-row {
+    grid-template-columns: 1.17fr 0.82fr 0.88fr;
+    gap: 0.32rem;
+  }
+
+  .prodash-market-row p {
+    font-size: 0.8rem;
+  }
+
+  .prodash-floating-nav {
+    width: calc(100vw - 14px);
+  }
+
+  .prodash-floating-nav button {
+    min-height: 58px;
+  }
+
+  .prodash-chat-modal {
+    height: min(620px, 90vh);
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .prodash-topbar {
+    gap: 0.48rem;
+  }
+
+  .prodash-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .prodash-market-highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .prodash-floating-nav {
+    gap: 0.28rem;
+    padding: 0.34rem;
+    padding-bottom: calc(0.34rem + env(safe-area-inset-bottom));
+  }
+
+  .prodash-floating-nav button span {
+    font-size: 0.66rem;
+    line-height: 1.18;
+  }
+
+  .prodash-chat-header {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .prodash-chat-footer {
+    grid-template-columns: auto auto 1fr auto;
+    padding: 0.7rem;
+  }
+}

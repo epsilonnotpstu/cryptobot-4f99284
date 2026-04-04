@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.cryptobot.prime.app-mergeDebugResources-27:/values-v29/values-v29.xml",
+            "map": [
+                {
+                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/565dd5ff08ff3d40b8f8177197123735/transformed/core-splashscreen-1.0.1/res/values-v29/values-v29.xml",
+                    "from": {
+                        "startLines": "2,7",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,374",
+                        "endLines": "6,8",
+                        "endColumns": "12,12",
+                        "endOffsets": "369,464"
+                    }
+                }
+            ]
+        }
+    ]
+}
