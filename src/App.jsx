@@ -772,9 +772,120 @@ const remoteAuthService = {
     }
     return data;
   },
+  async getDashboardSnapshot({ sessionToken }) {
+    const data = await this.requestGatewayAction({
+      action: "dashboard.snapshot",
+      sessionToken,
+    });
+    if (data?.user) {
+      storeAuthUser(data.user);
+    }
+    return data;
+  },
+  async createDepositRequest({ sessionToken, assetId, amountUsd, screenshotFileName, screenshotFileData }) {
+    return this.requestGatewayAction({
+      action: "deposit.create",
+      sessionToken,
+      payload: {
+        assetId,
+        amountUsd,
+        screenshotFileName,
+        screenshotFileData,
+      },
+    });
+  },
+  async getDepositRecords({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "deposit.records",
+      sessionToken,
+    });
+  },
+  async adminGetNotice() {
+    return this.requestGatewayAction({
+      action: "admin.notice.get",
+    });
+  },
+  async adminUpdateNotice({ message }) {
+    return this.requestGatewayAction({
+      action: "admin.notice.update",
+      payload: { message },
+    });
+  },
+  async adminListDepositAssets() {
+    return this.requestGatewayAction({
+      action: "admin.deposit.assets.list",
+    });
+  },
+  async adminUpsertDepositAsset({
+    assetId,
+    symbol,
+    name,
+    chainName,
+    rechargeAddress,
+    qrCodeData,
+    minAmountUsd,
+    maxAmountUsd,
+    sortOrder,
+    isEnabled,
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.deposit.asset.upsert",
+      payload: {
+        assetId,
+        symbol,
+        name,
+        chainName,
+        rechargeAddress,
+        qrCodeData,
+        minAmountUsd,
+        maxAmountUsd,
+        sortOrder,
+        isEnabled,
+      },
+    });
+  },
+  async adminListDepositRequests() {
+    return this.requestGatewayAction({
+      action: "admin.deposit.requests.list",
+    });
+  },
+  async adminReviewDepositRequest({ requestId, decision, note }) {
+    return this.requestGatewayAction({
+      action: "admin.deposit.request.review",
+      payload: { requestId, decision, note },
+    });
+  },
   async adminListKycRequests() {
     return this.requestGatewayAction({
       action: "admin.kyc.list",
+    });
+  },
+  async adminListUsers({ kycStatus } = {}) {
+    return this.requestGatewayAction({
+      action: "admin.users.list",
+      payload: { kycStatus },
+    });
+  },
+  async adminGetUserDetail({ userId }) {
+    return this.requestGatewayAction({
+      action: "admin.user.detail",
+      payload: { userId },
+    });
+  },
+  async adminUpdateUser({ userId, name, firstName, lastName, email, mobile, avatarUrl, kycStatus, walletBalances }) {
+    return this.requestGatewayAction({
+      action: "admin.user.update",
+      payload: {
+        userId,
+        name,
+        firstName,
+        lastName,
+        email,
+        mobile,
+        avatarUrl,
+        kycStatus,
+        walletBalances,
+      },
     });
   },
   async adminReviewKycRequest({ requestId, decision, note }) {
@@ -1558,65 +1669,564 @@ function getAdminKycBadgeLabel(status) {
   return { text: "Pending", className: "is-pending" };
 }
 
+function getAdminDepositBadgeLabel(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "approved") {
+    return { text: "Approved", className: "is-authenticated" };
+  }
+  if (normalized === "rejected") {
+    return { text: "Rejected", className: "is-rejected" };
+  }
+  return { text: "Pending", className: "is-pending" };
+}
+
+function formatUsdAmount(value) {
+  const numeric = Number(value || 0);
+  return numeric.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function isImageDataUri(value) {
+  return /^data:image\//i.test(String(value || "").trim());
+}
+
 function AdminPanelPage({ onBackHome, onGoAuth }) {
   const authService = getAuthService();
-  const [requests, setRequests] = useState([]);
-  const [stats, setStats] = useState({
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
+  const [depositMenuOpen, setDepositMenuOpen] = useState(true);
+  const [activeDepositSubsection, setActiveDepositSubsection] = useState("assets");
+  const [overviewFilter, setOverviewFilter] = useState("all");
+
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedUserDetail, setSelectedUserDetail] = useState(null);
+  const [userDetailLoading, setUserDetailLoading] = useState(false);
+  const [userDetailError, setUserDetailError] = useState("");
+  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [userSaveLoading, setUserSaveLoading] = useState(false);
+  const [userSaveError, setUserSaveError] = useState("");
+  const [userSaveNotice, setUserSaveNotice] = useState("");
+  const [userForm, setUserForm] = useState({
+    userId: "",
+    name: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    mobile: "",
+    avatarUrl: "",
+    kycStatus: "pending",
+    walletBalances: [],
+  });
+
+  const [kycRequests, setKycRequests] = useState([]);
+  const [kycStats, setKycStats] = useState({
     totalUsers: 0,
     pendingVerifications: 0,
     authenticatedUsers: 0,
     rejectedUsers: 0,
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [loadingKyc, setLoadingKyc] = useState(true);
+  const [kycError, setKycError] = useState("");
+  const [kycNotice, setKycNotice] = useState("");
   const [reviewingRequestId, setReviewingRequestId] = useState(null);
+
+  const [noticeInput, setNoticeInput] = useState("");
+  const [noticeUpdatedAt, setNoticeUpdatedAt] = useState("");
+  const [noticeSubmitting, setNoticeSubmitting] = useState(false);
+  const [noticeError, setNoticeError] = useState("");
+  const [noticeSuccess, setNoticeSuccess] = useState("");
+
+  const [assetForm, setAssetForm] = useState({
+    assetId: null,
+    symbol: "",
+    name: "",
+    chainName: "",
+    rechargeAddress: "",
+    qrCodeData: "",
+    minAmountUsd: "10",
+    maxAmountUsd: "1000000",
+    sortOrder: "0",
+    isEnabled: true,
+  });
+  const [assetStats, setAssetStats] = useState({ totalAssets: 0, enabledAssets: 0 });
+  const [depositAssets, setDepositAssets] = useState([]);
+  const [assetsLoading, setAssetsLoading] = useState(true);
+  const [assetsError, setAssetsError] = useState("");
+  const [assetsNotice, setAssetsNotice] = useState("");
+  const [assetSaving, setAssetSaving] = useState(false);
+
+  const [depositRequests, setDepositRequests] = useState([]);
+  const [depositStats, setDepositStats] = useState({
+    totalRequests: 0,
+    pendingRequests: 0,
+    approvedRequests: 0,
+    rejectedRequests: 0,
+  });
+  const [depositLoading, setDepositLoading] = useState(true);
+  const [depositError, setDepositError] = useState("");
+  const [depositNotice, setDepositNotice] = useState("");
+  const [reviewingDepositId, setReviewingDepositId] = useState(null);
+  const [selectedDepositRequestId, setSelectedDepositRequestId] = useState(null);
+  const [selectedKycRequestId, setSelectedKycRequestId] = useState(null);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [kycModalOpen, setKycModalOpen] = useState(false);
+  const [depositRejectReason, setDepositRejectReason] = useState("");
+  const [kycRejectReason, setKycRejectReason] = useState("");
+
+  const selectedDepositRequest = depositRequests.find((item) => item.requestId === selectedDepositRequestId) || null;
+  const selectedKycRequest = kycRequests.find((item) => item.requestId === selectedKycRequestId) || null;
 
   const loadKycRequests = async ({ withLoading = true } = {}) => {
     if (withLoading) {
-      setLoading(true);
+      setLoadingKyc(true);
     }
-    setError("");
+    setKycError("");
 
     try {
       const data = await authService.adminListKycRequests();
-      setRequests(Array.isArray(data?.requests) ? data.requests : []);
-      setStats({
+      const nextRequests = Array.isArray(data?.requests) ? data.requests : [];
+      setKycRequests(nextRequests);
+      setSelectedKycRequestId((previousId) => {
+        if (previousId && nextRequests.some((item) => item.requestId === previousId)) {
+          return previousId;
+        }
+        return nextRequests[0]?.requestId || null;
+      });
+      setKycStats({
         totalUsers: data?.stats?.totalUsers || 0,
         pendingVerifications: data?.stats?.pendingVerifications || 0,
         authenticatedUsers: data?.stats?.authenticatedUsers || 0,
         rejectedUsers: data?.stats?.rejectedUsers || 0,
       });
     } catch (loadError) {
-      setError(loadError.message || "Could not load KYC requests.");
+      setKycError(loadError.message || "Could not load KYC requests.");
     } finally {
       if (withLoading) {
-        setLoading(false);
+        setLoadingKyc(false);
+      }
+    }
+  };
+
+  const loadAdminUsers = async ({ withLoading = true, statusFilter = overviewFilter } = {}) => {
+    if (withLoading) {
+      setUsersLoading(true);
+    }
+    setUsersError("");
+
+    try {
+      const data = await authService.adminListUsers({
+        kycStatus: statusFilter === "all" ? "" : statusFilter,
+      });
+
+      const users = Array.isArray(data?.users) ? data.users : [];
+      setAdminUsers(users);
+      setKycStats({
+        totalUsers: data?.stats?.totalUsers || 0,
+        pendingVerifications: data?.stats?.pendingVerifications || 0,
+        authenticatedUsers: data?.stats?.authenticatedUsers || 0,
+        rejectedUsers: data?.stats?.rejectedUsers || 0,
+      });
+
+      setSelectedUserId((previousId) => {
+        if (previousId && users.some((item) => item.userId === previousId)) {
+          return previousId;
+        }
+        return users[0]?.userId || "";
+      });
+    } catch (loadError) {
+      setUsersError(loadError.message || "Could not load users.");
+    } finally {
+      if (withLoading) {
+        setUsersLoading(false);
+      }
+    }
+  };
+
+  const loadAdminUserDetail = async (userId) => {
+    if (!userId) {
+      setSelectedUserDetail(null);
+      return;
+    }
+
+    setUserDetailLoading(true);
+    setUserDetailError("");
+    setSelectedUserId(userId);
+    try {
+      const detail = await authService.adminGetUserDetail({ userId });
+      setSelectedUserDetail(detail || null);
+      setUserForm({
+        userId: detail?.user?.userId || "",
+        name: detail?.user?.name || "",
+        firstName: detail?.user?.firstName || "",
+        lastName: detail?.user?.lastName || "",
+        email: detail?.user?.email || "",
+        mobile: detail?.user?.mobile || "",
+        avatarUrl: detail?.user?.avatarUrl || "",
+        kycStatus: detail?.user?.kycStatus || "pending",
+        walletBalances: Array.isArray(detail?.wallet?.balances)
+          ? detail.wallet.balances.map((item) => ({
+              symbol: item.symbol || "",
+              name: item.name || "",
+              totalUsd: String(item.totalUsd ?? 0),
+            }))
+          : [],
+      });
+    } catch (detailError) {
+      setSelectedUserDetail(null);
+      setUserDetailError(detailError.message || "Could not load user details.");
+    } finally {
+      setUserDetailLoading(false);
+    }
+  };
+
+  const loadNotice = async () => {
+    setNoticeError("");
+    try {
+      const data = await authService.adminGetNotice();
+      setNoticeInput(data?.notice?.message || "");
+      setNoticeUpdatedAt(data?.notice?.updatedAt || "");
+    } catch (loadError) {
+      setNoticeError(loadError.message || "Could not load notice.");
+    }
+  };
+
+  const loadDepositAssets = async ({ withLoading = true } = {}) => {
+    if (withLoading) {
+      setAssetsLoading(true);
+    }
+    setAssetsError("");
+    try {
+      const data = await authService.adminListDepositAssets();
+      setDepositAssets(Array.isArray(data?.assets) ? data.assets : []);
+      setAssetStats({
+        totalAssets: data?.stats?.totalAssets || 0,
+        enabledAssets: data?.stats?.enabledAssets || 0,
+      });
+    } catch (loadError) {
+      setAssetsError(loadError.message || "Could not load deposit assets.");
+    } finally {
+      if (withLoading) {
+        setAssetsLoading(false);
+      }
+    }
+  };
+
+  const loadDepositRequests = async ({ withLoading = true } = {}) => {
+    if (withLoading) {
+      setDepositLoading(true);
+    }
+    setDepositError("");
+    try {
+      const data = await authService.adminListDepositRequests();
+      const nextRequests = Array.isArray(data?.requests) ? data.requests : [];
+      setDepositRequests(nextRequests);
+      setSelectedDepositRequestId((previousId) => {
+        if (previousId && nextRequests.some((item) => item.requestId === previousId)) {
+          return previousId;
+        }
+        return nextRequests[0]?.requestId || null;
+      });
+      setDepositStats({
+        totalRequests: data?.stats?.totalRequests || 0,
+        pendingRequests: data?.stats?.pendingRequests || 0,
+        approvedRequests: data?.stats?.approvedRequests || 0,
+        rejectedRequests: data?.stats?.rejectedRequests || 0,
+      });
+    } catch (loadError) {
+      setDepositError(loadError.message || "Could not load deposit requests.");
+    } finally {
+      if (withLoading) {
+        setDepositLoading(false);
       }
     }
   };
 
   useEffect(() => {
     loadKycRequests();
+    loadNotice();
+    loadDepositAssets();
+    loadDepositRequests();
   }, []);
 
+  useEffect(() => {
+    loadAdminUsers();
+  }, [overviewFilter]);
+
+  useEffect(() => {
+    if (selectedUserId) {
+      loadAdminUserDetail(selectedUserId);
+    } else {
+      setSelectedUserDetail(null);
+    }
+  }, [selectedUserId]);
+
   const handleReview = async (requestId, decision) => {
-    setNotice("");
-    setError("");
+    setKycNotice("");
+    setKycError("");
     setReviewingRequestId(requestId);
     try {
-      const data = await authService.adminReviewKycRequest({ requestId, decision, note: "" });
-      setNotice(data?.message || "KYC status updated.");
+      const reason = decision === "rejected" ? kycRejectReason.trim() : "";
+      const data = await authService.adminReviewKycRequest({ requestId, decision, note: reason });
+      setKycNotice(data?.message || "KYC status updated.");
       await loadKycRequests({ withLoading: false });
+      await loadAdminUsers({ withLoading: false, statusFilter: overviewFilter });
+      if (selectedUserId) {
+        await loadAdminUserDetail(selectedUserId);
+      }
+      if (decision === "rejected") {
+        setKycRejectReason("");
+      }
     } catch (reviewError) {
-      setError(reviewError.message || "Could not update KYC status.");
+      setKycError(reviewError.message || "Could not update KYC status.");
     } finally {
       setReviewingRequestId(null);
     }
   };
 
+  const handlePublishNotice = async (event) => {
+    event.preventDefault();
+    setNoticeError("");
+    setNoticeSuccess("");
+
+    if (noticeInput.trim().length < 6) {
+      setNoticeError("Notice must contain at least 6 characters.");
+      return;
+    }
+
+    setNoticeSubmitting(true);
+    try {
+      const data = await authService.adminUpdateNotice({ message: noticeInput.trim() });
+      setNoticeSuccess(data?.message || "Notice published.");
+      setNoticeInput(data?.notice?.message || noticeInput.trim());
+      setNoticeUpdatedAt(data?.notice?.updatedAt || "");
+    } catch (submitError) {
+      setNoticeError(submitError.message || "Could not publish notice.");
+    } finally {
+      setNoticeSubmitting(false);
+    }
+  };
+
+  const resetAssetForm = () => {
+    setAssetForm({
+      assetId: null,
+      symbol: "",
+      name: "",
+      chainName: "",
+      rechargeAddress: "",
+      qrCodeData: "",
+      minAmountUsd: "10",
+      maxAmountUsd: "1000000",
+      sortOrder: "0",
+      isEnabled: true,
+    });
+  };
+
+  const editAsset = (asset) => {
+    setAssetForm({
+      assetId: asset.assetId,
+      symbol: asset.symbol || "",
+      name: asset.name || "",
+      chainName: asset.chainName || "",
+      rechargeAddress: asset.rechargeAddress || "",
+      qrCodeData: asset.qrCodeData || "",
+      minAmountUsd: String(asset.minAmountUsd ?? 10),
+      maxAmountUsd: String(asset.maxAmountUsd ?? 1000000),
+      sortOrder: String(asset.sortOrder ?? 0),
+      isEnabled: Boolean(asset.isEnabled),
+    });
+  };
+
+  const submitAsset = async (event) => {
+    event.preventDefault();
+    setAssetsError("");
+    setAssetsNotice("");
+
+    if (!assetForm.symbol.trim()) {
+      setAssetsError("Symbol is required.");
+      return;
+    }
+    if (!assetForm.name.trim()) {
+      setAssetsError("Asset name is required.");
+      return;
+    }
+    if (!assetForm.chainName.trim()) {
+      setAssetsError("Chain name is required.");
+      return;
+    }
+    if (!assetForm.rechargeAddress.trim()) {
+      setAssetsError("Recharge address is required.");
+      return;
+    }
+    if (!assetForm.qrCodeData.trim()) {
+      setAssetsError("QR code value is required.");
+      return;
+    }
+
+    setAssetSaving(true);
+    try {
+      const data = await authService.adminUpsertDepositAsset({
+        assetId: assetForm.assetId,
+        symbol: assetForm.symbol,
+        name: assetForm.name,
+        chainName: assetForm.chainName,
+        rechargeAddress: assetForm.rechargeAddress,
+        qrCodeData: assetForm.qrCodeData,
+        minAmountUsd: Number(assetForm.minAmountUsd),
+        maxAmountUsd: Number(assetForm.maxAmountUsd),
+        sortOrder: Number(assetForm.sortOrder),
+        isEnabled: assetForm.isEnabled,
+      });
+      setAssetsNotice(data?.message || "Asset saved.");
+      await loadDepositAssets({ withLoading: false });
+      resetAssetForm();
+    } catch (submitError) {
+      setAssetsError(submitError.message || "Could not save asset.");
+    } finally {
+      setAssetSaving(false);
+    }
+  };
+
+  const handleReviewDeposit = async (requestId, decision) => {
+    setDepositError("");
+    setDepositNotice("");
+    setReviewingDepositId(requestId);
+    try {
+      const reason = decision === "rejected" ? depositRejectReason.trim() : "";
+      const data = await authService.adminReviewDepositRequest({ requestId, decision, note: reason });
+      setDepositNotice(data?.message || "Deposit request updated.");
+      await loadDepositRequests({ withLoading: false });
+      if (selectedUserId) {
+        await loadAdminUserDetail(selectedUserId);
+      }
+      if (decision === "rejected") {
+        setDepositRejectReason("");
+      }
+    } catch (reviewError) {
+      setDepositError(reviewError.message || "Could not update deposit request.");
+    } finally {
+      setReviewingDepositId(null);
+    }
+  };
+
+  const handleUserFormChange = (field, value) => {
+    setUserForm((previous) => ({ ...previous, [field]: value }));
+  };
+
+  const handleWalletItemChange = (index, field, value) => {
+    setUserForm((previous) => {
+      const nextItems = [...previous.walletBalances];
+      nextItems[index] = {
+        ...nextItems[index],
+        [field]: value,
+      };
+      return {
+        ...previous,
+        walletBalances: nextItems,
+      };
+    });
+  };
+
+  const addWalletItem = () => {
+    setUserForm((previous) => ({
+      ...previous,
+      walletBalances: [...previous.walletBalances, { symbol: "", name: "", totalUsd: "0" }],
+    }));
+  };
+
+  const removeWalletItem = (index) => {
+    setUserForm((previous) => {
+      const nextItems = previous.walletBalances.filter((_, itemIndex) => itemIndex !== index);
+      return {
+        ...previous,
+        walletBalances: nextItems,
+      };
+    });
+  };
+
+  const handleSaveUser = async () => {
+    setUserSaveError("");
+    setUserSaveNotice("");
+    setUserSaveLoading(true);
+    try {
+      const data = await authService.adminUpdateUser({
+        userId: userForm.userId,
+        name: userForm.name,
+        firstName: userForm.firstName,
+        lastName: userForm.lastName,
+        email: userForm.email,
+        mobile: userForm.mobile,
+        avatarUrl: userForm.avatarUrl,
+        kycStatus: userForm.kycStatus,
+        walletBalances: userForm.walletBalances.map((item) => ({
+          symbol: item.symbol,
+          name: item.name,
+          totalUsd: Number(item.totalUsd || 0),
+        })),
+      });
+      setUserSaveNotice(data?.message || "User updated successfully.");
+      setSelectedUserDetail(data || null);
+      await loadAdminUsers({ withLoading: false, statusFilter: overviewFilter });
+      await loadKycRequests({ withLoading: false });
+      await loadDepositRequests({ withLoading: false });
+    } catch (saveError) {
+      setUserSaveError(saveError.message || "Could not save user.");
+    } finally {
+      setUserSaveLoading(false);
+    }
+  };
+
+  const openSection = (sectionKey) => {
+    setActiveSection(sectionKey);
+    setConsoleOpen(false);
+  };
+
+  const openDepositSubsection = (subsection) => {
+    setActiveSection("deposit");
+    setActiveDepositSubsection(subsection);
+    setDepositMenuOpen(true);
+    setConsoleOpen(false);
+  };
+
+  const statsCards = [
+    {
+      key: "all",
+      title: "Total Users",
+      value: kycStats.totalUsers,
+      subtitle: "Registered accounts",
+    },
+    {
+      key: "pending",
+      title: "Pending Verifications",
+      value: kycStats.pendingVerifications,
+      subtitle: "Needs review",
+    },
+    {
+      key: "authenticated",
+      title: "Authenticated",
+      value: kycStats.authenticatedUsers,
+      subtitle: "KYC approved users",
+    },
+    {
+      key: "rejected",
+      title: "Rejected",
+      value: kycStats.rejectedUsers,
+      subtitle: "Review failed",
+    },
+  ];
+
   return (
-    <main className="admin-shell">
+    <main className={`admin-shell ${consoleOpen ? "console-open" : ""}`}>
+      <button type="button" className="admin-sidebar-toggle" onClick={() => setConsoleOpen((open) => !open)}>
+        <i className={`fas ${consoleOpen ? "fa-times" : "fa-bars"}`} />
+      </button>
+
+      {consoleOpen ? <button type="button" className="admin-sidebar-overlay" onClick={() => setConsoleOpen(false)} /> : null}
+
       <aside className="admin-sidebar">
         <div className="admin-logo">
           <i className="fas fa-user-shield" />
@@ -1624,21 +2234,51 @@ function AdminPanelPage({ onBackHome, onGoAuth }) {
         </div>
 
         <nav className="admin-nav">
-          <button type="button" className="active">
+          <button type="button" className={activeSection === "overview" ? "active" : ""} onClick={() => openSection("overview")}>
             <i className="fas fa-chart-pie" />
             Overview
           </button>
-          <button type="button" className="active">
+
+          <button type="button" className={activeSection === "notice" ? "active" : ""} onClick={() => openSection("notice")}>
+            <i className="fas fa-bullhorn" />
+            Notice Section
+          </button>
+
+          <button
+            type="button"
+            className={activeSection === "deposit" ? "active" : ""}
+            onClick={() => {
+              setActiveSection("deposit");
+              setDepositMenuOpen((value) => !value);
+            }}
+          >
+            <i className="fas fa-wallet" />
+            Deposit Section
+            <i className={`fas admin-nav-caret ${depositMenuOpen ? "fa-chevron-up" : "fa-chevron-down"}`} />
+          </button>
+
+          {depositMenuOpen ? (
+            <div className="admin-submenu">
+              <button
+                type="button"
+                className={activeSection === "deposit" && activeDepositSubsection === "assets" ? "active" : ""}
+                onClick={() => openDepositSubsection("assets")}
+              >
+                Deposit Asset Configuration
+              </button>
+              <button
+                type="button"
+                className={activeSection === "deposit" && activeDepositSubsection === "verification" ? "active" : ""}
+                onClick={() => openDepositSubsection("verification")}
+              >
+                Deposit Verification
+              </button>
+            </div>
+          ) : null}
+
+          <button type="button" className={activeSection === "kyc" ? "active" : ""} onClick={() => openSection("kyc")}>
             <i className="fas fa-id-card" />
             KYC Requests
-          </button>
-          <button type="button" disabled>
-            <i className="fas fa-coins" />
-            Markets
-          </button>
-          <button type="button" disabled>
-            <i className="fas fa-shield-alt" />
-            Security
           </button>
         </nav>
       </aside>
@@ -1660,106 +2300,845 @@ function AdminPanelPage({ onBackHome, onGoAuth }) {
           </div>
         </header>
 
-        <div className="admin-grid">
-          <article>
-            <h3>Total Users</h3>
-            <p>{stats.totalUsers}</p>
-            <span>Registered accounts</span>
-          </article>
-          <article>
-            <h3>Pending Verifications</h3>
-            <p>{stats.pendingVerifications}</p>
-            <span>Needs review</span>
-          </article>
-          <article>
-            <h3>Authenticated</h3>
-            <p>{stats.authenticatedUsers}</p>
-            <span>KYC approved users</span>
-          </article>
-          <article>
-            <h3>Rejected</h3>
-            <p>{stats.rejectedUsers}</p>
-            <span>Review failed</span>
-          </article>
-        </div>
+        {activeSection === "overview" ? (
+          <>
+            <div className="admin-grid admin-grid-clickable">
+              {statsCards.map((card) => (
+                <button
+                  type="button"
+                  key={card.key}
+                  className={`admin-stat-card ${overviewFilter === card.key ? "active" : ""}`}
+                  onClick={() => {
+                    setOverviewFilter(card.key);
+                    setSelectedUserDetail(null);
+                  }}
+                >
+                  <h3>{card.title}</h3>
+                  <p>{card.value}</p>
+                  <span>{card.subtitle}</span>
+                </button>
+              ))}
+            </div>
 
-        <section className="admin-kyc-board">
-          <div className="admin-kyc-board-header">
-            <h2>KYC Submission Queue</h2>
-            <button type="button" className="btn btn-ghost" onClick={() => loadKycRequests()} disabled={loading}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </button>
-          </div>
+            <section className="admin-kyc-board">
+              <div className="admin-kyc-board-header">
+                <h2>User Directory</h2>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => loadAdminUsers({ statusFilter: overviewFilter })}
+                  disabled={usersLoading}
+                >
+                  {usersLoading ? "Refreshing..." : "Refresh Users"}
+                </button>
+              </div>
 
-          {notice ? <p className="admin-kyc-notice">{notice}</p> : null}
-          {error ? <p className="admin-kyc-error">{error}</p> : null}
+              {usersError ? <p className="admin-kyc-error">{usersError}</p> : null}
+              {usersLoading ? <p className="admin-kyc-empty">Loading users...</p> : null}
 
-          {loading ? <p className="admin-kyc-empty">Loading KYC requests...</p> : null}
+              {!usersLoading && adminUsers.length ? (
+                <div className="admin-directory-layout">
+                  <div className="admin-directory-list">
+                    {adminUsers.map((user) => {
+                      const badge = getAdminKycBadgeLabel(user.kycStatus);
+                      return (
+                        <button
+                          type="button"
+                          key={user.userId}
+                          className={`admin-user-item ${selectedUserId === user.userId ? "active" : ""}`}
+                          onClick={async () => {
+                            setSelectedUserId(user.userId);
+                            await loadAdminUserDetail(user.userId);
+                            setUserModalOpen(true);
+                          }}
+                        >
+                          <span className="admin-user-avatar">
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt={`${user.name || "User"} avatar`} />
+                            ) : (
+                              <strong>{String(user.name || "U").charAt(0).toUpperCase()}</strong>
+                            )}
+                          </span>
+                          <span className="admin-user-meta">
+                            <strong>{user.name || "User"}</strong>
+                            <small>User ID: {user.userId || "-"}</small>
+                            <small>{user.email || "-"}</small>
+                            <span className={`admin-kyc-badge ${badge.className}`}>{badge.text}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-          {!loading && !requests.length ? (
-            <p className="admin-kyc-empty">No KYC submissions yet. User submit করলে এখানে auto show করবে.</p>
-          ) : null}
+                  <div className="admin-directory-detail">
+                    <div className="admin-user-detail-card">
+                      <h3>Floating User Form</h3>
+                      <p className="admin-kyc-empty">User list থেকে profile click করলে full editable popup form open হবে.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
-          {!loading && requests.length ? (
-            <div className="admin-kyc-table-wrap">
-              <table className="admin-kyc-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Certification</th>
-                    <th>SSN</th>
-                    <th>Status</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((item) => {
-                    const badge = getAdminKycBadgeLabel(item.status);
-                    const isPending = badge.className === "is-pending";
-                    const isReviewing = reviewingRequestId === item.requestId;
+              {!usersLoading && !adminUsers.length ? <p className="admin-kyc-empty">No user found for this filter.</p> : null}
+            </section>
 
-                    return (
-                      <tr key={item.requestId}>
+          </>
+        ) : null}
+
+        {activeSection === "notice" ? (
+          <section className="admin-kyc-board">
+            <div className="admin-kyc-board-header">
+              <h2>Notice Section</h2>
+            </div>
+
+            <form className="prodash-form" onSubmit={handlePublishNotice}>
+              <label>
+                Notice Text
+                <textarea
+                  rows={3}
+                  value={noticeInput}
+                  onChange={(event) => setNoticeInput(event.target.value)}
+                  placeholder="Enter notice text shown on top of user dashboard"
+                />
+              </label>
+
+              {noticeUpdatedAt ? <p className="admin-kyc-empty">Last update: {formatAdminTime(noticeUpdatedAt)}</p> : null}
+              {noticeError ? <p className="admin-kyc-error">{noticeError}</p> : null}
+              {noticeSuccess ? <p className="admin-kyc-notice">{noticeSuccess}</p> : null}
+
+              <button type="submit" className="btn btn-primary" disabled={noticeSubmitting}>
+                {noticeSubmitting ? "Publishing..." : "Publish Notice"}
+              </button>
+            </form>
+          </section>
+        ) : null}
+
+        {activeSection === "deposit" && activeDepositSubsection === "assets" ? (
+          <section className="admin-kyc-board">
+            <div className="admin-kyc-board-header">
+              <h2>Deposit Asset Configuration</h2>
+              <button type="button" className="btn btn-ghost" onClick={() => loadDepositAssets()} disabled={assetsLoading}>
+                {assetsLoading ? "Refreshing..." : "Refresh Assets"}
+              </button>
+            </div>
+
+            <div className="admin-grid" style={{ marginTop: "0" }}>
+              <article>
+                <h3>Total Assets</h3>
+                <p>{assetStats.totalAssets}</p>
+                <span>Configured assets</span>
+              </article>
+              <article>
+                <h3>Enabled Assets</h3>
+                <p>{assetStats.enabledAssets}</p>
+                <span>Visible to users</span>
+              </article>
+            </div>
+
+            <form className="prodash-form" onSubmit={submitAsset}>
+              <label>
+                Symbol
+                <input
+                  type="text"
+                  value={assetForm.symbol}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, symbol: event.target.value.toUpperCase() }))}
+                  placeholder="BTC"
+                />
+              </label>
+
+              <label>
+                Name
+                <input
+                  type="text"
+                  value={assetForm.name}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="Bitcoin"
+                />
+              </label>
+
+              <label>
+                Chain Name
+                <input
+                  type="text"
+                  value={assetForm.chainName}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, chainName: event.target.value }))}
+                  placeholder="Bitcoin / ERC20 / TRC20"
+                />
+              </label>
+
+              <label>
+                Recharge Address
+                <input
+                  type="text"
+                  value={assetForm.rechargeAddress}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, rechargeAddress: event.target.value }))}
+                  placeholder="Wallet address"
+                />
+              </label>
+
+              <label>
+                QR Code Value
+                <input
+                  type="text"
+                  value={assetForm.qrCodeData}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, qrCodeData: event.target.value }))}
+                  placeholder="QR image URL or data URI"
+                />
+              </label>
+
+              <label>
+                Min Amount (USD)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={assetForm.minAmountUsd}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, minAmountUsd: event.target.value }))}
+                />
+              </label>
+
+              <label>
+                Max Amount (USD)
+                <input
+                  type="number"
+                  step="0.01"
+                  value={assetForm.maxAmountUsd}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, maxAmountUsd: event.target.value }))}
+                />
+              </label>
+
+              <label>
+                Sort Order
+                <input
+                  type="number"
+                  value={assetForm.sortOrder}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
+                />
+              </label>
+
+              <label className="prodash-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={assetForm.isEnabled}
+                  onChange={(event) => setAssetForm((prev) => ({ ...prev, isEnabled: event.target.checked }))}
+                />
+                Enabled for user deposits
+              </label>
+
+              <div className="admin-actions" style={{ paddingTop: "0.25rem" }}>
+                <button type="submit" className="btn btn-primary" disabled={assetSaving}>
+                  {assetSaving ? "Saving..." : assetForm.assetId ? "Update Asset" : "Add Asset"}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={resetAssetForm}>
+                  Reset
+                </button>
+              </div>
+
+              {assetsError ? <p className="admin-kyc-error">{assetsError}</p> : null}
+              {assetsNotice ? <p className="admin-kyc-notice">{assetsNotice}</p> : null}
+            </form>
+
+            {!assetsLoading && depositAssets.length ? (
+              <div className="admin-kyc-table-wrap">
+                <table className="admin-kyc-table">
+                  <thead>
+                    <tr>
+                      <th>Asset</th>
+                      <th>Chain</th>
+                      <th>Min / Max</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {depositAssets.map((asset) => (
+                      <tr key={asset.assetId}>
                         <td>
-                          <strong>{item.accountName || item.fullName || "User"}</strong>
-                          <span>{item.accountEmail || "-"}</span>
-                          <small>ID {item.userId}</small>
+                          <strong>{asset.symbol}</strong>
+                          <span>{asset.name}</span>
                         </td>
-                        <td>{String(item.certification || "-").replaceAll("_", " ")}</td>
-                        <td>{item.ssn || "-"}</td>
+                        <td>{asset.chainName}</td>
                         <td>
-                          <span className={`admin-kyc-badge ${badge.className}`}>{badge.text}</span>
+                          <strong>${formatUsdAmount(asset.minAmountUsd)}</strong>
+                          <span>to ${formatUsdAmount(asset.maxAmountUsd)}</span>
                         </td>
-                        <td>{formatAdminTime(item.submittedAt)}</td>
                         <td>
-                          <div className="admin-kyc-actions">
-                            <button
-                              type="button"
-                              className="admin-approve-btn"
-                              disabled={!isPending || isReviewing}
-                              onClick={() => handleReview(item.requestId, "authenticated")}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-reject-btn"
-                              disabled={!isPending || isReviewing}
-                              onClick={() => handleReview(item.requestId, "rejected")}
-                            >
-                              Reject
-                            </button>
-                          </div>
+                          <span className={`admin-kyc-badge ${asset.isEnabled ? "is-authenticated" : "is-rejected"}`}>
+                            {asset.isEnabled ? "Enabled" : "Disabled"}
+                          </span>
+                        </td>
+                        <td>
+                          <button type="button" className="admin-approve-btn" onClick={() => editAsset(asset)}>
+                            Edit
+                          </button>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            {!assetsLoading && !depositAssets.length ? <p className="admin-kyc-empty">No deposit asset configured yet.</p> : null}
+          </section>
+        ) : null}
+
+        {activeSection === "deposit" && activeDepositSubsection === "verification" ? (
+          <>
+            <section className="admin-kyc-board">
+              <div className="admin-kyc-board-header">
+                <h2>Deposit Verification Queue</h2>
+                <button type="button" className="btn btn-ghost" onClick={() => loadDepositRequests()} disabled={depositLoading}>
+                  {depositLoading ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+
+              <div className="admin-grid" style={{ marginTop: "0" }}>
+                <article>
+                  <h3>Total</h3>
+                  <p>{depositStats.totalRequests}</p>
+                  <span>All requests</span>
+                </article>
+                <article>
+                  <h3>Pending</h3>
+                  <p>{depositStats.pendingRequests}</p>
+                  <span>Awaiting verification</span>
+                </article>
+                <article>
+                  <h3>Approved</h3>
+                  <p>{depositStats.approvedRequests}</p>
+                  <span>Credited to wallets</span>
+                </article>
+                <article>
+                  <h3>Rejected</h3>
+                  <p>{depositStats.rejectedRequests}</p>
+                  <span>Declined requests</span>
+                </article>
+              </div>
+
+              {depositNotice ? <p className="admin-kyc-notice">{depositNotice}</p> : null}
+              {depositError ? <p className="admin-kyc-error">{depositError}</p> : null}
+              {depositLoading ? <p className="admin-kyc-empty">Loading deposit requests...</p> : null}
+
+              {!depositLoading && !depositRequests.length ? <p className="admin-kyc-empty">No deposit requests yet.</p> : null}
+
+              {!depositLoading && depositRequests.length ? (
+                <div className="admin-kyc-table-wrap">
+                  <table className="admin-kyc-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Asset</th>
+                        <th>Amount (USD)</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {depositRequests.map((item) => {
+                        const badge = getAdminDepositBadgeLabel(item.status);
+                        const isPending = badge.className === "is-pending";
+                        const isReviewing = reviewingDepositId === item.requestId;
+
+                        return (
+                          <tr key={item.requestId}>
+                            <td>
+                              <strong>{item.accountName || "User"}</strong>
+                              <span>{item.accountEmail || "-"}</span>
+                              <small>ID {item.userId}</small>
+                            </td>
+                            <td>
+                              <strong>{item.assetSymbol}</strong>
+                              <span>{item.chainName}</span>
+                            </td>
+                            <td>${formatUsdAmount(item.amountUsd)}</td>
+                            <td>
+                              <span className={`admin-kyc-badge ${badge.className}`}>{badge.text}</span>
+                            </td>
+                            <td>{formatAdminTime(item.submittedAt)}</td>
+                            <td>
+                              <div className="admin-kyc-actions">
+                                <button
+                                  type="button"
+                                  className="admin-approve-btn"
+                                  onClick={() => {
+                                    setSelectedDepositRequestId(item.requestId);
+                                    setDepositRejectReason("");
+                                    setDepositModalOpen(true);
+                                  }}
+                                >
+                                  Open Form
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-approve-btn"
+                                  disabled={!isPending || isReviewing}
+                                  onClick={() => handleReviewDeposit(item.requestId, "approved")}
+                                >
+                                  Approve
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </section>
+
+          </>
+        ) : null}
+
+        {activeSection === "kyc" ? (
+          <>
+            <section className="admin-kyc-board">
+              <div className="admin-kyc-board-header">
+                <h2>KYC Request Section</h2>
+                <button type="button" className="btn btn-ghost" onClick={() => loadKycRequests()} disabled={loadingKyc}>
+                  {loadingKyc ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
+
+              {kycNotice ? <p className="admin-kyc-notice">{kycNotice}</p> : null}
+              {kycError ? <p className="admin-kyc-error">{kycError}</p> : null}
+              {loadingKyc ? <p className="admin-kyc-empty">Loading KYC requests...</p> : null}
+
+              {!loadingKyc && !kycRequests.length ? (
+                <p className="admin-kyc-empty">No KYC submissions yet. User submit করলে এখানে auto show করবে.</p>
+              ) : null}
+
+              {!loadingKyc && kycRequests.length ? (
+                <div className="admin-kyc-table-wrap">
+                  <table className="admin-kyc-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Certification</th>
+                        <th>SSN</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {kycRequests.map((item) => {
+                        const badge = getAdminKycBadgeLabel(item.status);
+                        const isPending = badge.className === "is-pending";
+                        const isReviewing = reviewingRequestId === item.requestId;
+
+                        return (
+                          <tr key={item.requestId}>
+                            <td>
+                              <strong>{item.accountName || item.fullName || "User"}</strong>
+                              <span>{item.accountEmail || "-"}</span>
+                              <small>ID {item.userId}</small>
+                            </td>
+                            <td>{String(item.certification || "-").replaceAll("_", " ")}</td>
+                            <td>{item.ssn || "-"}</td>
+                            <td>
+                              <span className={`admin-kyc-badge ${badge.className}`}>{badge.text}</span>
+                            </td>
+                            <td>{formatAdminTime(item.submittedAt)}</td>
+                            <td>
+                              <div className="admin-kyc-actions">
+                                <button
+                                  type="button"
+                                  className="admin-approve-btn"
+                                  onClick={() => {
+                                    setSelectedKycRequestId(item.requestId);
+                                    setKycRejectReason("");
+                                    setKycModalOpen(true);
+                                  }}
+                                >
+                                  Open Form
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-approve-btn"
+                                  disabled={!isPending || isReviewing}
+                                  onClick={() => handleReview(item.requestId, "authenticated")}
+                                >
+                                  Approve
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </section>
+
+          </>
+        ) : null}
+
+        {userModalOpen && selectedUserDetail?.user ? (
+          <div className="admin-modal-root" role="dialog" aria-modal="true" aria-label="User Details Form">
+            <button type="button" className="admin-modal-overlay" onClick={() => setUserModalOpen(false)} />
+            <article className="admin-modal-card admin-modal-wide">
+              <header className="admin-modal-header">
+                <div>
+                  <p className="admin-eyebrow">User Directory</p>
+                  <h2>User Details Form</h2>
+                </div>
+                <button type="button" className="admin-modal-close" onClick={() => setUserModalOpen(false)}>
+                  <i className="fas fa-times" />
+                </button>
+              </header>
+
+              <div className="admin-modal-body">
+                <div className="admin-user-info-grid">
+                  <div>
+                    <label>User ID</label>
+                    <strong>{userForm.userId || "-"}</strong>
+                  </div>
+                  <label>
+                    Name
+                    <input value={userForm.name} onChange={(event) => handleUserFormChange("name", event.target.value)} />
+                  </label>
+                  <label>
+                    First Name
+                    <input value={userForm.firstName} onChange={(event) => handleUserFormChange("firstName", event.target.value)} />
+                  </label>
+                  <label>
+                    Last Name
+                    <input value={userForm.lastName} onChange={(event) => handleUserFormChange("lastName", event.target.value)} />
+                  </label>
+                  <label>
+                    Email
+                    <input value={userForm.email} onChange={(event) => handleUserFormChange("email", event.target.value)} />
+                  </label>
+                  <label>
+                    Mobile
+                    <input value={userForm.mobile} onChange={(event) => handleUserFormChange("mobile", event.target.value)} />
+                  </label>
+                  <label>
+                    Avatar URL
+                    <input value={userForm.avatarUrl} onChange={(event) => handleUserFormChange("avatarUrl", event.target.value)} />
+                  </label>
+                  <label>
+                    KYC Status
+                    <select value={userForm.kycStatus} onChange={(event) => handleUserFormChange("kycStatus", event.target.value)}>
+                      <option value="pending">Pending</option>
+                      <option value="authenticated">Authenticated</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="admin-wallet-editor">
+                  <div className="admin-kyc-board-header" style={{ marginBottom: "0.35rem" }}>
+                    <h3>Wallet Balances (Editable)</h3>
+                    <button type="button" className="btn btn-ghost" onClick={addWalletItem}>
+                      Add Asset
+                    </button>
+                  </div>
+
+                  {userForm.walletBalances.length ? (
+                    <div className="admin-wallet-editor-list">
+                      {userForm.walletBalances.map((item, index) => (
+                        <article key={`wallet-${index}`} className="admin-wallet-editor-row">
+                          <input
+                            placeholder="Symbol"
+                            value={item.symbol}
+                            onChange={(event) => handleWalletItemChange(index, "symbol", event.target.value.toUpperCase())}
+                          />
+                          <input
+                            placeholder="Name"
+                            value={item.name}
+                            onChange={(event) => handleWalletItemChange(index, "name", event.target.value)}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="USD"
+                            value={item.totalUsd}
+                            onChange={(event) => handleWalletItemChange(index, "totalUsd", event.target.value)}
+                          />
+                          <button type="button" className="admin-reject-btn" onClick={() => removeWalletItem(index)}>
+                            Remove
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="admin-kyc-empty">No wallet assets in this account.</p>
+                  )}
+                </div>
+
+                {userSaveError ? <p className="admin-kyc-error">{userSaveError}</p> : null}
+                {userSaveNotice ? <p className="admin-kyc-notice">{userSaveNotice}</p> : null}
+
+                <div className="admin-actions">
+                  <button type="button" className="btn btn-primary" disabled={userSaveLoading} onClick={handleSaveUser}>
+                    {userSaveLoading ? "Saving..." : "Save All Changes"}
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setUserModalOpen(false)}>
+                    Close
+                  </button>
+                </div>
+
+                <div className="admin-history-grid">
+                  <section>
+                    <h4>Deposit History</h4>
+                    {selectedUserDetail.history?.deposit?.length ? (
+                      selectedUserDetail.history.deposit.map((item) => {
+                        const badge = getAdminDepositBadgeLabel(item.status);
+                        return (
+                          <article key={item.requestId} className="admin-history-card">
+                            <div>
+                              <strong>{item.assetSymbol}</strong>
+                              <span>${formatUsdAmount(item.amountUsd)}</span>
+                            </div>
+                            <span className={`admin-kyc-badge ${badge.className}`}>{badge.text}</span>
+                            <small>{formatAdminTime(item.submittedAt)}</small>
+                            {isImageDataUri(item.screenshotFileData) ? (
+                              <img className="admin-proof-image" src={item.screenshotFileData} alt={item.screenshotFileName || "deposit screenshot"} />
+                            ) : (
+                              <p className="admin-kyc-empty">Screenshot: {item.screenshotFileName || "Not available"}</p>
+                            )}
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <p className="admin-kyc-empty">No deposit history.</p>
+                    )}
+                  </section>
+
+                  <section>
+                    <h4>KYC History</h4>
+                    {selectedUserDetail.history?.kyc?.length ? (
+                      selectedUserDetail.history.kyc.map((item) => {
+                        const badge = getAdminKycBadgeLabel(item.status);
+                        return (
+                          <article key={item.requestId} className="admin-history-card">
+                            <div>
+                              <strong>{String(item.certification || "-").replaceAll("_", " ")}</strong>
+                              <span>SSN: {item.ssn || "-"}</span>
+                            </div>
+                            <span className={`admin-kyc-badge ${badge.className}`}>{badge.text}</span>
+                            <small>{formatAdminTime(item.submittedAt)}</small>
+                            <div className="admin-proof-grid">
+                              {isImageDataUri(item.frontFileData) ? (
+                                <img className="admin-proof-image" src={item.frontFileData} alt={item.frontFileName || "front proof"} />
+                              ) : (
+                                <p className="admin-kyc-empty">Front: {item.frontFileName || "N/A"}</p>
+                              )}
+                              {isImageDataUri(item.backFileData) ? (
+                                <img className="admin-proof-image" src={item.backFileData} alt={item.backFileName || "back proof"} />
+                              ) : (
+                                <p className="admin-kyc-empty">Back: {item.backFileName || "N/A"}</p>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <p className="admin-kyc-empty">No KYC history.</p>
+                    )}
+                  </section>
+                </div>
+              </div>
+            </article>
+          </div>
+        ) : null}
+
+        {depositModalOpen && selectedDepositRequest ? (
+          <div className="admin-modal-root" role="dialog" aria-modal="true" aria-label="Deposit Verification Form">
+            <button type="button" className="admin-modal-overlay" onClick={() => setDepositModalOpen(false)} />
+            <article className="admin-modal-card">
+              <header className="admin-modal-header">
+                <div>
+                  <p className="admin-eyebrow">Deposit Review</p>
+                  <h2>Deposit Verification Form</h2>
+                </div>
+                <button type="button" className="admin-modal-close" onClick={() => setDepositModalOpen(false)}>
+                  <i className="fas fa-times" />
+                </button>
+              </header>
+
+              <div className="admin-modal-body">
+                <div className="admin-user-info-grid">
+                  <div>
+                    <label>User</label>
+                    <strong>{selectedDepositRequest.accountName || "User"}</strong>
+                    <span>{selectedDepositRequest.accountEmail || "-"}</span>
+                  </div>
+                  <div>
+                    <label>User ID</label>
+                    <strong>{selectedDepositRequest.userId}</strong>
+                  </div>
+                  <div>
+                    <label>Asset</label>
+                    <strong>{selectedDepositRequest.assetSymbol}</strong>
+                    <span>{selectedDepositRequest.chainName || "-"}</span>
+                  </div>
+                  <div>
+                    <label>Amount (USD)</label>
+                    <strong>${formatUsdAmount(selectedDepositRequest.amountUsd)}</strong>
+                  </div>
+                  <div>
+                    <label>Current Status</label>
+                    <span className={`admin-kyc-badge ${getAdminDepositBadgeLabel(selectedDepositRequest.status).className}`}>
+                      {getAdminDepositBadgeLabel(selectedDepositRequest.status).text}
+                    </span>
+                  </div>
+                  <div>
+                    <label>Submitted</label>
+                    <strong>{formatAdminTime(selectedDepositRequest.submittedAt)}</strong>
+                  </div>
+                </div>
+
+                {isImageDataUri(selectedDepositRequest.screenshotFileData) ? (
+                  <img className="admin-proof-image" src={selectedDepositRequest.screenshotFileData} alt={selectedDepositRequest.screenshotFileName || "transaction screenshot"} />
+                ) : (
+                  <p className="admin-kyc-empty">Screenshot file: {selectedDepositRequest.screenshotFileName || "N/A"}</p>
+                )}
+
+                <label>
+                  Reject Reason (required when reject)
+                  <textarea
+                    rows={3}
+                    value={depositRejectReason}
+                    onChange={(event) => setDepositRejectReason(event.target.value)}
+                    placeholder="Why are you rejecting this deposit?"
+                  />
+                </label>
+
+                <div className="admin-kyc-actions admin-modal-actions">
+                  <button
+                    type="button"
+                    className="admin-approve-btn"
+                    disabled={reviewingDepositId === selectedDepositRequest.requestId}
+                    onClick={() => handleReviewDeposit(selectedDepositRequest.requestId, "approved")}
+                  >
+                    Approve Deposit
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-approve-btn"
+                    disabled={reviewingDepositId === selectedDepositRequest.requestId}
+                    onClick={() => handleReviewDeposit(selectedDepositRequest.requestId, "pending")}
+                  >
+                    Move To Pending
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-reject-btn"
+                    disabled={reviewingDepositId === selectedDepositRequest.requestId}
+                    onClick={() => handleReviewDeposit(selectedDepositRequest.requestId, "rejected")}
+                  >
+                    Reject Deposit
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+        ) : null}
+
+        {kycModalOpen && selectedKycRequest ? (
+          <div className="admin-modal-root" role="dialog" aria-modal="true" aria-label="KYC Verification Form">
+            <button type="button" className="admin-modal-overlay" onClick={() => setKycModalOpen(false)} />
+            <article className="admin-modal-card">
+              <header className="admin-modal-header">
+                <div>
+                  <p className="admin-eyebrow">KYC Review</p>
+                  <h2>KYC Verification Form</h2>
+                </div>
+                <button type="button" className="admin-modal-close" onClick={() => setKycModalOpen(false)}>
+                  <i className="fas fa-times" />
+                </button>
+              </header>
+
+              <div className="admin-modal-body">
+                <div className="admin-user-info-grid">
+                  <div>
+                    <label>User</label>
+                    <strong>{selectedKycRequest.accountName || selectedKycRequest.fullName || "User"}</strong>
+                    <span>{selectedKycRequest.accountEmail || "-"}</span>
+                  </div>
+                  <div>
+                    <label>User ID</label>
+                    <strong>{selectedKycRequest.userId}</strong>
+                  </div>
+                  <div>
+                    <label>Certification</label>
+                    <strong>{String(selectedKycRequest.certification || "-").replaceAll("_", " ")}</strong>
+                  </div>
+                  <div>
+                    <label>SSN</label>
+                    <strong>{selectedKycRequest.ssn || "-"}</strong>
+                  </div>
+                  <div>
+                    <label>Current Status</label>
+                    <span className={`admin-kyc-badge ${getAdminKycBadgeLabel(selectedKycRequest.status).className}`}>
+                      {getAdminKycBadgeLabel(selectedKycRequest.status).text}
+                    </span>
+                  </div>
+                  <div>
+                    <label>Submitted</label>
+                    <strong>{formatAdminTime(selectedKycRequest.submittedAt)}</strong>
+                  </div>
+                </div>
+
+                <div className="admin-proof-grid">
+                  {isImageDataUri(selectedKycRequest.frontFileData) ? (
+                    <img className="admin-proof-image" src={selectedKycRequest.frontFileData} alt={selectedKycRequest.frontFileName || "front side"} />
+                  ) : (
+                    <p className="admin-kyc-empty">Front side file: {selectedKycRequest.frontFileName || "N/A"}</p>
+                  )}
+
+                  {isImageDataUri(selectedKycRequest.backFileData) ? (
+                    <img className="admin-proof-image" src={selectedKycRequest.backFileData} alt={selectedKycRequest.backFileName || "back side"} />
+                  ) : (
+                    <p className="admin-kyc-empty">Back side file: {selectedKycRequest.backFileName || "N/A"}</p>
+                  )}
+                </div>
+
+                <label>
+                  Reject Reason (required when reject)
+                  <textarea
+                    rows={3}
+                    value={kycRejectReason}
+                    onChange={(event) => setKycRejectReason(event.target.value)}
+                    placeholder="Why are you rejecting this KYC request?"
+                  />
+                </label>
+
+                <div className="admin-kyc-actions admin-modal-actions">
+                  <button
+                    type="button"
+                    className="admin-approve-btn"
+                    disabled={reviewingRequestId === selectedKycRequest.requestId}
+                    onClick={() => handleReview(selectedKycRequest.requestId, "authenticated")}
+                  >
+                    Approve KYC
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-approve-btn"
+                    disabled={reviewingRequestId === selectedKycRequest.requestId}
+                    onClick={() => handleReview(selectedKycRequest.requestId, "pending")}
+                  >
+                    Move To Pending
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-reject-btn"
+                    disabled={reviewingRequestId === selectedKycRequest.requestId}
+                    onClick={() => handleReview(selectedKycRequest.requestId, "rejected")}
+                  >
+                    Reject KYC
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+        ) : null}
       </section>
     </main>
   );
@@ -1887,6 +3266,28 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleDashboardSnapshot = async () => {
+    return authService.getDashboardSnapshot({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleCreateDepositRequest = async ({ assetId, amountUsd, screenshotFileName, screenshotFileData }) => {
+    return authService.createDepositRequest({
+      sessionToken: authSnapshot.sessionToken,
+      assetId,
+      amountUsd,
+      screenshotFileName,
+      screenshotFileData,
+    });
+  };
+
+  const handleDepositRecords = async () => {
+    return authService.getDepositRecords({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
   if (!authReady) {
     return <MobileLoadingPage />;
   }
@@ -1900,6 +3301,9 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onPasswordChange={handlePasswordChange}
         onKycSubmit={handleKycSubmit}
         onKycRefresh={handleKycRefresh}
+        onDashboardSnapshot={handleDashboardSnapshot}
+        onCreateDepositRequest={handleCreateDepositRequest}
+        onDepositRecords={handleDepositRecords}
       />
     );
   }

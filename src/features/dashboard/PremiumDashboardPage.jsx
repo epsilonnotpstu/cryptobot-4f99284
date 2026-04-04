@@ -49,6 +49,8 @@ const KYC_ALLOWED_FILE_TYPES = [
 
 const KYC_ACCEPT_ATTR = ".jpg,.jpeg,.png,.pdf,.doc,.docx";
 const KYC_TEST_FILE_MAX_BYTES = 350_000;
+const DEPOSIT_SCREENSHOT_ACCEPT = ".jpg,.jpeg,.png,.heic";
+const DEPOSIT_SCREENSHOT_MAX_BYTES = 15 * 1024 * 1024;
 
 function normalizeKycStatus(value) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -154,6 +156,14 @@ function formatPercent(value) {
   return `${prefix}${value.toFixed(2)}%`;
 }
 
+function shortenAddress(value = "") {
+  const text = String(value || "").trim();
+  if (text.length <= 24) {
+    return text;
+  }
+  return `${text.slice(0, 12)}...${text.slice(-8)}`;
+}
+
 function getFirstNameFallback(user) {
   if (user?.firstName) {
     return user.firstName;
@@ -243,6 +253,9 @@ export default function PremiumDashboardPage({
   onPasswordChange,
   onKycSubmit,
   onKycRefresh,
+  onDashboardSnapshot,
+  onCreateDepositRequest,
+  onDepositRecords,
 }) {
   const [assetVisible, setAssetVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -285,6 +298,26 @@ export default function PremiumDashboardPage({
   const [kycNotice, setKycNotice] = useState("");
   const [kycSubmitting, setKycSubmitting] = useState(false);
   const [kycSuccessPopup, setKycSuccessPopup] = useState("");
+  const [dashboardNotice, setDashboardNotice] = useState(
+    "Deposit reminder: always confirm the correct wallet network before sending funds.",
+  );
+  const [dashboardNoticeUpdatedAt, setDashboardNoticeUpdatedAt] = useState("");
+  const [totalSpotAssetsUsd, setTotalSpotAssetsUsd] = useState(null);
+  const [walletBalances, setWalletBalances] = useState([]);
+  const [depositAssets, setDepositAssets] = useState([]);
+  const [dashboardSyncError, setDashboardSyncError] = useState("");
+
+  const [depositSearch, setDepositSearch] = useState("");
+  const [selectedDepositAssetId, setSelectedDepositAssetId] = useState(null);
+  const [depositAmountUsd, setDepositAmountUsd] = useState("");
+  const [depositAddressCopied, setDepositAddressCopied] = useState(false);
+  const [depositFileName, setDepositFileName] = useState("");
+  const [depositFileData, setDepositFileData] = useState("");
+  const [depositNotice, setDepositNotice] = useState("");
+  const [depositError, setDepositError] = useState("");
+  const [depositSubmitting, setDepositSubmitting] = useState(false);
+  const [depositRecords, setDepositRecords] = useState([]);
+  const [depositRecordsLoading, setDepositRecordsLoading] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -335,6 +368,42 @@ export default function PremiumDashboardPage({
   }, [onKycRefresh, user?.kycStatus]);
 
   useEffect(() => {
+    if (!onDashboardSnapshot) {
+      return undefined;
+    }
+
+    let isActive = true;
+    const syncDashboard = async () => {
+      try {
+        const data = await onDashboardSnapshot();
+        if (!isActive) {
+          return;
+        }
+
+        setDashboardNotice(
+          data?.notice?.message || "Deposit reminder: always confirm the correct wallet network before sending funds.",
+        );
+        setDashboardNoticeUpdatedAt(data?.notice?.updatedAt || "");
+        setTotalSpotAssetsUsd(data?.wallet?.totalSpotAssetsUsd ?? null);
+        setWalletBalances(Array.isArray(data?.wallet?.balances) ? data.wallet.balances : []);
+        setDepositAssets(Array.isArray(data?.deposit?.assets) ? data.deposit.assets : []);
+        setDashboardSyncError("");
+      } catch {
+        if (isActive) {
+          setDashboardSyncError("Could not sync dashboard snapshot.");
+        }
+      }
+    };
+
+    syncDashboard();
+    const intervalId = window.setInterval(syncDashboard, 30_000);
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [onDashboardSnapshot]);
+
+  useEffect(() => {
     let isActive = true;
     let intervalId = null;
 
@@ -382,14 +451,11 @@ export default function PremiumDashboardPage({
     return filteredRows.slice(0, 40);
   }, [rows, activeTab]);
 
-  const totalSpotValue = useMemo(() => {
-    if (!rows.length) {
-      return 83_781.7;
-    }
-
-    const blended = rows.slice(0, 12).reduce((sum, row) => sum + row.lastPrice * 0.42, 0);
-    return 54_000 + blended;
-  }, [rows]);
+  const hasUsdSpotValue = useMemo(
+    () => totalSpotAssetsUsd !== null && totalSpotAssetsUsd !== undefined && Number.isFinite(Number(totalSpotAssetsUsd)),
+    [totalSpotAssetsUsd],
+  );
+  const totalSpotValue = useMemo(() => (hasUsdSpotValue ? Number(totalSpotAssetsUsd) : null), [hasUsdSpotValue, totalSpotAssetsUsd]);
 
   const topVolume = rows[0];
   const hottestMover = useMemo(() => {
@@ -400,12 +466,38 @@ export default function PremiumDashboardPage({
   }, [rows]);
 
   const placeholderCopy = useMemo(() => buildPlaceholderCopy(activeMainTab), [activeMainTab]);
+  const selectedDepositAsset = useMemo(
+    () => depositAssets.find((item) => item.assetId === selectedDepositAssetId) || null,
+    [depositAssets, selectedDepositAssetId],
+  );
+  const filteredDepositAssets = useMemo(() => {
+    const keyword = depositSearch.trim().toLowerCase();
+    if (!keyword) {
+      return depositAssets;
+    }
+    return depositAssets.filter((item) => {
+      const candidate = `${item.symbol} ${item.name} ${item.chainName}`.toLowerCase();
+      return candidate.includes(keyword);
+    });
+  }, [depositAssets, depositSearch]);
 
   const showHome = activeView === "home";
   const showProfile = activeView === "profile";
   const showPassword = activeView === "password";
   const showKyc = activeView === "kyc";
-  const showPlaceholder = !showHome && !showProfile && !showPassword && !showKyc;
+  const showDepositAssetSelect = activeView === "deposit.asset-select";
+  const showDepositForm = activeView === "deposit.form";
+  const showDepositConfirm = activeView === "deposit.confirm";
+  const showDepositRecords = activeView === "deposit.records";
+  const showPlaceholder =
+    !showHome &&
+    !showProfile &&
+    !showPassword &&
+    !showKyc &&
+    !showDepositAssetSelect &&
+    !showDepositForm &&
+    !showDepositConfirm &&
+    !showDepositRecords;
   const kycMeta = getKycStatusMeta(kycStatus);
   const isUserKycAuthenticated = kycStatus === "authenticated";
 
@@ -638,6 +730,151 @@ export default function PremiumDashboardPage({
     }
   };
 
+  const resetDepositFlow = () => {
+    setDepositAmountUsd("");
+    setDepositFileName("");
+    setDepositFileData("");
+    setDepositError("");
+    setDepositNotice("");
+    setDepositAddressCopied(false);
+  };
+
+  const openDepositAssetSelector = () => {
+    if (!isUserKycAuthenticated) {
+      setProfileNotice("KYC authentication pending. Complete authentication before depositing.");
+      return;
+    }
+    resetDepositFlow();
+    setActiveView("deposit.asset-select");
+  };
+
+  const handleSelectDepositAsset = (assetId) => {
+    setSelectedDepositAssetId(assetId);
+    resetDepositFlow();
+    setActiveView("deposit.form");
+  };
+
+  const openDepositRecords = async () => {
+    if (!onDepositRecords) {
+      setDepositError("Deposit record API is not connected yet.");
+      return;
+    }
+
+    setDepositRecordsLoading(true);
+    setDepositError("");
+    try {
+      const data = await onDepositRecords();
+      setDepositRecords(Array.isArray(data?.records) ? data.records : []);
+      setActiveView("deposit.records");
+    } catch (loadError) {
+      setDepositError(loadError.message || "Could not load deposit records.");
+    } finally {
+      setDepositRecordsLoading(false);
+    }
+  };
+
+  const copyDepositAddress = async () => {
+    if (!selectedDepositAsset?.rechargeAddress) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(selectedDepositAsset.rechargeAddress);
+      setDepositAddressCopied(true);
+      setDepositNotice("Address copied.");
+      window.setTimeout(() => setDepositAddressCopied(false), 1600);
+    } catch {
+      setDepositError("Could not copy address. Please copy manually.");
+    }
+  };
+
+  const continueDepositConfirm = () => {
+    setDepositError("");
+    setDepositNotice("");
+
+    const numericAmount = Number(depositAmountUsd);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setDepositError("Please enter a valid amount.");
+      return;
+    }
+    if (selectedDepositAsset) {
+      if (numericAmount < Number(selectedDepositAsset.minAmountUsd || 0)) {
+        setDepositError(`Minimum amount is ${selectedDepositAsset.minAmountUsd} USD.`);
+        return;
+      }
+      if (numericAmount > Number(selectedDepositAsset.maxAmountUsd || 0)) {
+        setDepositError(`Maximum amount is ${selectedDepositAsset.maxAmountUsd} USD.`);
+        return;
+      }
+    }
+    setActiveView("deposit.confirm");
+  };
+
+  const handleDepositScreenshotSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file.size > DEPOSIT_SCREENSHOT_MAX_BYTES) {
+      setDepositError("Max screenshot size is 15MB.");
+      return;
+    }
+
+    if (!["image/jpg", "image/jpeg", "image/png", "image/heic", "image/heif"].includes(file.type)) {
+      setDepositError("Supported formats: JPG, JPEG, PNG, HEIC");
+      return;
+    }
+
+    try {
+      const data = await readFileAsDataUrl(file);
+      setDepositFileName(file.name);
+      setDepositFileData(data);
+      setDepositError("");
+    } catch (fileError) {
+      setDepositError(fileError.message || "Could not read screenshot.");
+    }
+  };
+
+  const submitDeposit = async (event) => {
+    event.preventDefault();
+    setDepositError("");
+    setDepositNotice("");
+
+    if (!selectedDepositAsset) {
+      setDepositError("Please select a crypto first.");
+      return;
+    }
+    if (!depositFileData) {
+      setDepositError("Transaction screenshot is required.");
+      return;
+    }
+    if (!onCreateDepositRequest) {
+      setDepositError("Deposit submit API is not connected yet.");
+      return;
+    }
+
+    setDepositSubmitting(true);
+    try {
+      const data = await onCreateDepositRequest({
+        assetId: selectedDepositAsset.assetId,
+        amountUsd: Number(depositAmountUsd),
+        screenshotFileName: depositFileName || "transaction-screenshot",
+        screenshotFileData: depositFileData,
+      });
+      setDepositNotice(data?.message || "Deposit request submitted.");
+      resetDepositFlow();
+      if (onDashboardSnapshot) {
+        await onDashboardSnapshot();
+      }
+      setKycSuccessPopup("Deposit request submitted. Admin verification pending.");
+      setActiveView("home");
+    } catch (submitError) {
+      setDepositError(submitError.message || "Could not submit deposit request.");
+    } finally {
+      setDepositSubmitting(false);
+    }
+  };
+
   return (
     <main className="prodash-page">
       <div className="prodash-background-orb prodash-background-orb-left" />
@@ -692,6 +929,14 @@ export default function PremiumDashboardPage({
                   ? "Change Password"
                   : showKyc
                     ? "KYC Authentication"
+                    : showDepositAssetSelect
+                      ? "Select Deposit Asset"
+                      : showDepositForm
+                        ? "Deposit Address"
+                        : showDepositConfirm
+                          ? "Confirm Deposit"
+                          : showDepositRecords
+                            ? "Deposit Records"
                   : activeMainTab === "home"
                     ? "Professional Trading Dashboard"
                     : placeholderCopy.title}
@@ -713,11 +958,15 @@ export default function PremiumDashboardPage({
             <div>
               <div className="prodash-notice">
                 <span className="prodash-notice-pill">NOTICE</span>
-                <p>Deposit reminder: always confirm the correct wallet network before sending funds.</p>
+                <p>{dashboardNotice}</p>
                 <i className="fas fa-chevron-right" />
               </div>
 
               {profileNotice ? <p className="prodash-page-notice">{profileNotice}</p> : null}
+              {dashboardNoticeUpdatedAt ? (
+                <p className="prodash-page-notice">Notice updated: {new Date(dashboardNoticeUpdatedAt).toLocaleString()}</p>
+              ) : null}
+              {dashboardSyncError ? <p className="prodash-form-error">{dashboardSyncError}</p> : null}
 
               <div className="prodash-grid">
                 <div className="prodash-left-column">
@@ -733,7 +982,7 @@ export default function PremiumDashboardPage({
                         <i className={`fas ${assetVisible ? "fa-eye" : "fa-eye-slash"}`} />
                       </button>
                       <h1>
-                        {assetVisible ? `$${formatCurrency(totalSpotValue)}` : "•••••••"}
+                        {assetVisible ? (hasUsdSpotValue ? `$${formatCurrency(totalSpotValue)}` : "==") : "•••••••"}
                         <span>USD</span>
                       </h1>
                       <small>
@@ -743,13 +992,27 @@ export default function PremiumDashboardPage({
                         <span className={`prodash-kyc-chip ${kycMeta.className}`}>KYC {kycMeta.label}</span>
                         <span className="prodash-auth-tag">{kycAuthTag || deriveAuthTagFromStatus(kycStatus)}</span>
                       </div>
+                      {walletBalances.length ? (
+                        <div className="prodash-wallet-balance-strip">
+                          {walletBalances.slice(0, 4).map((balance) => (
+                            <span key={balance.symbol}>
+                              {balance.symbol}: ${formatCurrency(balance.totalUsd)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       {!isUserKycAuthenticated ? (
                         <p className="prodash-lock-note">KYC authenticated না হলে deposit এবং premium actions lock থাকবে.</p>
                       ) : null}
                     </div>
 
                     <div className="prodash-wallet-actions">
-                      <button type="button" className="prodash-deposit-btn" disabled={!isUserKycAuthenticated}>
+                      <button
+                        type="button"
+                        className="prodash-deposit-btn"
+                        disabled={!isUserKycAuthenticated}
+                        onClick={openDepositAssetSelector}
+                      >
                         Deposit
                       </button>
                       <button type="button" className="prodash-logout-btn" onClick={onLogout}>
@@ -1073,6 +1336,198 @@ export default function PremiumDashboardPage({
                   {kycSubmitting ? "Submitting..." : "Submit"}
                 </button>
               </form>
+            </section>
+          ) : null}
+
+          {showDepositAssetSelect ? (
+            <section className="prodash-panel-card prodash-deposit-select-card">
+              <header className="prodash-panel-header">
+                <button type="button" className="prodash-back-btn" onClick={() => setActiveView("home")}>
+                  <i className="fas fa-arrow-left" />
+                </button>
+                <h2>Select Deposit Crypto</h2>
+              </header>
+
+              <div className="prodash-deposit-search-row">
+                <input
+                  type="text"
+                  value={depositSearch}
+                  onChange={(event) => setDepositSearch(event.target.value)}
+                  placeholder="Please enter the short name"
+                />
+              </div>
+
+              <div className="prodash-deposit-asset-list">
+                {filteredDepositAssets.map((asset) => (
+                  <button
+                    key={asset.assetId}
+                    type="button"
+                    className="prodash-deposit-asset-item"
+                    onClick={() => handleSelectDepositAsset(asset.assetId)}
+                  >
+                    <span className="prodash-deposit-asset-avatar">{asset.symbol.slice(0, 1)}</span>
+                    <div>
+                      <strong>{asset.symbol}</strong>
+                      <p>{asset.name}</p>
+                    </div>
+                    <small>{asset.chainName}</small>
+                  </button>
+                ))}
+              </div>
+
+              {!filteredDepositAssets.length ? <p className="prodash-kyc-hint">No matching crypto found.</p> : null}
+            </section>
+          ) : null}
+
+          {showDepositForm && selectedDepositAsset ? (
+            <section className="prodash-panel-card prodash-deposit-form-card">
+              <header className="prodash-panel-header prodash-deposit-header-row">
+                <button type="button" className="prodash-back-btn" onClick={() => setActiveView("deposit.asset-select")}>
+                  <i className="fas fa-arrow-left" />
+                </button>
+
+                <div className="prodash-deposit-header-title">
+                  <h2>{selectedDepositAsset.symbol} Deposit</h2>
+                  <button type="button" className="prodash-inline-link" onClick={() => setActiveView("deposit.asset-select")}>
+                    Change crypto
+                  </button>
+                </div>
+
+                <button type="button" className="prodash-inline-link" onClick={openDepositRecords}>
+                  Record
+                </button>
+              </header>
+
+              <div className="prodash-deposit-address-card">
+                <h3>Scan to get the recharge address</h3>
+                <div className="prodash-deposit-qr-wrap">
+                  {selectedDepositAsset.qrCodeData ? (
+                    <img src={selectedDepositAsset.qrCodeData} alt={`${selectedDepositAsset.symbol} QR`} />
+                  ) : (
+                    <div className="prodash-deposit-qr-fallback">No QR</div>
+                  )}
+                </div>
+                <p className="prodash-deposit-address-text">{shortenAddress(selectedDepositAsset.rechargeAddress)}</p>
+                <p className="prodash-deposit-warning-text">
+                  The recharge address on this page is the only official recharge entrance of the platform.
+                </p>
+                <button
+                  type="button"
+                  className={`prodash-copy-btn ${depositAddressCopied ? "is-copied" : ""}`}
+                  onClick={copyDepositAddress}
+                >
+                  {depositAddressCopied ? "Copied" : "Click to copy"}
+                </button>
+              </div>
+
+              <div className="prodash-deposit-amount-card">
+                <label>
+                  Amount (USD)
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={depositAmountUsd}
+                    onChange={(event) => setDepositAmountUsd(event.target.value)}
+                    placeholder="Enter amount"
+                  />
+                </label>
+                <small>
+                  Min {selectedDepositAsset.minAmountUsd} / Max {selectedDepositAsset.maxAmountUsd}
+                </small>
+
+                {depositError ? <p className="prodash-form-error">{depositError}</p> : null}
+                {depositNotice ? <p className="prodash-form-notice">{depositNotice}</p> : null}
+
+                <button type="button" className="prodash-submit-btn" onClick={continueDepositConfirm}>
+                  Continue
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {showDepositConfirm && selectedDepositAsset ? (
+            <section className="prodash-panel-card prodash-deposit-confirm-card">
+              <header className="prodash-panel-header">
+                <button type="button" className="prodash-back-btn" onClick={() => setActiveView("deposit.form")}>
+                  <i className="fas fa-arrow-left" />
+                </button>
+                <h2>Confirm Your Deposit</h2>
+              </header>
+
+              <p className="prodash-deposit-confirm-subtitle">Please upload the transaction screenshot below</p>
+
+              <form className="prodash-form" onSubmit={submitDeposit}>
+                <label className="prodash-upload-zone">
+                  <span className="prodash-upload-icon">
+                    <i className="fas fa-cloud-arrow-up" />
+                  </span>
+                  <strong>Transaction screenshot</strong>
+                  <input type="file" accept={DEPOSIT_SCREENSHOT_ACCEPT} onChange={handleDepositScreenshotSelect} />
+                  <small>Supported formats: JPG, PNG, HEIC</small>
+                  <small>Max size: 15MB</small>
+                  <span className="prodash-file-name">{depositFileName || "No file chosen"}</span>
+                </label>
+
+                <div className="prodash-deposit-confirm-meta">
+                  <span>{selectedDepositAsset.symbol}</span>
+                  <span>${formatCurrency(Number(depositAmountUsd || 0))} USD</span>
+                </div>
+
+                {depositError ? <p className="prodash-form-error">{depositError}</p> : null}
+                {depositNotice ? <p className="prodash-form-notice">{depositNotice}</p> : null}
+
+                <button type="submit" className="prodash-submit-btn" disabled={depositSubmitting}>
+                  {depositSubmitting ? "Submitting..." : "Confirm Deposit"}
+                </button>
+              </form>
+            </section>
+          ) : null}
+
+          {showDepositRecords ? (
+            <section className="prodash-panel-card prodash-deposit-records-card">
+              <header className="prodash-panel-header">
+                <button type="button" className="prodash-back-btn" onClick={() => setActiveView("deposit.form")}>
+                  <i className="fas fa-arrow-left" />
+                </button>
+                <h2>Deposit Records</h2>
+              </header>
+
+              {depositRecordsLoading ? <p className="prodash-kyc-hint">Loading records...</p> : null}
+              {!depositRecordsLoading && !depositRecords.length ? (
+                <p className="prodash-kyc-hint">No deposit records available yet.</p>
+              ) : null}
+
+              {!depositRecordsLoading && depositRecords.length ? (
+                <div className="prodash-market-table">
+                  <div className="prodash-market-head">
+                    <span>Asset</span>
+                    <span>Amount</span>
+                    <span>Status</span>
+                  </div>
+                  <div className="prodash-market-body">
+                    {depositRecords.map((record) => (
+                      <article key={record.requestId} className="prodash-market-row">
+                        <div className="prodash-market-symbol">
+                          <strong>{record.assetSymbol}</strong>
+                          <span>{new Date(record.submittedAt).toLocaleString()}</span>
+                        </div>
+                        <p>${formatCurrency(record.amountUsd)}</p>
+                        <span
+                          className={
+                            record.status === "approved"
+                              ? "prodash-change-up"
+                              : record.status === "rejected"
+                                ? "prodash-change-down"
+                                : "prodash-neutral-badge"
+                          }
+                        >
+                          {record.status}
+                        </span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </section>
           ) : null}
 

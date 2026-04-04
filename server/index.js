@@ -98,6 +98,57 @@ db.exec(`
     reviewed_at TEXT,
     reviewed_by TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS platform_notices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS deposit_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    chain_name TEXT NOT NULL,
+    recharge_address TEXT NOT NULL,
+    qr_code_data TEXT NOT NULL,
+    min_amount_usd REAL NOT NULL DEFAULT 10,
+    max_amount_usd REAL NOT NULL DEFAULT 1000000,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS user_wallet_balances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    asset_symbol TEXT NOT NULL,
+    asset_name TEXT NOT NULL,
+    total_usd REAL NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    UNIQUE(user_id, asset_symbol)
+  );
+
+  CREATE TABLE IF NOT EXISTS deposit_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    asset_id INTEGER NOT NULL,
+    asset_symbol TEXT NOT NULL,
+    asset_name TEXT NOT NULL,
+    chain_name TEXT NOT NULL,
+    recharge_address_snapshot TEXT NOT NULL,
+    amount_usd REAL NOT NULL,
+    screenshot_file_name TEXT NOT NULL,
+    screenshot_file_data TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    note TEXT NOT NULL DEFAULT '',
+    submitted_at TEXT NOT NULL,
+    reviewed_at TEXT,
+    reviewed_by TEXT
+  );
 `);
 
 function ensureUserProfileColumns() {
@@ -243,6 +294,19 @@ const updateUserProfileStatement = db.prepare(`
       avatar_url = @avatarUrl
   WHERE user_id = @userId
 `);
+const updateUserProfileByAdminStatement = db.prepare(`
+  UPDATE users
+  SET name = @name,
+      first_name = @firstName,
+      last_name = @lastName,
+      mobile = @mobile,
+      avatar_url = @avatarUrl,
+      email = @email,
+      kyc_status = @kycStatus,
+      auth_tag = @authTag,
+      kyc_updated_at = @kycUpdatedAt
+  WHERE user_id = @userId
+`);
 const updateUserKycStatusStatement = db.prepare(`
   UPDATE users
   SET kyc_status = @kycStatus,
@@ -306,17 +370,18 @@ const findKycSubmissionWithUserByIdStatement = db.prepare(`
   SELECT k.id, k.user_id, k.full_name, k.certification, k.ssn, k.front_file_name, k.back_file_name,
          k.status, k.note, k.submitted_at, k.reviewed_at, k.reviewed_by,
          u.name AS account_name, u.email AS account_email, u.kyc_status AS account_kyc_status,
-         u.auth_tag AS account_auth_tag
+    u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
   FROM kyc_submissions k
   JOIN users u ON u.user_id = k.user_id
   WHERE k.id = ?
   LIMIT 1
 `);
 const listLatestKycSubmissionsStatement = db.prepare(`
-  SELECT k.id, k.user_id, k.full_name, k.certification, k.ssn, k.front_file_name, k.back_file_name,
+  SELECT k.id, k.user_id, k.full_name, k.certification, k.ssn, k.front_file_name, k.front_file_data,
+    k.back_file_name, k.back_file_data,
          k.status, k.note, k.submitted_at, k.reviewed_at, k.reviewed_by,
          u.name AS account_name, u.email AS account_email, u.kyc_status AS account_kyc_status,
-         u.auth_tag AS account_auth_tag
+    u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
   FROM kyc_submissions k
   JOIN users u ON u.user_id = k.user_id
   WHERE k.id IN (
@@ -332,10 +397,268 @@ const listLatestKycSubmissionsStatement = db.prepare(`
     END,
     k.submitted_at DESC
 `);
+const getLatestActiveNoticeStatement = db.prepare(`
+  SELECT * FROM platform_notices
+  WHERE is_active = 1
+  ORDER BY updated_at DESC, id DESC
+  LIMIT 1
+`);
+const clearActiveNoticesStatement = db.prepare(`
+  UPDATE platform_notices
+  SET is_active = 0,
+      updated_at = @updatedAt
+  WHERE is_active = 1
+`);
+const insertNoticeStatement = db.prepare(`
+  INSERT INTO platform_notices (message, is_active, created_at, updated_at)
+  VALUES (@message, @isActive, @createdAt, @updatedAt)
+`);
+const listDepositAssetsStatement = db.prepare(`
+  SELECT * FROM deposit_assets
+  ORDER BY sort_order ASC, symbol ASC
+`);
+const listEnabledDepositAssetsStatement = db.prepare(`
+  SELECT * FROM deposit_assets
+  WHERE is_enabled = 1
+  ORDER BY sort_order ASC, symbol ASC
+`);
+const findDepositAssetByIdStatement = db.prepare(`
+  SELECT * FROM deposit_assets
+  WHERE id = ?
+  LIMIT 1
+`);
+const findDepositAssetBySymbolStatement = db.prepare(`
+  SELECT * FROM deposit_assets
+  WHERE symbol = ?
+  LIMIT 1
+`);
+const insertDepositAssetStatement = db.prepare(`
+  INSERT INTO deposit_assets (
+    symbol,
+    name,
+    chain_name,
+    recharge_address,
+    qr_code_data,
+    min_amount_usd,
+    max_amount_usd,
+    sort_order,
+    is_enabled,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    @symbol,
+    @name,
+    @chainName,
+    @rechargeAddress,
+    @qrCodeData,
+    @minAmountUsd,
+    @maxAmountUsd,
+    @sortOrder,
+    @isEnabled,
+    @createdAt,
+    @updatedAt
+  )
+`);
+const updateDepositAssetStatement = db.prepare(`
+  UPDATE deposit_assets
+  SET symbol = @symbol,
+      name = @name,
+      chain_name = @chainName,
+      recharge_address = @rechargeAddress,
+      qr_code_data = @qrCodeData,
+      min_amount_usd = @minAmountUsd,
+      max_amount_usd = @maxAmountUsd,
+      sort_order = @sortOrder,
+      is_enabled = @isEnabled,
+      updated_at = @updatedAt
+  WHERE id = @id
+`);
+const insertDepositRequestStatement = db.prepare(`
+  INSERT INTO deposit_requests (
+    user_id,
+    asset_id,
+    asset_symbol,
+    asset_name,
+    chain_name,
+    recharge_address_snapshot,
+    amount_usd,
+    screenshot_file_name,
+    screenshot_file_data,
+    status,
+    note,
+    submitted_at,
+    reviewed_at,
+    reviewed_by
+  )
+  VALUES (
+    @userId,
+    @assetId,
+    @assetSymbol,
+    @assetName,
+    @chainName,
+    @rechargeAddressSnapshot,
+    @amountUsd,
+    @screenshotFileName,
+    @screenshotFileData,
+    @status,
+    @note,
+    @submittedAt,
+    @reviewedAt,
+    @reviewedBy
+  )
+`);
+const findDepositRequestByIdStatement = db.prepare(`
+  SELECT * FROM deposit_requests
+  WHERE id = ?
+  LIMIT 1
+`);
+const updateDepositRequestReviewStatement = db.prepare(`
+  UPDATE deposit_requests
+  SET status = @status,
+      note = @note,
+      reviewed_at = @reviewedAt,
+      reviewed_by = @reviewedBy
+  WHERE id = @id
+`);
+const listDepositRequestsByUserStatement = db.prepare(`
+  SELECT * FROM deposit_requests
+  WHERE user_id = ?
+  ORDER BY submitted_at DESC, id DESC
+  LIMIT 100
+`);
+const listAdminDepositRequestsStatement = db.prepare(`
+  SELECT d.id, d.user_id, d.asset_id, d.asset_symbol, d.asset_name, d.chain_name,
+    d.recharge_address_snapshot, d.amount_usd, d.screenshot_file_name, d.screenshot_file_data,
+         d.status, d.note, d.submitted_at, d.reviewed_at, d.reviewed_by,
+    u.name AS account_name, u.email AS account_email, u.avatar_url AS account_avatar_url
+  FROM deposit_requests d
+  JOIN users u ON u.user_id = d.user_id
+  ORDER BY
+    CASE d.status
+      WHEN 'pending' THEN 0
+      WHEN 'approved' THEN 1
+      ELSE 2
+    END,
+    d.submitted_at DESC,
+    d.id DESC
+  LIMIT 400
+`);
+const findAdminDepositRequestByIdStatement = db.prepare(`
+  SELECT d.id, d.user_id, d.asset_id, d.asset_symbol, d.asset_name, d.chain_name,
+         d.recharge_address_snapshot, d.amount_usd, d.screenshot_file_name, d.screenshot_file_data,
+         d.status, d.note, d.submitted_at, d.reviewed_at, d.reviewed_by,
+         u.name AS account_name, u.email AS account_email, u.avatar_url AS account_avatar_url
+  FROM deposit_requests d
+  JOIN users u ON u.user_id = d.user_id
+  WHERE d.id = ?
+  LIMIT 1
+`);
+const listAdminUsersStatement = db.prepare(`
+  SELECT user_id, name, first_name, last_name, mobile, avatar_url,
+         kyc_status, auth_tag, kyc_updated_at, email, created_at
+  FROM users
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1000
+`);
+const findAdminUserByUserIdStatement = db.prepare(`
+  SELECT user_id, name, first_name, last_name, mobile, avatar_url,
+         kyc_status, auth_tag, kyc_updated_at, email, created_at
+  FROM users
+  WHERE user_id = ?
+  LIMIT 1
+`);
+const listUserKycHistoryForAdminStatement = db.prepare(`
+  SELECT id, user_id, full_name, certification, ssn,
+         front_file_name, front_file_data,
+         back_file_name, back_file_data,
+         status, note, submitted_at, reviewed_at, reviewed_by
+  FROM kyc_submissions
+  WHERE user_id = ?
+  ORDER BY submitted_at DESC, id DESC
+  LIMIT 30
+`);
+const listUserDepositHistoryForAdminStatement = db.prepare(`
+  SELECT id, user_id, asset_id, asset_symbol, asset_name, chain_name,
+         recharge_address_snapshot, amount_usd, screenshot_file_name, screenshot_file_data,
+         status, note, submitted_at, reviewed_at, reviewed_by
+  FROM deposit_requests
+  WHERE user_id = ?
+  ORDER BY submitted_at DESC, id DESC
+  LIMIT 50
+`);
+const countDepositRequestsByStatusStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM deposit_requests
+  WHERE status = ?
+`);
+const countDepositRequestsTotalStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM deposit_requests
+`);
+const upsertWalletBalanceStatement = db.prepare(`
+  INSERT INTO user_wallet_balances (
+    user_id,
+    asset_symbol,
+    asset_name,
+    total_usd,
+    updated_at
+  )
+  VALUES (
+    @userId,
+    @assetSymbol,
+    @assetName,
+    @totalUsd,
+    @updatedAt
+  )
+  ON CONFLICT(user_id, asset_symbol)
+  DO UPDATE SET
+    asset_name = excluded.asset_name,
+    total_usd = user_wallet_balances.total_usd + excluded.total_usd,
+    updated_at = excluded.updated_at
+`);
+const findWalletBalanceByUserAssetStatement = db.prepare(`
+  SELECT user_id, asset_symbol, asset_name, total_usd, updated_at
+  FROM user_wallet_balances
+  WHERE user_id = ? AND asset_symbol = ?
+  LIMIT 1
+`);
+const setWalletBalanceStatement = db.prepare(`
+  INSERT INTO user_wallet_balances (
+    user_id,
+    asset_symbol,
+    asset_name,
+    total_usd,
+    updated_at
+  )
+  VALUES (
+    @userId,
+    @assetSymbol,
+    @assetName,
+    @totalUsd,
+    @updatedAt
+  )
+  ON CONFLICT(user_id, asset_symbol)
+  DO UPDATE SET
+    asset_name = excluded.asset_name,
+    total_usd = excluded.total_usd,
+    updated_at = excluded.updated_at
+`);
+const listUserWalletBalancesStatement = db.prepare(`
+  SELECT asset_symbol, asset_name, total_usd, updated_at
+  FROM user_wallet_balances
+  WHERE user_id = ?
+  ORDER BY total_usd DESC, asset_symbol ASC
+`);
+const getUserTotalSpotAssetsStatement = db.prepare(`
+  SELECT COALESCE(SUM(total_usd), 0) AS total
+  FROM user_wallet_balances
+  WHERE user_id = ?
+`);
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "20mb" }));
 
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -354,6 +677,58 @@ const KYC_FILE_MIME_TYPES = new Set([
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
+const DEPOSIT_SCREENSHOT_FILE_MAX_BYTES = Number(process.env.DEPOSIT_SCREENSHOT_FILE_MAX_BYTES || 15 * 1024 * 1024);
+const DEPOSIT_FILE_MIME_TYPES = new Set([
+  "image/jpg",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/heif",
+]);
+const DEPOSIT_MIN_USD_DEFAULT = Number(process.env.DEPOSIT_MIN_USD_DEFAULT || 10);
+const DEPOSIT_MAX_USD_DEFAULT = Number(process.env.DEPOSIT_MAX_USD_DEFAULT || 1000000);
+const DEPOSIT_DEFAULT_ASSETS = [
+  {
+    symbol: "BTC",
+    name: "Bitcoin",
+    chainName: "Bitcoin",
+    rechargeAddress: "bc1qyrnm9xqr3k8jhv6txhpggu5yt2a6r4yqqp7n8n",
+    qrCodeData: "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=bitcoin:bc1qyrnm9xqr3k8jhv6txhpggu5yt2a6r4yqqp7n8n",
+    minAmountUsd: 10,
+    maxAmountUsd: 1000000,
+    sortOrder: 1,
+  },
+  {
+    symbol: "ETH",
+    name: "Ethereum",
+    chainName: "ERC20",
+    rechargeAddress: "0x8f8f2F9a316d4e7F4478d68A3C7f3B0b9Dfd2F34",
+    qrCodeData: "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=ethereum:0x8f8f2F9a316d4e7F4478d68A3C7f3B0b9Dfd2F34",
+    minAmountUsd: 10,
+    maxAmountUsd: 1000000,
+    sortOrder: 2,
+  },
+  {
+    symbol: "USDC",
+    name: "USD Coin",
+    chainName: "TRC20",
+    rechargeAddress: "TQ2fFxjZQhPHhYf4E1D2Y2m7pQeR4d2VqM",
+    qrCodeData: "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=TQ2fFxjZQhPHhYf4E1D2Y2m7pQeR4d2VqM",
+    minAmountUsd: 10,
+    maxAmountUsd: 1000000,
+    sortOrder: 3,
+  },
+  {
+    symbol: "USDT",
+    name: "Tether",
+    chainName: "TRC20",
+    rechargeAddress: "TF1K7F57N8dfh5tvx6aM2W1WAE72nAXRYd",
+    qrCodeData: "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=TF1K7F57N8dfh5tvx6aM2W1WAE72nAXRYd",
+    minAmountUsd: 10,
+    maxAmountUsd: 1000000,
+    sortOrder: 4,
+  },
+];
 const SHOULD_RETURN_DEV_OTP =
   process.env.DEV_RETURN_OTP_IN_RESPONSE === "true" || process.env.NODE_ENV !== "production";
 
@@ -618,12 +993,205 @@ function parseKycFileData(rawData = "", sectionLabel = "file") {
   };
 }
 
-function buildKycSubmissionPayload(row) {
+function normalizeUsdAmount(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    throw new Error("Please enter a valid amount.");
+  }
+  return Number(numeric.toFixed(8));
+}
+
+function normalizeAssetSymbol(value = "") {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 15);
+}
+
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") {
+    return true;
+  }
+  if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") {
+    return false;
+  }
+  return fallback;
+}
+
+function parseDepositScreenshotData(rawData = "") {
+  const normalized = String(rawData || "").trim();
+  const match = normalized.match(/^data:([^;,]+);base64,([a-zA-Z0-9+/=]+)$/);
+  if (!match) {
+    throw new Error("Transaction screenshot data is invalid. Please upload again.");
+  }
+
+  const mimeType = String(match[1] || "").toLowerCase();
+  if (!DEPOSIT_FILE_MIME_TYPES.has(mimeType)) {
+    throw new Error("Supported formats: JPG, JPEG, PNG, HEIC");
+  }
+
+  const base64Body = match[2];
+  const bytes = Buffer.byteLength(base64Body, "base64");
+  if (bytes > DEPOSIT_SCREENSHOT_FILE_MAX_BYTES) {
+    throw new Error("Screenshot is too large. Max size is 15MB.");
+  }
+
+  return {
+    mimeType,
+    bytes,
+  };
+}
+
+function normalizeDepositStatus(status = "") {
+  const normalized = String(status || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "approved" || normalized === "accept" || normalized === "accepted") {
+    return "approved";
+  }
+  if (normalized === "rejected" || normalized === "reject") {
+    return "rejected";
+  }
+  return "pending";
+}
+
+function buildNoticePayload(row) {
+  if (!row) {
+    return {
+      message: "No notice posted yet.",
+      updatedAt: "",
+    };
+  }
+  return {
+    noticeId: row.id,
+    message: row.message || "",
+    updatedAt: row.updated_at || row.created_at || "",
+  };
+}
+
+function buildDepositAssetPayload(row) {
   if (!row) {
     return null;
   }
 
   return {
+    assetId: row.id,
+    symbol: normalizeAssetSymbol(row.symbol || ""),
+    name: sanitizeShortText(row.name || "", 80),
+    chainName: sanitizeShortText(row.chain_name || "", 80),
+    rechargeAddress: sanitizeShortText(row.recharge_address || "", 180),
+    qrCodeData: String(row.qr_code_data || "").trim(),
+    minAmountUsd: Number(row.min_amount_usd || 0),
+    maxAmountUsd: Number(row.max_amount_usd || 0),
+    sortOrder: Number(row.sort_order || 0),
+    isEnabled: Number(row.is_enabled || 0) === 1,
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function buildWalletBalancePayload(row) {
+  if (!row) {
+    return null;
+  }
+  return {
+    symbol: normalizeAssetSymbol(row.asset_symbol || ""),
+    name: sanitizeShortText(row.asset_name || "", 80),
+    totalUsd: Number(row.total_usd || 0),
+    updatedAt: row.updated_at || "",
+  };
+}
+
+function buildDepositRequestPayload(row, options = {}) {
+  if (!row) {
+    return null;
+  }
+
+  const includeAdminFields = Boolean(options.includeAdminFields);
+  const includeSensitiveMedia = Boolean(options.includeSensitiveMedia);
+  const payload = {
+    requestId: row.id,
+    userId: row.user_id,
+    assetId: row.asset_id,
+    assetSymbol: normalizeAssetSymbol(row.asset_symbol || ""),
+    assetName: sanitizeShortText(row.asset_name || "", 80),
+    chainName: sanitizeShortText(row.chain_name || "", 80),
+    rechargeAddress: sanitizeShortText(row.recharge_address_snapshot || "", 180),
+    amountUsd: Number(row.amount_usd || 0),
+    screenshotFileName: sanitizeShortText(row.screenshot_file_name || "", 180),
+    status: normalizeDepositStatus(row.status || "pending"),
+    note: row.note || "",
+    submittedAt: row.submitted_at || "",
+    reviewedAt: row.reviewed_at || "",
+    reviewedBy: row.reviewed_by || "",
+  };
+
+  if (includeAdminFields) {
+    payload.accountName = sanitizeShortText(row.account_name || "", 120);
+    payload.accountEmail = sanitizeShortText(row.account_email || "", 160);
+    payload.accountAvatarUrl = sanitizeAvatarUrl(row.account_avatar_url || "");
+  }
+
+  if (includeSensitiveMedia) {
+    payload.screenshotFileData = String(row.screenshot_file_data || "").trim();
+  }
+
+  return payload;
+}
+
+function readDashboardWallet(userId) {
+  const balances = listUserWalletBalancesStatement
+    .all(userId)
+    .map((row) => buildWalletBalancePayload(row))
+    .filter(Boolean);
+  const usdBalance = balances.find((item) => normalizeAssetSymbol(item.symbol) === "USD");
+  const totalSpotAssetsUsd = usdBalance ? Number(Number(usdBalance.totalUsd || 0).toFixed(8)) : null;
+
+  return {
+    totalSpotAssetsUsd,
+    balances,
+  };
+}
+
+function ensureDefaultDepositAssets() {
+  const existingAssets = listDepositAssetsStatement.all();
+  if (existingAssets.length > 0) {
+    return;
+  }
+
+  const nowIso = toIso(getNow());
+  for (const asset of DEPOSIT_DEFAULT_ASSETS) {
+    insertDepositAssetStatement.run({
+      symbol: asset.symbol,
+      name: asset.name,
+      chainName: asset.chainName,
+      rechargeAddress: asset.rechargeAddress,
+      qrCodeData: asset.qrCodeData,
+      minAmountUsd: Number(asset.minAmountUsd || DEPOSIT_MIN_USD_DEFAULT),
+      maxAmountUsd: Number(asset.maxAmountUsd || DEPOSIT_MAX_USD_DEFAULT),
+      sortOrder: Number(asset.sortOrder || 0),
+      isEnabled: 1,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+  }
+}
+
+ensureDefaultDepositAssets();
+
+function buildKycSubmissionPayload(row, options = {}) {
+  if (!row) {
+    return null;
+  }
+
+  const includeSensitiveMedia = Boolean(options.includeSensitiveMedia);
+  const payload = {
     requestId: row.id,
     userId: row.user_id,
     fullName: row.full_name,
@@ -637,14 +1205,22 @@ function buildKycSubmissionPayload(row) {
     reviewedAt: row.reviewed_at || "",
     reviewedBy: row.reviewed_by || "",
   };
+
+  if (includeSensitiveMedia) {
+    payload.frontFileData = String(row.front_file_data || "").trim();
+    payload.backFileData = String(row.back_file_data || "").trim();
+  }
+
+  return payload;
 }
 
-function buildKycAdminPayload(row) {
+function buildKycAdminPayload(row, options = {}) {
   if (!row) {
     return null;
   }
 
-  return {
+  const includeSensitiveMedia = Boolean(options.includeSensitiveMedia);
+  const payload = {
     requestId: row.id,
     userId: row.user_id,
     fullName: row.full_name,
@@ -659,9 +1235,17 @@ function buildKycAdminPayload(row) {
     reviewedBy: row.reviewed_by || "",
     accountName: row.account_name || "",
     accountEmail: row.account_email || "",
+    accountAvatarUrl: sanitizeAvatarUrl(row.account_avatar_url || ""),
     accountKycStatus: normalizeKycStatus(row.account_kyc_status),
     accountAuthTag: row.account_auth_tag || deriveAuthTag(normalizeKycStatus(row.account_kyc_status)),
   };
+
+  if (includeSensitiveMedia) {
+    payload.frontFileData = String(row.front_file_data || "").trim();
+    payload.backFileData = String(row.back_file_data || "").trim();
+  }
+
+  return payload;
 }
 
 function buildUserPayload(user = {}) {
@@ -683,6 +1267,17 @@ function buildUserPayload(user = {}) {
     isKycAuthenticated: kycStatus === "authenticated",
     kycUpdatedAt: user.kyc_updated_at || "",
     email: user.email || "",
+    createdAt: user.created_at || "",
+  };
+}
+
+function buildAdminDirectoryUserPayload(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...buildUserPayload(row),
   };
 }
 
@@ -1280,10 +1875,181 @@ function handleAdminKycList(_req, res) {
         authenticatedUsers: authenticated,
         rejectedUsers: rejected,
       },
-      requests: rows.map((row) => buildKycAdminPayload(row)),
+      requests: rows.map((row) => buildKycAdminPayload(row, { includeSensitiveMedia: true })),
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not load KYC requests." });
+  }
+}
+
+function handleAdminUsersList(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const rawStatus = String(req.body?.kycStatus || req.query?.kycStatus || "")
+      .trim()
+      .toLowerCase();
+    const filterStatus = rawStatus ? normalizeKycStatus(rawStatus) : "";
+
+    const allUsers = listAdminUsersStatement
+      .all()
+      .map((row) => buildAdminDirectoryUserPayload(row))
+      .filter(Boolean);
+    const users = filterStatus ? allUsers.filter((row) => row.kycStatus === filterStatus) : allUsers;
+
+    res.json({
+      stats: {
+        totalUsers: countUsersStatement.get()?.total || 0,
+        pendingVerifications: countUsersByKycStatusStatement.get("pending")?.total || 0,
+        authenticatedUsers: countUsersByKycStatusStatement.get("authenticated")?.total || 0,
+        rejectedUsers: countUsersByKycStatusStatement.get("rejected")?.total || 0,
+      },
+      filter: filterStatus || "all",
+      users,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load users." });
+  }
+}
+
+function handleAdminUserDetail(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const userId = sanitizeShortText(req.body?.userId || req.params?.userId || "", 24);
+    if (!userId) {
+      throw new Error("Valid userId is required.");
+    }
+
+    const userRow = findAdminUserByUserIdStatement.get(userId);
+    if (!userRow) {
+      res.status(404).json({ error: "User not found." });
+      return;
+    }
+
+    const kycHistory = listUserKycHistoryForAdminStatement
+      .all(userId)
+      .map((row) => buildKycSubmissionPayload(row, { includeSensitiveMedia: true }))
+      .filter(Boolean);
+    const depositHistory = listUserDepositHistoryForAdminStatement
+      .all(userId)
+      .map((row) => buildDepositRequestPayload(row, { includeSensitiveMedia: true }))
+      .filter(Boolean);
+
+    res.json({
+      user: buildAdminDirectoryUserPayload(userRow),
+      wallet: readDashboardWallet(userId),
+      history: {
+        kyc: kycHistory,
+        deposit: depositHistory,
+      },
+      latest: {
+        kyc: kycHistory[0] || null,
+        deposit: depositHistory[0] || null,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load user details." });
+  }
+}
+
+function handleAdminUserUpdate(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const userId = sanitizeShortText(req.body?.userId || "", 24);
+    if (!userId) {
+      throw new Error("Valid userId is required.");
+    }
+
+    const existingUser = findAdminUserByUserIdStatement.get(userId);
+    if (!existingUser) {
+      res.status(404).json({ error: "User not found." });
+      return;
+    }
+
+    const name = sanitizeShortText(req.body?.name || existingUser.name || "", 120);
+    const firstName = sanitizeShortText(req.body?.firstName || existingUser.first_name || "", 80);
+    const lastName = sanitizeShortText(req.body?.lastName || existingUser.last_name || "", 80);
+    const mobile = sanitizeMobile(req.body?.mobile || existingUser.mobile || "");
+    const avatarUrl = sanitizeAvatarUrl(req.body?.avatarUrl || existingUser.avatar_url || "");
+    const email = normalizeEmail(req.body?.email || existingUser.email || "");
+    const kycStatus = normalizeKycStatus(req.body?.kycStatus || existingUser.kyc_status || "pending");
+    const authTag = deriveAuthTag(kycStatus);
+
+    assertValidName(name);
+    assertValidEmail(email);
+
+    const sameEmailOwner = findUserByEmailStatement.get(email);
+    if (sameEmailOwner && sameEmailOwner.user_id !== userId) {
+      throw new Error("This email is already used by another user.");
+    }
+
+    const nowIso = toIso(getNow());
+    const nextWalletBalances = Array.isArray(req.body?.walletBalances) ? req.body.walletBalances : null;
+
+    const updateTransaction = db.transaction(() => {
+      updateUserProfileByAdminStatement.run({
+        userId,
+        name,
+        firstName,
+        lastName,
+        mobile,
+        avatarUrl,
+        email,
+        kycStatus,
+        authTag,
+        kycUpdatedAt: nowIso,
+      });
+
+      if (nextWalletBalances) {
+        for (const walletItem of nextWalletBalances) {
+          const symbol = normalizeAssetSymbol(walletItem?.symbol || "");
+          const assetName = sanitizeShortText(walletItem?.name || symbol || "Asset", 80);
+          const totalUsd = Number(walletItem?.totalUsd || 0);
+
+          if (!symbol) {
+            continue;
+          }
+          if (!Number.isFinite(totalUsd) || totalUsd < 0) {
+            throw new Error(`Wallet amount for ${symbol} must be a valid non-negative number.`);
+          }
+
+          setWalletBalanceStatement.run({
+            userId,
+            assetSymbol: symbol,
+            assetName,
+            totalUsd: Number(totalUsd.toFixed(8)),
+            updatedAt: nowIso,
+          });
+        }
+      }
+    });
+
+    updateTransaction();
+
+    const updatedUser = findAdminUserByUserIdStatement.get(userId);
+    const kycHistory = listUserKycHistoryForAdminStatement
+      .all(userId)
+      .map((row) => buildKycSubmissionPayload(row, { includeSensitiveMedia: true }))
+      .filter(Boolean);
+    const depositHistory = listUserDepositHistoryForAdminStatement
+      .all(userId)
+      .map((row) => buildDepositRequestPayload(row, { includeSensitiveMedia: true }))
+      .filter(Boolean);
+
+    res.json({
+      message: "User profile updated successfully.",
+      user: buildAdminDirectoryUserPayload(updatedUser),
+      wallet: readDashboardWallet(userId),
+      history: {
+        kyc: kycHistory,
+        deposit: depositHistory,
+      },
+      latest: {
+        kyc: kycHistory[0] || null,
+        deposit: depositHistory[0] || null,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not update user profile." });
   }
 }
 
@@ -1297,8 +2063,11 @@ function handleAdminKycReview(req, res) {
     if (!Number.isInteger(requestId) || requestId <= 0) {
       throw new Error("Valid requestId is required.");
     }
-    if (decision !== "authenticated" && decision !== "rejected") {
-      throw new Error("Decision must be authenticated or rejected.");
+    if (decision !== "authenticated" && decision !== "rejected" && decision !== "pending") {
+      throw new Error("Decision must be authenticated, rejected, or pending.");
+    }
+    if (decision === "rejected" && !note) {
+      throw new Error("Reject reason is required.");
     }
 
     const submission = findKycSubmissionByIdStatement.get(requestId);
@@ -1326,13 +2095,366 @@ function handleAdminKycReview(req, res) {
     const updatedUser = findUserByUserIdStatement.get(submission.user_id);
     const reviewedRequest = findKycSubmissionWithUserByIdStatement.get(requestId);
 
+    const responseMessageByDecision = {
+      authenticated: "KYC approved successfully.",
+      rejected: "KYC request rejected.",
+      pending: "KYC request moved back to pending.",
+    };
+
     res.json({
-      message: decision === "authenticated" ? "User is now authenticated." : "KYC request rejected.",
+      message: responseMessageByDecision[decision] || "KYC request updated.",
       user: buildUserPayload(updatedUser || { user_id: submission.user_id }),
       request: buildKycAdminPayload(reviewedRequest),
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not review KYC request." });
+  }
+}
+
+function handleDashboardSnapshot(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const currentUser = findUserByUserIdStatement.get(req.currentUser.userId);
+    const notice = buildNoticePayload(getLatestActiveNoticeStatement.get());
+    const wallet = readDashboardWallet(req.currentUser.userId);
+    const depositAssets = listEnabledDepositAssetsStatement
+      .all()
+      .map((row) => buildDepositAssetPayload(row))
+      .filter(Boolean);
+
+    res.json({
+      user: buildUserPayload(currentUser || req.currentUser),
+      notice,
+      wallet,
+      deposit: {
+        assets: depositAssets,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load dashboard snapshot." });
+  }
+}
+
+function handleDepositCreate(req, res) {
+  try {
+    cleanupExpiredRecords();
+
+    const assetId = Number(req.body.assetId);
+    const amountUsd = normalizeUsdAmount(req.body.amountUsd);
+    const screenshotFileName = sanitizeShortText(req.body.screenshotFileName || "transaction-screenshot", 180);
+    const screenshotFileData = String(req.body.screenshotFileData || "").trim();
+
+    if (!Number.isInteger(assetId) || assetId <= 0) {
+      throw new Error("Please select a crypto asset first.");
+    }
+    if (!screenshotFileData) {
+      throw new Error("Transaction screenshot is required.");
+    }
+
+    parseDepositScreenshotData(screenshotFileData);
+
+    const asset = findDepositAssetByIdStatement.get(assetId);
+    if (!asset || Number(asset.is_enabled || 0) !== 1) {
+      throw new Error("Selected asset is not available for deposit right now.");
+    }
+
+    const minAmountUsd = Number(asset.min_amount_usd || DEPOSIT_MIN_USD_DEFAULT);
+    const maxAmountUsd = Number(asset.max_amount_usd || DEPOSIT_MAX_USD_DEFAULT);
+    if (amountUsd < minAmountUsd || amountUsd > maxAmountUsd) {
+      throw new Error(`Amount must be between ${minAmountUsd} and ${maxAmountUsd} USD.`);
+    }
+
+    const submittedAt = toIso(getNow());
+    const insertResult = insertDepositRequestStatement.run({
+      userId: req.currentUser.userId,
+      assetId,
+      assetSymbol: normalizeAssetSymbol(asset.symbol || ""),
+      assetName: sanitizeShortText(asset.name || "", 80),
+      chainName: sanitizeShortText(asset.chain_name || "", 80),
+      rechargeAddressSnapshot: sanitizeShortText(asset.recharge_address || "", 180),
+      amountUsd,
+      screenshotFileName,
+      screenshotFileData,
+      status: "pending",
+      note: "",
+      submittedAt,
+      reviewedAt: null,
+      reviewedBy: null,
+    });
+
+    const createdRequest = findDepositRequestByIdStatement.get(insertResult.lastInsertRowid);
+    res.json({
+      message: "Deposit request submitted successfully. Admin review pending.",
+      request: buildDepositRequestPayload(createdRequest),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not submit deposit request." });
+  }
+}
+
+function handleDepositRecords(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const rows = listDepositRequestsByUserStatement.all(req.currentUser.userId);
+    res.json({
+      records: rows.map((row) => buildDepositRequestPayload(row)).filter(Boolean),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load deposit records." });
+  }
+}
+
+function handleAdminNoticeGet(_req, res) {
+  try {
+    cleanupExpiredRecords();
+    res.json({
+      notice: buildNoticePayload(getLatestActiveNoticeStatement.get()),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load admin notice." });
+  }
+}
+
+function handleAdminNoticeUpdate(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const message = sanitizeShortText(req.body.message || "", 700);
+    if (message.length < 6) {
+      throw new Error("Notice must contain at least 6 characters.");
+    }
+
+    const nowIso = toIso(getNow());
+    const updateNoticeTransaction = db.transaction(() => {
+      clearActiveNoticesStatement.run({ updatedAt: nowIso });
+      insertNoticeStatement.run({
+        message,
+        isActive: 1,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+    });
+
+    updateNoticeTransaction();
+    const latestNotice = getLatestActiveNoticeStatement.get();
+    res.json({
+      message: "Notice published successfully.",
+      notice: buildNoticePayload(latestNotice),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not update notice." });
+  }
+}
+
+function handleAdminDepositAssetsList(_req, res) {
+  try {
+    cleanupExpiredRecords();
+    const rows = listDepositAssetsStatement.all();
+    const assets = rows.map((row) => buildDepositAssetPayload(row)).filter(Boolean);
+    const enabledAssets = assets.filter((item) => item.isEnabled).length;
+    res.json({
+      stats: {
+        totalAssets: assets.length,
+        enabledAssets,
+      },
+      assets,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load deposit assets." });
+  }
+}
+
+function handleAdminDepositAssetUpsert(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const assetId = Number(req.body.assetId);
+    const hasAssetId = Number.isInteger(assetId) && assetId > 0;
+    const symbol = normalizeAssetSymbol(req.body.symbol || "");
+    const name = sanitizeShortText(req.body.name || "", 80);
+    const chainName = sanitizeShortText(req.body.chainName || "", 80);
+    const rechargeAddress = sanitizeShortText(req.body.rechargeAddress || "", 180);
+    const qrCodeData = String(req.body.qrCodeData || "").trim();
+    const minAmountUsd = normalizeUsdAmount(req.body.minAmountUsd ?? DEPOSIT_MIN_USD_DEFAULT);
+    const maxAmountUsd = normalizeUsdAmount(req.body.maxAmountUsd ?? DEPOSIT_MAX_USD_DEFAULT);
+    const sortOrder = Number.isFinite(Number(req.body.sortOrder)) ? Number(req.body.sortOrder) : 0;
+    const isEnabled = normalizeBoolean(req.body.isEnabled, true) ? 1 : 0;
+
+    if (!symbol) {
+      throw new Error("Symbol is required.");
+    }
+    if (!name) {
+      throw new Error("Asset name is required.");
+    }
+    if (!chainName) {
+      throw new Error("Chain name is required.");
+    }
+    if (!rechargeAddress) {
+      throw new Error("Recharge address is required.");
+    }
+    if (!qrCodeData) {
+      throw new Error("QR code data is required.");
+    }
+    if (minAmountUsd > maxAmountUsd) {
+      throw new Error("Min amount must be less than or equal to max amount.");
+    }
+
+    const existingBySymbol = findDepositAssetBySymbolStatement.get(symbol);
+    if (existingBySymbol && (!hasAssetId || existingBySymbol.id !== assetId)) {
+      throw new Error("This symbol is already configured.");
+    }
+
+    const nowIso = toIso(getNow());
+    if (hasAssetId) {
+      const existing = findDepositAssetByIdStatement.get(assetId);
+      if (!existing) {
+        res.status(404).json({ error: "Deposit asset not found." });
+        return;
+      }
+
+      updateDepositAssetStatement.run({
+        id: assetId,
+        symbol,
+        name,
+        chainName,
+        rechargeAddress,
+        qrCodeData,
+        minAmountUsd,
+        maxAmountUsd,
+        sortOrder,
+        isEnabled,
+        updatedAt: nowIso,
+      });
+
+      const updatedAsset = findDepositAssetByIdStatement.get(assetId);
+      res.json({
+        message: "Deposit asset updated.",
+        asset: buildDepositAssetPayload(updatedAsset),
+      });
+      return;
+    }
+
+    const insertResult = insertDepositAssetStatement.run({
+      symbol,
+      name,
+      chainName,
+      rechargeAddress,
+      qrCodeData,
+      minAmountUsd,
+      maxAmountUsd,
+      sortOrder,
+      isEnabled,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+
+    const createdAsset = findDepositAssetByIdStatement.get(insertResult.lastInsertRowid);
+    res.json({
+      message: "Deposit asset created.",
+      asset: buildDepositAssetPayload(createdAsset),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not save deposit asset." });
+  }
+}
+
+function handleAdminDepositRequestsList(_req, res) {
+  try {
+    cleanupExpiredRecords();
+    const rows = listAdminDepositRequestsStatement.all();
+    res.json({
+      stats: {
+        totalRequests: countDepositRequestsTotalStatement.get()?.total || 0,
+        pendingRequests: countDepositRequestsByStatusStatement.get("pending")?.total || 0,
+        approvedRequests: countDepositRequestsByStatusStatement.get("approved")?.total || 0,
+        rejectedRequests: countDepositRequestsByStatusStatement.get("rejected")?.total || 0,
+      },
+      requests: rows
+        .map((row) => buildDepositRequestPayload(row, { includeAdminFields: true, includeSensitiveMedia: true }))
+        .filter(Boolean),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load deposit requests." });
+  }
+}
+
+function handleAdminDepositRequestReview(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const requestId = Number(req.body.requestId);
+    const decision = normalizeDepositStatus(req.body.decision || "");
+    const note = sanitizeShortText(req.body.note || "", 300);
+
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      throw new Error("Valid requestId is required.");
+    }
+    if (decision !== "approved" && decision !== "rejected" && decision !== "pending") {
+      throw new Error("Decision must be approved, rejected, or pending.");
+    }
+    if (decision === "rejected" && !note) {
+      throw new Error("Reject reason is required.");
+    }
+
+    const request = findDepositRequestByIdStatement.get(requestId);
+    if (!request) {
+      res.status(404).json({ error: "Deposit request not found." });
+      return;
+    }
+    const previousStatus = normalizeDepositStatus(request.status || "pending");
+
+    const reviewedAt = toIso(getNow());
+    const reviewTransaction = db.transaction(() => {
+      updateDepositRequestReviewStatement.run({
+        id: requestId,
+        status: decision,
+        note,
+        reviewedAt,
+        reviewedBy: "admin",
+      });
+
+      if (previousStatus !== "approved" && decision === "approved") {
+        upsertWalletBalanceStatement.run({
+          userId: request.user_id,
+          assetSymbol: normalizeAssetSymbol(request.asset_symbol || ""),
+          assetName: sanitizeShortText(request.asset_name || "", 80),
+          totalUsd: Number(request.amount_usd || 0),
+          updatedAt: reviewedAt,
+        });
+      }
+
+      if (previousStatus === "approved" && decision !== "approved") {
+        const assetSymbol = normalizeAssetSymbol(request.asset_symbol || "");
+        const existingBalance = findWalletBalanceByUserAssetStatement.get(request.user_id, assetSymbol);
+        const currentTotal = Number(existingBalance?.total_usd || 0);
+        const deductedTotal = Math.max(0, currentTotal - Number(request.amount_usd || 0));
+
+        setWalletBalanceStatement.run({
+          userId: request.user_id,
+          assetSymbol,
+          assetName: sanitizeShortText(request.asset_name || assetSymbol || "Asset", 80),
+          totalUsd: Number(deductedTotal.toFixed(8)),
+          updatedAt: reviewedAt,
+        });
+      }
+    });
+
+    reviewTransaction();
+
+    const reviewedRequest = findAdminDepositRequestByIdStatement.get(requestId);
+    const responseMessageByDecision = {
+      approved: "Deposit approved and wallet adjusted.",
+      rejected: "Deposit rejected and wallet adjusted.",
+      pending: "Deposit moved back to pending.",
+    };
+
+    res.json({
+      message: responseMessageByDecision[decision] || "Deposit request updated.",
+      request: buildDepositRequestPayload(reviewedRequest, {
+        includeAdminFields: true,
+        includeSensitiveMedia: true,
+      }),
+      wallet: readDashboardWallet(request.user_id),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not review deposit request." });
   }
 }
 
@@ -1383,11 +2505,47 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "kyc.status":
       requireSession(req, res, () => handleKycStatus(req, res));
       return;
+    case "dashboard.snapshot":
+      requireSession(req, res, () => handleDashboardSnapshot(req, res));
+      return;
+    case "deposit.create":
+      requireSession(req, res, () => handleDepositCreate(req, res));
+      return;
+    case "deposit.records":
+      requireSession(req, res, () => handleDepositRecords(req, res));
+      return;
     case "admin.kyc.list":
       handleAdminKycList(req, res);
       return;
+    case "admin.users.list":
+      handleAdminUsersList(req, res);
+      return;
+    case "admin.user.detail":
+      handleAdminUserDetail(req, res);
+      return;
+    case "admin.user.update":
+      handleAdminUserUpdate(req, res);
+      return;
     case "admin.kyc.review":
       handleAdminKycReview(req, res);
+      return;
+    case "admin.notice.get":
+      handleAdminNoticeGet(req, res);
+      return;
+    case "admin.notice.update":
+      handleAdminNoticeUpdate(req, res);
+      return;
+    case "admin.deposit.assets.list":
+      handleAdminDepositAssetsList(req, res);
+      return;
+    case "admin.deposit.asset.upsert":
+      handleAdminDepositAssetUpsert(req, res);
+      return;
+    case "admin.deposit.requests.list":
+      handleAdminDepositRequestsList(req, res);
+      return;
+    case "admin.deposit.request.review":
+      handleAdminDepositRequestReview(req, res);
       return;
     default:
       res.status(400).json({ error: "Unknown auth action." });
@@ -1407,8 +2565,22 @@ app.post("/api/auth/profile", requireSession, handleProfileUpdate);
 app.post("/api/auth/password/change", requireSession, handlePasswordChange);
 app.post("/api/auth/kyc", requireSession, handleKycSubmit);
 app.get("/api/auth/kyc", requireSession, handleKycStatus);
+app.get("/api/auth/dashboard", requireSession, handleDashboardSnapshot);
+app.post("/api/auth/deposit", requireSession, handleDepositCreate);
+app.get("/api/auth/deposit/records", requireSession, handleDepositRecords);
 app.get("/api/admin/kyc", handleAdminKycList);
 app.post("/api/admin/kyc/review", handleAdminKycReview);
+app.get("/api/admin/users", handleAdminUsersList);
+app.post("/api/admin/users/list", handleAdminUsersList);
+app.get("/api/admin/users/:userId", handleAdminUserDetail);
+app.post("/api/admin/users/detail", handleAdminUserDetail);
+app.post("/api/admin/users/update", handleAdminUserUpdate);
+app.get("/api/admin/notice", handleAdminNoticeGet);
+app.post("/api/admin/notice", handleAdminNoticeUpdate);
+app.get("/api/admin/deposit/assets", handleAdminDepositAssetsList);
+app.post("/api/admin/deposit/assets", handleAdminDepositAssetUpsert);
+app.get("/api/admin/deposit/requests", handleAdminDepositRequestsList);
+app.post("/api/admin/deposit/requests/review", handleAdminDepositRequestReview);
 
 const isExecutedDirectly = (() => {
   if (!process.argv[1]) {
