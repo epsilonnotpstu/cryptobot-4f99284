@@ -1531,3 +1531,103 @@
   font-weight: 700;
   text-transform: capitalize;
 }
+
+.prodash-deposit-status-card {
+  border-radius: 20px;
+}
+
+.prodash-deposit-status-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.prodash-deposit-status-item {
+  border: 1px solid var(--prodash-soft-border);
+  border-radius: 13px;
+  background: rgba(9, 16, 29, 0.72);
+  padding: 0.64rem 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.prodash-deposit-status-item strong {
+  color: #ecf8ff;
+}
+
+.prodash-deposit-status-item small {
+  display: block;
+  margin-top: 0.12rem;
+  color: #8ea7c3;
+  font-size: 0.76rem;
+}
+
+.prodash-deposit-page {
+  padding-bottom: 1.2rem;
+}
+
+.prodash-deposit-shell {
+  max-width: 980px;
+}
+
+.prodash-deposit-page-card {
+  margin: 0 auto;
+  width: min(860px, 100%);
+}
+
+.prodash-deposit-top-user {
+  text-align: right;
+}
+
+.prodash-deposit-top-user strong {
+  display: block;
+  color: #f2f9ff;
+  font-size: 0.88rem;
+}
+
+.prodash-deposit-top-user small {
+  color: #8ea9c9;
+  font-size: 0.74rem;
+}
+
+.prodash-inline-link-btn {
+  border-radius: 10px;
+  border: 1px solid rgba(140, 234, 255, 0.28);
+  background: rgba(15, 33, 54, 0.74);
+  color: #9befff;
+  padding: 0.45rem 0.68rem;
+}
+
+.prodash-copy-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prodash-copy-toast {
+  position: absolute;
+  bottom: -1.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  background: rgba(8, 34, 20, 0.92);
+  color: #b8ffd4;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.12rem 0.48rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .prodash-deposit-top-user {
+    display: none;
+  }
+
+  .prodash-deposit-page-card {
+    width: 100%;
+  }
+}

@@ -47,6 +47,8 @@ db.exec(`
     last_name TEXT NOT NULL DEFAULT '',
     mobile TEXT NOT NULL DEFAULT '',
     avatar_url TEXT NOT NULL DEFAULT '',
+    account_role TEXT NOT NULL DEFAULT 'trader',
+    account_status TEXT NOT NULL DEFAULT 'active',
     kyc_status TEXT NOT NULL DEFAULT 'pending',
     auth_tag TEXT NOT NULL DEFAULT 'kyc-pending',
     kyc_updated_at TEXT NOT NULL DEFAULT '',
@@ -166,6 +168,12 @@ function ensureUserProfileColumns() {
   if (!existingColumns.includes("avatar_url")) {
     db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT ''");
   }
+  if (!existingColumns.includes("account_role")) {
+    db.exec("ALTER TABLE users ADD COLUMN account_role TEXT NOT NULL DEFAULT 'trader'");
+  }
+  if (!existingColumns.includes("account_status")) {
+    db.exec("ALTER TABLE users ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active'");
+  }
   if (!existingColumns.includes("kyc_status")) {
     db.exec("ALTER TABLE users ADD COLUMN kyc_status TEXT NOT NULL DEFAULT 'pending'");
   }
@@ -179,6 +187,25 @@ function ensureUserProfileColumns() {
 
 ensureUserProfileColumns();
 
+function ensureUserRoleViews() {
+  db.exec(`
+    DROP VIEW IF EXISTS admin_accounts;
+    DROP VIEW IF EXISTS platform_users;
+
+    CREATE VIEW admin_accounts AS
+    SELECT *
+    FROM users
+    WHERE account_role IN ('admin', 'super_admin');
+
+    CREATE VIEW platform_users AS
+    SELECT *
+    FROM users
+    WHERE account_role NOT IN ('admin', 'super_admin');
+  `);
+}
+
+ensureUserRoleViews();
+
 const createUserStatement = db.prepare(`
   INSERT INTO users (
     user_id,
@@ -187,6 +214,8 @@ const createUserStatement = db.prepare(`
     last_name,
     mobile,
     avatar_url,
+    account_role,
+    account_status,
     kyc_status,
     auth_tag,
     kyc_updated_at,
@@ -201,6 +230,8 @@ const createUserStatement = db.prepare(`
     @lastName,
     @mobile,
     @avatarUrl,
+    @accountRole,
+    @accountStatus,
     @kycStatus,
     @authTag,
     @kycUpdatedAt,
@@ -243,7 +274,7 @@ const insertSessionStatement = db.prepare(`
 const findSessionStatement = db.prepare(`
   SELECT sessions.id AS session_row_id, sessions.user_id AS session_user_id, sessions.expires_at AS session_expires_at,
          users.user_id, users.name, users.first_name, users.last_name, users.mobile, users.avatar_url,
-         users.kyc_status, users.auth_tag, users.kyc_updated_at, users.email
+         users.account_role, users.account_status, users.kyc_status, users.auth_tag, users.kyc_updated_at, users.email
   FROM sessions
   JOIN users ON users.user_id = sessions.user_id
   WHERE sessions.session_token_hash = ?
@@ -254,6 +285,26 @@ const deleteSessionStatement = db.prepare(`
 `);
 const deleteUserSessionsStatement = db.prepare(`
   DELETE FROM sessions
+  WHERE user_id = ?
+`);
+const deleteUserWalletBalancesStatement = db.prepare(`
+  DELETE FROM user_wallet_balances
+  WHERE user_id = ?
+`);
+const deleteUserKycSubmissionsStatement = db.prepare(`
+  DELETE FROM kyc_submissions
+  WHERE user_id = ?
+`);
+const deleteUserDepositRequestsStatement = db.prepare(`
+  DELETE FROM deposit_requests
+  WHERE user_id = ?
+`);
+const deleteOtpByEmailStatement = db.prepare(`
+  DELETE FROM otp_codes
+  WHERE email = ?
+`);
+const deleteUserByUserIdStatement = db.prepare(`
+  DELETE FROM users
   WHERE user_id = ?
 `);
 const insertPasswordResetTokenStatement = db.prepare(`
@@ -301,6 +352,8 @@ const updateUserProfileByAdminStatement = db.prepare(`
       last_name = @lastName,
       mobile = @mobile,
       avatar_url = @avatarUrl,
+      account_role = @accountRole,
+      account_status = @accountStatus,
       email = @email,
       kyc_status = @kycStatus,
       auth_tag = @authTag,
@@ -365,14 +418,33 @@ const updateKycSubmissionReviewStatement = db.prepare(`
   WHERE id = @id
 `);
 const countUsersStatement = db.prepare("SELECT COUNT(*) AS total FROM users");
-const countUsersByKycStatusStatement = db.prepare("SELECT COUNT(*) AS total FROM users WHERE kyc_status = ?");
+const countPlatformUsersStatement = db.prepare("SELECT COUNT(*) AS total FROM platform_users");
+const countAdminUsersStatement = db.prepare("SELECT COUNT(*) AS total FROM admin_accounts");
+const countPlatformUsersByKycStatusStatement = db.prepare("SELECT COUNT(*) AS total FROM platform_users WHERE kyc_status = ?");
+const countActivePlatformUsersStatement = db.prepare(`
+  SELECT COUNT(DISTINCT s.user_id) AS total
+  FROM sessions s
+  JOIN platform_users u ON u.user_id = s.user_id
+  WHERE s.expires_at > ?
+`);
+const countPlatformKycSubmissionsByStatusStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM kyc_submissions k
+  JOIN platform_users u ON u.user_id = k.user_id
+  WHERE k.status = ?
+`);
+const countPlatformKycSubmissionsTotalStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM kyc_submissions k
+  JOIN platform_users u ON u.user_id = k.user_id
+`);
 const findKycSubmissionWithUserByIdStatement = db.prepare(`
   SELECT k.id, k.user_id, k.full_name, k.certification, k.ssn, k.front_file_name, k.back_file_name,
          k.status, k.note, k.submitted_at, k.reviewed_at, k.reviewed_by,
          u.name AS account_name, u.email AS account_email, u.kyc_status AS account_kyc_status,
     u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
   FROM kyc_submissions k
-  JOIN users u ON u.user_id = k.user_id
+  JOIN platform_users u ON u.user_id = k.user_id
   WHERE k.id = ?
   LIMIT 1
 `);
@@ -383,7 +455,7 @@ const listLatestKycSubmissionsStatement = db.prepare(`
          u.name AS account_name, u.email AS account_email, u.kyc_status AS account_kyc_status,
     u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
   FROM kyc_submissions k
-  JOIN users u ON u.user_id = k.user_id
+  JOIN platform_users u ON u.user_id = k.user_id
   WHERE k.id IN (
     SELECT MAX(id)
     FROM kyc_submissions
@@ -474,6 +546,15 @@ const updateDepositAssetStatement = db.prepare(`
       updated_at = @updatedAt
   WHERE id = @id
 `);
+const deleteDepositAssetByIdStatement = db.prepare(`
+  DELETE FROM deposit_assets
+  WHERE id = ?
+`);
+const countDepositRequestsByAssetIdStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM deposit_requests
+  WHERE asset_id = ?
+`);
 const insertDepositRequestStatement = db.prepare(`
   INSERT INTO deposit_requests (
     user_id,
@@ -554,18 +635,91 @@ const findAdminDepositRequestByIdStatement = db.prepare(`
   WHERE d.id = ?
   LIMIT 1
 `);
-const listAdminUsersStatement = db.prepare(`
-  SELECT user_id, name, first_name, last_name, mobile, avatar_url,
-         kyc_status, auth_tag, kyc_updated_at, email, created_at
-  FROM users
-  ORDER BY created_at DESC, id DESC
+const listPlatformUsersStatement = db.prepare(`
+  SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
+         u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
+         u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
+         COALESCE(ks.total_submissions, 0) AS kyc_submission_count,
+         COALESCE(ks.latest_status, '') AS latest_kyc_submission_status,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM sessions s
+           WHERE s.user_id = u.user_id AND s.expires_at > @nowIso
+         ) THEN 1 ELSE 0 END AS is_session_active
+  FROM platform_users u
+  LEFT JOIN user_wallet_balances w ON w.user_id = u.user_id
+  LEFT JOIN (
+    SELECT k.user_id,
+           COUNT(*) AS total_submissions,
+           (
+             SELECT k2.status
+             FROM kyc_submissions k2
+             WHERE k2.user_id = k.user_id
+             ORDER BY k2.id DESC
+             LIMIT 1
+           ) AS latest_status
+    FROM kyc_submissions k
+    GROUP BY k.user_id
+  ) ks ON ks.user_id = u.user_id
+  GROUP BY u.id
+  ORDER BY u.created_at DESC, u.id DESC
+  LIMIT 1000
+`);
+const listAllUsersForAdminStatement = db.prepare(`
+  SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
+         u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
+         u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
+         COALESCE(ks.total_submissions, 0) AS kyc_submission_count,
+         COALESCE(ks.latest_status, '') AS latest_kyc_submission_status,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM sessions s
+           WHERE s.user_id = u.user_id AND s.expires_at > @nowIso
+         ) THEN 1 ELSE 0 END AS is_session_active
+  FROM users u
+  LEFT JOIN user_wallet_balances w ON w.user_id = u.user_id
+  LEFT JOIN (
+    SELECT k.user_id,
+           COUNT(*) AS total_submissions,
+           (
+             SELECT k2.status
+             FROM kyc_submissions k2
+             WHERE k2.user_id = k.user_id
+             ORDER BY k2.id DESC
+             LIMIT 1
+           ) AS latest_status
+    FROM kyc_submissions k
+    GROUP BY k.user_id
+  ) ks ON ks.user_id = u.user_id
+  GROUP BY u.id
+  ORDER BY u.created_at DESC, u.id DESC
   LIMIT 1000
 `);
 const findAdminUserByUserIdStatement = db.prepare(`
-  SELECT user_id, name, first_name, last_name, mobile, avatar_url,
-         kyc_status, auth_tag, kyc_updated_at, email, created_at
-  FROM users
-  WHERE user_id = ?
+  SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
+         u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
+         u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
+         COALESCE(ks.total_submissions, 0) AS kyc_submission_count,
+         COALESCE(ks.latest_status, '') AS latest_kyc_submission_status,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM sessions s
+           WHERE s.user_id = u.user_id AND s.expires_at > @nowIso
+         ) THEN 1 ELSE 0 END AS is_session_active
+  FROM users u
+  LEFT JOIN user_wallet_balances w ON w.user_id = u.user_id
+  LEFT JOIN (
+    SELECT k.user_id,
+           COUNT(*) AS total_submissions,
+           (
+             SELECT k2.status
+             FROM kyc_submissions k2
+             WHERE k2.user_id = k.user_id
+             ORDER BY k2.id DESC
+             LIMIT 1
+           ) AS latest_status
+    FROM kyc_submissions k
+    GROUP BY k.user_id
+  ) ks ON ks.user_id = u.user_id
+  WHERE u.user_id = @userId
+  GROUP BY u.id
   LIMIT 1
 `);
 const listUserKycHistoryForAdminStatement = db.prepare(`
@@ -901,6 +1055,13 @@ function assertValidEmail(email = "") {
   }
 }
 
+function assertValidPhone(phone = "") {
+  const normalized = sanitizeMobile(phone);
+  if (!/^\+?[0-9]{6,16}$/.test(normalized)) {
+    throw new Error("Please enter a valid phone number.");
+  }
+}
+
 function normalizePersonName(value = "") {
   return String(value || "").trim().replace(/\s+/g, " ");
 }
@@ -946,6 +1107,42 @@ function normalizeKycStatus(status = "") {
   return "pending";
 }
 
+function normalizeAccountRole(value = "") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  if (normalized === "admin") {
+    return "admin";
+  }
+  if (normalized === "superadmin" || normalized === "super_admin") {
+    return "super_admin";
+  }
+  if (normalized === "institution" || normalized === "institutional") {
+    return "institutional";
+  }
+  if (normalized === "pro" || normalized === "protrader" || normalized === "pro_trader") {
+    return "pro_trader";
+  }
+  return "trader";
+}
+
+function normalizeAccountStatus(value = "") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  if (normalized === "ban" || normalized === "banned") {
+    return "banned";
+  }
+  if (normalized === "suspend" || normalized === "suspended") {
+    return "suspended";
+  }
+  return "active";
+}
+
 function deriveAuthTag(kycStatus) {
   if (kycStatus === "authenticated") {
     return "kyc-authenticated";
@@ -970,6 +1167,11 @@ function normalizeCertification(value = "") {
 
 function sanitizeShortText(value = "", maxLength = 240) {
   return String(value || "").trim().slice(0, maxLength);
+}
+
+function hasAdminRole(value = "") {
+  const role = normalizeAccountRole(value);
+  return role === "admin" || role === "super_admin";
 }
 
 function parseKycFileData(rawData = "", sectionLabel = "file") {
@@ -1253,7 +1455,13 @@ function buildUserPayload(user = {}) {
   const lastName = normalizePersonName(user.last_name || "");
   const name = buildDisplayName(firstName, lastName, user.name || "");
   const kycStatus = normalizeKycStatus(user.kyc_status || "");
+  const latestKycSubmissionStatus = normalizeKycStatus(user.latest_kyc_submission_status || "");
+  const kycSubmissionCount = Math.max(0, Number(user.kyc_submission_count || 0));
+  const kycStage =
+    kycStatus === "authenticated" ? "authenticated" : kycSubmissionCount > 0 ? "submitted_pending" : "not_submitted";
   const authTag = sanitizeShortText(user.auth_tag || deriveAuthTag(kycStatus), 60) || deriveAuthTag(kycStatus);
+  const totalBalanceUsd = Number(user.total_balance_usd || 0);
+  const isSessionActive = Number(user.is_session_active || 0) === 1;
 
   return {
     userId: user.user_id || "",
@@ -1262,12 +1470,19 @@ function buildUserPayload(user = {}) {
     lastName,
     mobile: sanitizeMobile(user.mobile || ""),
     avatarUrl: sanitizeAvatarUrl(user.avatar_url || ""),
+    accountRole: normalizeAccountRole(user.account_role || ""),
+    accountStatus: normalizeAccountStatus(user.account_status || ""),
     kycStatus,
+    kycStage,
+    latestKycSubmissionStatus,
+    kycSubmissionCount,
     authTag,
     isKycAuthenticated: kycStatus === "authenticated",
+    isActiveSession: isSessionActive,
     kycUpdatedAt: user.kyc_updated_at || "",
     email: user.email || "",
     createdAt: user.created_at || "",
+    totalBalanceUsd: Number.isFinite(totalBalanceUsd) ? Number(totalBalanceUsd.toFixed(2)) : 0,
   };
 }
 
@@ -1340,6 +1555,16 @@ function requireSession(req, res, next) {
   };
   req.sessionToken = sessionToken;
   next();
+}
+
+function requireAdminSession(req, res, next) {
+  requireSession(req, res, () => {
+    if (!hasAdminRole(req.currentUser?.accountRole)) {
+      res.status(403).json({ error: "Admin access required." });
+      return;
+    }
+    next();
+  });
 }
 
 app.get("/api/health", (_req, res) => {
@@ -1432,6 +1657,8 @@ async function handleSignupComplete(req, res) {
       lastName: splitName.lastName,
       mobile: "",
       avatarUrl: "",
+      accountRole: "trader",
+      accountStatus: "active",
       kycStatus: "pending",
       authTag: "kyc-pending",
       kycUpdatedAt: createdAt,
@@ -1495,6 +1722,8 @@ async function handleGoogleAuth(req, res) {
         lastName: splitName.lastName,
         mobile: "",
         avatarUrl: "",
+        accountRole: "trader",
+        accountStatus: "active",
         kycStatus: "pending",
         authTag: "kyc-pending",
         kycUpdatedAt: createdAt,
@@ -1546,6 +1775,106 @@ async function handleLogin(req, res) {
   } catch (error) {
     res.status(400).json({ error: error.message || "Login failed." });
   }
+}
+
+async function handleAdminSignup(req, res) {
+  try {
+    cleanupExpiredRecords();
+
+    const name = sanitizeShortText(req.body?.name || "", 120);
+    const email = normalizeEmail(req.body?.email || "");
+    const phone = sanitizeMobile(req.body?.phone || "");
+    const password = req.body?.password || "";
+
+    assertValidName(name);
+    assertValidEmail(email);
+    assertValidPhone(phone);
+    assertValidPassword(password);
+
+    if (findUserByEmailStatement.get(email)) {
+      res.status(409).json({ error: "An account with this email already exists. Please login." });
+      return;
+    }
+
+    const userId = createUniqueUserId();
+    const splitName = splitFullName(name);
+    const passwordHash = await bcrypt.hash(password, 12);
+    const createdAt = toIso(getNow());
+
+    createUserStatement.run({
+      userId,
+      name,
+      firstName: splitName.firstName,
+      lastName: splitName.lastName,
+      mobile: phone,
+      avatarUrl: "",
+      accountRole: "admin",
+      accountStatus: "active",
+      kycStatus: "authenticated",
+      authTag: deriveAuthTag("authenticated"),
+      kycUpdatedAt: createdAt,
+      email,
+      passwordHash,
+      createdAt,
+    });
+
+    const createdAdmin = findUserByUserIdStatement.get(userId);
+    const sessionToken = createSessionForUser(userId);
+
+    res.json({
+      message: "Admin account created successfully.",
+      sessionToken,
+      user: buildUserPayload(createdAdmin || { user_id: userId, name, email, account_role: "admin" }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Admin signup failed." });
+  }
+}
+
+async function handleAdminLogin(req, res) {
+  try {
+    cleanupExpiredRecords();
+
+    const email = normalizeEmail(req.body?.email || "");
+    const password = req.body?.password || "";
+
+    assertValidEmail(email);
+    assertValidPassword(password);
+
+    const user = findUserByEmailStatement.get(email);
+    if (!user) {
+      res.status(404).json({ error: "Admin account not found." });
+      return;
+    }
+    if (!hasAdminRole(user.account_role || "")) {
+      res.status(403).json({ error: "This account does not have admin access." });
+      return;
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatches) {
+      res.status(401).json({ error: "Invalid credentials." });
+      return;
+    }
+
+    const sessionToken = createSessionForUser(user.user_id);
+    res.json({
+      message: "Admin login successful.",
+      sessionToken,
+      user: buildUserPayload(user),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Admin login failed." });
+  }
+}
+
+function handleAdminSession(req, res) {
+  res.json({ user: req.currentUser });
+}
+
+function handleAdminLogout(req, res) {
+  deleteSessionStatement.run(createHash(req.sessionToken));
+  res.json({ message: "Admin logged out." });
 }
 
 function handleSession(req, res) {
@@ -1863,17 +2192,30 @@ function handleAdminKycList(_req, res) {
   try {
     cleanupExpiredRecords();
     const rows = listLatestKycSubmissionsStatement.all();
-    const pending = countUsersByKycStatusStatement.get("pending")?.total || 0;
-    const authenticated = countUsersByKycStatusStatement.get("authenticated")?.total || 0;
-    const rejected = countUsersByKycStatusStatement.get("rejected")?.total || 0;
-    const totalUsers = countUsersStatement.get()?.total || 0;
+    const totalAccounts = countUsersStatement.get()?.total || 0;
+    const totalUsers = countPlatformUsersStatement.get()?.total || 0;
+    const totalAdminUsers = countAdminUsersStatement.get()?.total || 0;
+    const pending = countPlatformUsersByKycStatusStatement.get("pending")?.total || 0;
+    const authenticated = countPlatformUsersByKycStatusStatement.get("authenticated")?.total || 0;
+    const rejected = countPlatformUsersByKycStatusStatement.get("rejected")?.total || 0;
+    const totalKycRequests = countPlatformKycSubmissionsTotalStatement.get()?.total || 0;
+    const pendingKycRequests = countPlatformKycSubmissionsByStatusStatement.get("pending")?.total || 0;
+    const authenticatedKycRequests = countPlatformKycSubmissionsByStatusStatement.get("authenticated")?.total || 0;
+    const rejectedKycRequests = countPlatformKycSubmissionsByStatusStatement.get("rejected")?.total || 0;
 
     res.json({
       stats: {
+        totalAccounts,
         totalUsers,
+        totalPlatformUsers: totalUsers,
+        totalAdminUsers,
         pendingVerifications: pending,
         authenticatedUsers: authenticated,
         rejectedUsers: rejected,
+        totalKycRequests,
+        pendingKycRequests,
+        authenticatedKycRequests,
+        rejectedKycRequests,
       },
       requests: rows.map((row) => buildKycAdminPayload(row, { includeSensitiveMedia: true })),
     });
@@ -1888,22 +2230,34 @@ function handleAdminUsersList(req, res) {
     const rawStatus = String(req.body?.kycStatus || req.query?.kycStatus || "")
       .trim()
       .toLowerCase();
-    const filterStatus = rawStatus ? normalizeKycStatus(rawStatus) : "";
+    const filterStatus =
+      rawStatus === "pending" || rawStatus === "authenticated" || rawStatus === "rejected"
+        ? rawStatus
+        : "";
+    const includeAdmins = normalizeBoolean(req.body?.includeAdmins ?? req.query?.includeAdmins, false);
+    const nowIso = toIso(getNow());
 
-    const allUsers = listAdminUsersStatement
-      .all()
-      .map((row) => buildAdminDirectoryUserPayload(row))
-      .filter(Boolean);
+    const userRows = includeAdmins
+      ? listAllUsersForAdminStatement.all({ nowIso })
+      : listPlatformUsersStatement.all({ nowIso });
+    const allUsers = userRows.map((row) => buildAdminDirectoryUserPayload(row)).filter(Boolean);
     const users = filterStatus ? allUsers.filter((row) => row.kycStatus === filterStatus) : allUsers;
+    const totalUsers = countPlatformUsersStatement.get()?.total || 0;
+    const activeUsers = countActivePlatformUsersStatement.get(nowIso)?.total || 0;
 
     res.json({
       stats: {
-        totalUsers: countUsersStatement.get()?.total || 0,
-        pendingVerifications: countUsersByKycStatusStatement.get("pending")?.total || 0,
-        authenticatedUsers: countUsersByKycStatusStatement.get("authenticated")?.total || 0,
-        rejectedUsers: countUsersByKycStatusStatement.get("rejected")?.total || 0,
+        totalAccounts: countUsersStatement.get()?.total || 0,
+        totalUsers,
+        totalPlatformUsers: totalUsers,
+        totalAdminUsers: countAdminUsersStatement.get()?.total || 0,
+        activeUsers,
+        pendingVerifications: countPlatformUsersByKycStatusStatement.get("pending")?.total || 0,
+        authenticatedUsers: countPlatformUsersByKycStatusStatement.get("authenticated")?.total || 0,
+        rejectedUsers: countPlatformUsersByKycStatusStatement.get("rejected")?.total || 0,
       },
       filter: filterStatus || "all",
+      includeAdmins,
       users,
     });
   } catch (error) {
@@ -1919,7 +2273,7 @@ function handleAdminUserDetail(req, res) {
       throw new Error("Valid userId is required.");
     }
 
-    const userRow = findAdminUserByUserIdStatement.get(userId);
+    const userRow = findAdminUserByUserIdStatement.get({ userId, nowIso: toIso(getNow()) });
     if (!userRow) {
       res.status(404).json({ error: "User not found." });
       return;
@@ -1951,6 +2305,54 @@ function handleAdminUserDetail(req, res) {
   }
 }
 
+function handleAdminUserDelete(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const userId = sanitizeShortText(req.body?.userId || "", 24);
+    if (!userId) {
+      throw new Error("Valid userId is required.");
+    }
+
+    const userRow = findUserByUserIdStatement.get(userId);
+    if (!userRow) {
+      res.status(404).json({ error: "User not found." });
+      return;
+    }
+
+    if (hasAdminRole(userRow.account_role || "")) {
+      res.status(403).json({ error: "Admin accounts cannot be deleted from user management." });
+      return;
+    }
+    if (userId === req.currentUser?.userId) {
+      res.status(403).json({ error: "You cannot delete your own account." });
+      return;
+    }
+
+    const removeTransaction = db.transaction(() => {
+      deleteUserSessionsStatement.run(userId);
+      deleteUserWalletBalancesStatement.run(userId);
+      deleteUserKycSubmissionsStatement.run(userId);
+      deleteUserDepositRequestsStatement.run(userId);
+      deleteOtpByEmailStatement.run(userRow.email);
+      clearPasswordResetTokenStatement.run(userRow.email);
+      deleteUserByUserIdStatement.run(userId);
+    });
+
+    removeTransaction();
+
+    res.json({
+      message: "User deleted successfully.",
+      user: {
+        userId,
+        email: userRow.email || "",
+        name: userRow.name || "",
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not delete user." });
+  }
+}
+
 function handleAdminUserUpdate(req, res) {
   try {
     cleanupExpiredRecords();
@@ -1959,7 +2361,8 @@ function handleAdminUserUpdate(req, res) {
       throw new Error("Valid userId is required.");
     }
 
-    const existingUser = findAdminUserByUserIdStatement.get(userId);
+    const nowIso = toIso(getNow());
+    const existingUser = findAdminUserByUserIdStatement.get({ userId, nowIso });
     if (!existingUser) {
       res.status(404).json({ error: "User not found." });
       return;
@@ -1970,6 +2373,8 @@ function handleAdminUserUpdate(req, res) {
     const lastName = sanitizeShortText(req.body?.lastName || existingUser.last_name || "", 80);
     const mobile = sanitizeMobile(req.body?.mobile || existingUser.mobile || "");
     const avatarUrl = sanitizeAvatarUrl(req.body?.avatarUrl || existingUser.avatar_url || "");
+    const accountRole = normalizeAccountRole(req.body?.accountRole || existingUser.account_role || "trader");
+    const accountStatus = normalizeAccountStatus(req.body?.accountStatus || existingUser.account_status || "active");
     const email = normalizeEmail(req.body?.email || existingUser.email || "");
     const kycStatus = normalizeKycStatus(req.body?.kycStatus || existingUser.kyc_status || "pending");
     const authTag = deriveAuthTag(kycStatus);
@@ -1982,7 +2387,6 @@ function handleAdminUserUpdate(req, res) {
       throw new Error("This email is already used by another user.");
     }
 
-    const nowIso = toIso(getNow());
     const nextWalletBalances = Array.isArray(req.body?.walletBalances) ? req.body.walletBalances : null;
 
     const updateTransaction = db.transaction(() => {
@@ -1993,6 +2397,8 @@ function handleAdminUserUpdate(req, res) {
         lastName,
         mobile,
         avatarUrl,
+        accountRole,
+        accountStatus,
         email,
         kycStatus,
         authTag,
@@ -2025,7 +2431,7 @@ function handleAdminUserUpdate(req, res) {
 
     updateTransaction();
 
-    const updatedUser = findAdminUserByUserIdStatement.get(userId);
+    const updatedUser = findAdminUserByUserIdStatement.get({ userId, nowIso: toIso(getNow()) });
     const kycHistory = listUserKycHistoryForAdminStatement
       .all(userId)
       .map((row) => buildKycSubmissionPayload(row, { includeSensitiveMedia: true }))
@@ -2073,6 +2479,16 @@ function handleAdminKycReview(req, res) {
     const submission = findKycSubmissionByIdStatement.get(requestId);
     if (!submission) {
       res.status(404).json({ error: "KYC request not found." });
+      return;
+    }
+
+    const submissionUser = findUserByUserIdStatement.get(submission.user_id);
+    if (!submissionUser) {
+      res.status(404).json({ error: "KYC request user not found." });
+      return;
+    }
+    if (hasAdminRole(submissionUser.account_role || "")) {
+      res.status(403).json({ error: "Admin account KYC cannot be reviewed from this queue." });
       return;
     }
 
@@ -2356,6 +2772,36 @@ function handleAdminDepositAssetUpsert(req, res) {
   }
 }
 
+function handleAdminDepositAssetDelete(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const assetId = Number(req.body.assetId || req.query.assetId || 0);
+    if (!Number.isInteger(assetId) || assetId <= 0) {
+      throw new Error("Valid assetId is required.");
+    }
+
+    const existing = findDepositAssetByIdStatement.get(assetId);
+    if (!existing) {
+      res.status(404).json({ error: "Deposit asset not found." });
+      return;
+    }
+
+    const linkedRequests = Number(countDepositRequestsByAssetIdStatement.get(assetId)?.total || 0);
+    deleteDepositAssetByIdStatement.run(assetId);
+
+    res.json({
+      message:
+        linkedRequests > 0
+          ? "Deposit asset deleted. Historical requests are preserved."
+          : "Deposit asset deleted successfully.",
+      assetId,
+      linkedRequests,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not delete deposit asset." });
+  }
+}
+
 function handleAdminDepositRequestsList(_req, res) {
   try {
     cleanupExpiredRecords();
@@ -2462,6 +2908,18 @@ app.post("/api/auth/gateway", async (req, res) => {
   const action = String(req.body?.action || "").trim().toLowerCase();
 
   switch (action) {
+    case "admin.auth.signup":
+      await handleAdminSignup(req, res);
+      return;
+    case "admin.auth.login":
+      await handleAdminLogin(req, res);
+      return;
+    case "admin.auth.session":
+      requireAdminSession(req, res, () => handleAdminSession(req, res));
+      return;
+    case "admin.auth.logout":
+      requireAdminSession(req, res, () => handleAdminLogout(req, res));
+      return;
     case "signup.send-otp":
       await handleSignupSendOtp(req, res);
       return;
@@ -2515,37 +2973,43 @@ app.post("/api/auth/gateway", async (req, res) => {
       requireSession(req, res, () => handleDepositRecords(req, res));
       return;
     case "admin.kyc.list":
-      handleAdminKycList(req, res);
+      requireAdminSession(req, res, () => handleAdminKycList(req, res));
       return;
     case "admin.users.list":
-      handleAdminUsersList(req, res);
+      requireAdminSession(req, res, () => handleAdminUsersList(req, res));
       return;
     case "admin.user.detail":
-      handleAdminUserDetail(req, res);
+      requireAdminSession(req, res, () => handleAdminUserDetail(req, res));
       return;
     case "admin.user.update":
-      handleAdminUserUpdate(req, res);
+      requireAdminSession(req, res, () => handleAdminUserUpdate(req, res));
+      return;
+    case "admin.user.delete":
+      requireAdminSession(req, res, () => handleAdminUserDelete(req, res));
       return;
     case "admin.kyc.review":
-      handleAdminKycReview(req, res);
+      requireAdminSession(req, res, () => handleAdminKycReview(req, res));
       return;
     case "admin.notice.get":
-      handleAdminNoticeGet(req, res);
+      requireAdminSession(req, res, () => handleAdminNoticeGet(req, res));
       return;
     case "admin.notice.update":
-      handleAdminNoticeUpdate(req, res);
+      requireAdminSession(req, res, () => handleAdminNoticeUpdate(req, res));
       return;
     case "admin.deposit.assets.list":
-      handleAdminDepositAssetsList(req, res);
+      requireAdminSession(req, res, () => handleAdminDepositAssetsList(req, res));
       return;
     case "admin.deposit.asset.upsert":
-      handleAdminDepositAssetUpsert(req, res);
+      requireAdminSession(req, res, () => handleAdminDepositAssetUpsert(req, res));
+      return;
+    case "admin.deposit.asset.delete":
+      requireAdminSession(req, res, () => handleAdminDepositAssetDelete(req, res));
       return;
     case "admin.deposit.requests.list":
-      handleAdminDepositRequestsList(req, res);
+      requireAdminSession(req, res, () => handleAdminDepositRequestsList(req, res));
       return;
     case "admin.deposit.request.review":
-      handleAdminDepositRequestReview(req, res);
+      requireAdminSession(req, res, () => handleAdminDepositRequestReview(req, res));
       return;
     default:
       res.status(400).json({ error: "Unknown auth action." });
@@ -2568,19 +3032,25 @@ app.get("/api/auth/kyc", requireSession, handleKycStatus);
 app.get("/api/auth/dashboard", requireSession, handleDashboardSnapshot);
 app.post("/api/auth/deposit", requireSession, handleDepositCreate);
 app.get("/api/auth/deposit/records", requireSession, handleDepositRecords);
-app.get("/api/admin/kyc", handleAdminKycList);
-app.post("/api/admin/kyc/review", handleAdminKycReview);
-app.get("/api/admin/users", handleAdminUsersList);
-app.post("/api/admin/users/list", handleAdminUsersList);
-app.get("/api/admin/users/:userId", handleAdminUserDetail);
-app.post("/api/admin/users/detail", handleAdminUserDetail);
-app.post("/api/admin/users/update", handleAdminUserUpdate);
-app.get("/api/admin/notice", handleAdminNoticeGet);
-app.post("/api/admin/notice", handleAdminNoticeUpdate);
-app.get("/api/admin/deposit/assets", handleAdminDepositAssetsList);
-app.post("/api/admin/deposit/assets", handleAdminDepositAssetUpsert);
-app.get("/api/admin/deposit/requests", handleAdminDepositRequestsList);
-app.post("/api/admin/deposit/requests/review", handleAdminDepositRequestReview);
+app.post("/api/admin/auth/signup", handleAdminSignup);
+app.post("/api/admin/auth/login", handleAdminLogin);
+app.get("/api/admin/auth/session", requireAdminSession, handleAdminSession);
+app.post("/api/admin/auth/logout", requireAdminSession, handleAdminLogout);
+app.get("/api/admin/kyc", requireAdminSession, handleAdminKycList);
+app.post("/api/admin/kyc/review", requireAdminSession, handleAdminKycReview);
+app.get("/api/admin/users", requireAdminSession, handleAdminUsersList);
+app.post("/api/admin/users/list", requireAdminSession, handleAdminUsersList);
+app.get("/api/admin/users/:userId", requireAdminSession, handleAdminUserDetail);
+app.post("/api/admin/users/detail", requireAdminSession, handleAdminUserDetail);
+app.post("/api/admin/users/update", requireAdminSession, handleAdminUserUpdate);
+app.post("/api/admin/users/delete", requireAdminSession, handleAdminUserDelete);
+app.get("/api/admin/notice", requireAdminSession, handleAdminNoticeGet);
+app.post("/api/admin/notice", requireAdminSession, handleAdminNoticeUpdate);
+app.get("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAssetsList);
+app.post("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAssetUpsert);
+app.post("/api/admin/deposit/assets/delete", requireAdminSession, handleAdminDepositAssetDelete);
+app.get("/api/admin/deposit/requests", requireAdminSession, handleAdminDepositRequestsList);
+app.post("/api/admin/deposit/requests/review", requireAdminSession, handleAdminDepositRequestReview);
 
 const isExecutedDirectly = (() => {
   if (!process.argv[1]) {

@@ -254,6 +254,7 @@ export default function PremiumDashboardPage({
   onKycSubmit,
   onKycRefresh,
   onDashboardSnapshot,
+  onOpenDepositPage,
   onCreateDepositRequest,
   onDepositRecords,
 }) {
@@ -318,6 +319,8 @@ export default function PremiumDashboardPage({
   const [depositSubmitting, setDepositSubmitting] = useState(false);
   const [depositRecords, setDepositRecords] = useState([]);
   const [depositRecordsLoading, setDepositRecordsLoading] = useState(false);
+  const [recentDepositRecords, setRecentDepositRecords] = useState([]);
+  const [depositStatusError, setDepositStatusError] = useState("");
 
   useEffect(() => {
     setProfileForm({
@@ -443,6 +446,35 @@ export default function PremiumDashboardPage({
     };
   }, []);
 
+  useEffect(() => {
+    if (!onDepositRecords) {
+      return undefined;
+    }
+
+    let isActive = true;
+    const loadRecords = async () => {
+      try {
+        const payload = await onDepositRecords();
+        if (!isActive) {
+          return;
+        }
+        setRecentDepositRecords(Array.isArray(payload?.records) ? payload.records.slice(0, 5) : []);
+        setDepositStatusError("");
+      } catch {
+        if (isActive) {
+          setDepositStatusError("Could not sync deposit status.");
+        }
+      }
+    };
+
+    loadRecords();
+    const intervalId = window.setInterval(loadRecords, 45_000);
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [onDepositRecords]);
+
   const visibleRows = useMemo(() => {
     const filteredRows = filterRowsByTab(rows, activeTab);
     if (activeTab === "all") {
@@ -450,6 +482,7 @@ export default function PremiumDashboardPage({
     }
     return filteredRows.slice(0, 40);
   }, [rows, activeTab]);
+  const latestDepositRecords = useMemo(() => recentDepositRecords.slice(0, 4), [recentDepositRecords]);
 
   const hasUsdSpotValue = useMemo(
     () => totalSpotAssetsUsd !== null && totalSpotAssetsUsd !== undefined && Number.isFinite(Number(totalSpotAssetsUsd)),
@@ -744,6 +777,10 @@ export default function PremiumDashboardPage({
       setProfileNotice("KYC authentication pending. Complete authentication before depositing.");
       return;
     }
+    if (onOpenDepositPage) {
+      onOpenDepositPage();
+      return;
+    }
     resetDepositFlow();
     setActiveView("deposit.asset-select");
   };
@@ -989,7 +1026,7 @@ export default function PremiumDashboardPage({
                         Welcome back, {user.name || "Trader"} • ID {user.userId || "------"}
                       </small>
                       <div className="prodash-wallet-tags">
-                        <span className={`prodash-kyc-chip ${kycMeta.className}`}>KYC {kycMeta.label}</span>
+                        
                         <span className="prodash-auth-tag">{kycAuthTag || deriveAuthTagFromStatus(kycStatus)}</span>
                       </div>
                       {walletBalances.length ? (
@@ -1036,6 +1073,41 @@ export default function PremiumDashboardPage({
                         <strong>{action.label}</strong>
                       </button>
                     ))}
+                  </section>
+
+                  <section className="prodash-panel-card prodash-deposit-status-card">
+                    <header className="prodash-panel-header">
+                      <h2>Deposit Request Status</h2>
+                    </header>
+
+                    {depositStatusError ? <p className="prodash-form-error">{depositStatusError}</p> : null}
+                    {!depositStatusError && !latestDepositRecords.length ? (
+                      <p className="prodash-kyc-hint">No deposit requests yet.</p>
+                    ) : null}
+
+                    {!depositStatusError && latestDepositRecords.length ? (
+                      <div className="prodash-deposit-status-list">
+                        {latestDepositRecords.map((record) => (
+                          <article key={record.requestId} className="prodash-deposit-status-item">
+                            <div>
+                              <strong>{record.assetSymbol}</strong>
+                              <small>{new Date(record.submittedAt).toLocaleString()}</small>
+                            </div>
+                            <span
+                              className={
+                                record.status === "approved"
+                                  ? "prodash-change-up"
+                                  : record.status === "rejected"
+                                    ? "prodash-change-down"
+                                    : "prodash-neutral-badge"
+                              }
+                            >
+                              {record.status}
+                            </span>
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
                   </section>
 
                   <section className="prodash-promos">
