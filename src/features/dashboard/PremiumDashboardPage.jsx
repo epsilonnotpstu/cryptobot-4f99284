@@ -10,11 +10,11 @@ const MARKET_TABS = [
 ];
 
 const QUICK_ACTIONS = [
-  { label: "LUM", icon: "fa-satellite-dish" },
-  { label: "Binary", icon: "fa-chart-line" },
-  { label: "Recharge", icon: "fa-bolt" },
-  { label: "Transaction", icon: "fa-right-left" },
-  { label: "Recovery", icon: "fa-shield-halved" },
+  { id: "lum", label: "LUM", icon: "fa-satellite-dish" },
+  { id: "binary", label: "Binary", icon: "fa-chart-line" },
+  { id: "recharge", label: "Recharge", icon: "fa-bolt" },
+  { id: "transaction", label: "Transaction", icon: "fa-right-left" },
+  { id: "recovery", label: "Recovery", icon: "fa-shield-halved" },
 ];
 
 const BOTTOM_NAV_ITEMS = [
@@ -248,6 +248,7 @@ function buildPlaceholderCopy(activeMainTab) {
 
 export default function PremiumDashboardPage({
   user,
+  entryMainTab = "home",
   onLogout,
   onProfileUpdate,
   onPasswordChange,
@@ -255,6 +256,8 @@ export default function PremiumDashboardPage({
   onKycRefresh,
   onDashboardSnapshot,
   onOpenDepositPage,
+  onOpenLumPage,
+  onOpenBinaryPage,
   onCreateDepositRequest,
   onDepositRecords,
 }) {
@@ -321,6 +324,14 @@ export default function PremiumDashboardPage({
   const [depositRecordsLoading, setDepositRecordsLoading] = useState(false);
   const [recentDepositRecords, setRecentDepositRecords] = useState([]);
   const [depositStatusError, setDepositStatusError] = useState("");
+
+  useEffect(() => {
+    if (!entryMainTab) {
+      return;
+    }
+    setActiveMainTab(entryMainTab);
+    setActiveView(entryMainTab);
+  }, [entryMainTab]);
 
   useEffect(() => {
     setProfileForm({
@@ -551,6 +562,15 @@ export default function PremiumDashboardPage({
   };
 
   const handleMainNavClick = (nextTab) => {
+    if (nextTab === "binary" && onOpenBinaryPage) {
+      if (!isUserKycAuthenticated) {
+        setProfileNotice("KYC authentication pending. Complete authentication before using Binary Options.");
+        return;
+      }
+      onOpenBinaryPage();
+      return;
+    }
+
     if (!isUserKycAuthenticated && nextTab !== "home") {
       setProfileNotice("KYC authentication pending. Complete authentication to unlock this section.");
       return;
@@ -783,6 +803,30 @@ export default function PremiumDashboardPage({
     }
     resetDepositFlow();
     setActiveView("deposit.asset-select");
+  };
+
+  const openLumPage = () => {
+    if (!isUserKycAuthenticated) {
+      setProfileNotice("KYC authentication pending. Complete authentication before using LUM.");
+      return;
+    }
+    if (onOpenLumPage) {
+      onOpenLumPage();
+      return;
+    }
+  };
+
+  const openBinaryPage = () => {
+    if (!isUserKycAuthenticated) {
+      setProfileNotice("KYC authentication pending. Complete authentication before using Binary Options.");
+      return;
+    }
+    if (onOpenBinaryPage) {
+      onOpenBinaryPage();
+      return;
+    }
+    setActiveMainTab("binary");
+    setActiveView("binary");
   };
 
   const handleSelectDepositAsset = (assetId) => {
@@ -1062,10 +1106,19 @@ export default function PremiumDashboardPage({
                     {QUICK_ACTIONS.map((action) => (
                       <button
                         type="button"
-                        key={action.label}
+                        key={action.id}
                         className="prodash-quick-item"
                         disabled={!isUserKycAuthenticated}
                         title={!isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
+                        onClick={
+                          action.id === "lum"
+                            ? openLumPage
+                            : action.id === "binary"
+                              ? openBinaryPage
+                            : action.id === "recharge"
+                              ? openDepositAssetSelector
+                              : undefined
+                        }
                       >
                         <span>
                           <i className={`fas ${action.icon}`} />
@@ -1123,7 +1176,12 @@ export default function PremiumDashboardPage({
                     </article>
 
                     <div className="prodash-promo-dual">
-                      <article className="prodash-promo-card prodash-promo-mini">
+                      <button
+                        type="button"
+                        className="prodash-promo-card prodash-promo-mini"
+                        disabled={!isUserKycAuthenticated}
+                        onClick={openLumPage}
+                      >
                         <div>
                           <h4>LUM</h4>
                           <p>Liquidity utility module</p>
@@ -1131,7 +1189,7 @@ export default function PremiumDashboardPage({
                         <span className="prodash-mini-badge">
                           <i className="fas fa-gavel" />
                         </span>
-                      </article>
+                      </button>
 
                       <article className="prodash-promo-card prodash-promo-mini">
                         <div>

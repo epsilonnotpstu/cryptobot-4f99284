@@ -1,0 +1,673 @@
+.lum-page {
+  min-height: 100vh;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(254, 223, 137, 0.16), transparent 40%),
+    linear-gradient(180deg, #071126 0%, #040b17 100%);
+  color: #e6eef8;
+}
+
+.lum-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.lum-topbar {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lum-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(101, 149, 190, 0.38);
+  background: rgba(8, 21, 42, 0.82);
+  color: #dcecff;
+  cursor: pointer;
+}
+
+.lum-title h1 {
+  margin: 0;
+  font-size: clamp(1.25rem, 4.2vw, 1.7rem);
+  color: #f4f7fd;
+}
+
+.lum-title p {
+  margin: 0.2rem 0 0;
+  color: #8fa6c2;
+  font-size: 0.86rem;
+}
+
+.lum-user-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid rgba(90, 121, 158, 0.42);
+  border-radius: 16px;
+  padding: 0.75rem 0.9rem;
+  background: rgba(9, 18, 35, 0.76);
+}
+
+.lum-user-strip strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.lum-user-strip p {
+  margin: 0.2rem 0 0;
+  color: #8fa6c2;
+  font-size: 0.8rem;
+}
+
+.lum-user-strip span {
+  font-size: 0.85rem;
+  color: #ffd972;
+  font-weight: 700;
+}
+
+.lum-summary-card {
+  border-radius: 22px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 220, 145, 0.34);
+  background: linear-gradient(145deg, #f8cb61 0%, #e9b341 52%, #d89f30 100%);
+  color: #2f2000;
+  box-shadow: 0 18px 42px rgba(19, 15, 5, 0.3);
+}
+
+.lum-summary-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.lum-summary-head p {
+  margin: 0;
+  color: rgba(47, 32, 0, 0.8);
+  font-size: 0.82rem;
+}
+
+.lum-summary-head h2 {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.4rem, 5vw, 2rem);
+}
+
+.lum-entrust-btn {
+  border: 1px solid rgba(253, 244, 202, 0.7);
+  border-radius: 999px;
+  background: rgba(255, 249, 229, 0.36);
+  color: #fff9e8;
+  min-height: 42px;
+  min-width: 108px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lum-summary-grid {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.lum-summary-grid article {
+  border-radius: 14px;
+  background: rgba(255, 251, 233, 0.26);
+  padding: 0.62rem;
+}
+
+.lum-summary-grid span {
+  display: block;
+  font-size: 0.74rem;
+  color: rgba(55, 36, 0, 0.78);
+}
+
+.lum-summary-grid strong {
+  display: block;
+  margin-top: 0.26rem;
+  font-size: 0.95rem;
+}
+
+.lum-plan-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: 12px;
+  border: 1px solid rgba(109, 135, 168, 0.44);
+  overflow: hidden;
+  width: fit-content;
+  min-width: 240px;
+  background: rgba(8, 17, 32, 0.8);
+}
+
+.lum-plan-tabs button {
+  border: none;
+  background: transparent;
+  color: #adc2db;
+  font-weight: 700;
+  padding: 0.64rem 0.94rem;
+  cursor: pointer;
+}
+
+.lum-plan-tabs button.active {
+  background: linear-gradient(140deg, #f5c75e, #e5ae33);
+  color: #2e1c00;
+}
+
+.lum-notice,
+.lum-error,
+.lum-empty {
+  margin: 0;
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  font-size: 0.88rem;
+}
+
+.lum-notice {
+  border: 1px solid rgba(129, 219, 182, 0.5);
+  color: #bcfbe1;
+  background: rgba(8, 42, 25, 0.5);
+}
+
+.lum-error {
+  border: 1px solid rgba(255, 128, 128, 0.5);
+  color: #ffd0d0;
+  background: rgba(57, 12, 20, 0.5);
+}
+
+.lum-empty {
+  border: 1px dashed rgba(133, 156, 189, 0.45);
+  color: #9db3cd;
+  background: rgba(7, 17, 35, 0.68);
+}
+
+.lum-plan-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.lum-plan-card {
+  border: 1px solid rgba(93, 126, 165, 0.35);
+  border-radius: 20px;
+  padding: 0.95rem;
+  background: linear-gradient(160deg, rgba(13, 24, 45, 0.92), rgba(8, 16, 31, 0.87));
+  display: grid;
+  gap: 0.8rem;
+}
+
+.lum-plan-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.lum-plan-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #f5fbff;
+}
+
+.lum-plan-card p {
+  margin: 0.28rem 0 0;
+  color: #8ba2c2;
+  font-size: 0.82rem;
+}
+
+.lum-plan-actions {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lum-plan-badge {
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: rgba(255, 203, 94, 0.2);
+  border: 1px solid rgba(255, 203, 94, 0.43);
+  color: #ffd474;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lum-info-btn,
+.lum-buy-btn,
+.lum-primary-btn,
+.lum-secondary-btn {
+  border-radius: 11px;
+  border: 1px solid rgba(102, 130, 165, 0.42);
+  padding: 0.5rem 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lum-info-btn,
+.lum-secondary-btn {
+  background: rgba(15, 28, 53, 0.85);
+  color: #d7e8fb;
+}
+
+.lum-buy-btn,
+.lum-primary-btn {
+  border-color: rgba(255, 208, 107, 0.42);
+  background: linear-gradient(140deg, #f3c75e, #e3ad31);
+  color: #271700;
+}
+
+.lum-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.68rem;
+}
+
+.lum-plan-grid div {
+  border-radius: 12px;
+  background: rgba(7, 16, 31, 0.9);
+  border: 1px solid rgba(85, 113, 149, 0.35);
+  padding: 0.55rem;
+}
+
+.lum-plan-grid span {
+  display: block;
+  font-size: 0.73rem;
+  color: #8ea6c5;
+}
+
+.lum-plan-grid strong {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.92rem;
+}
+
+.lum-plan-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  color: #8da4c1;
+  font-size: 0.76rem;
+}
+
+.lum-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 7, 18, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 120;
+}
+
+.lum-modal-card {
+  width: min(960px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(120, 147, 180, 0.45);
+  background: #09152c;
+  box-shadow: 0 30px 55px rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+}
+
+.lum-modal-card > header {
+  padding: 0.86rem 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(88, 115, 148, 0.44);
+  background: linear-gradient(140deg, rgba(243, 198, 87, 0.98), rgba(216, 157, 41, 0.98));
+  color: #2f1f00;
+}
+
+.lum-modal-card > header h3 {
+  margin: 0;
+}
+
+.lum-close-btn {
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 251, 234, 0.28);
+  color: #fff7dd;
+  cursor: pointer;
+}
+
+.lum-modal-loading {
+  margin: 0;
+  padding: 1rem;
+  color: #9fb4cd;
+}
+
+.lum-detail-modal,
+.lum-info-modal {
+  width: min(740px, 100%);
+}
+
+.lum-detail-meta,
+.lum-invest-body,
+.lum-info-scroll,
+.lum-entrust-summary,
+.lum-filter-tabs,
+.lum-investment-table-wrap {
+  padding-left: 0.95rem;
+  padding-right: 0.95rem;
+}
+
+.lum-detail-meta {
+  padding-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+  color: #c9daee;
+}
+
+.lum-detail-meta p {
+  margin: 0;
+  border: 1px solid rgba(82, 110, 145, 0.4);
+  border-radius: 10px;
+  padding: 0.5rem;
+  background: rgba(6, 13, 27, 0.72);
+}
+
+.lum-detail-description {
+  margin: 0;
+  padding: 0.85rem 0.95rem 0;
+  color: #d8e7fa;
+}
+
+.lum-content-list {
+  display: grid;
+  gap: 0.64rem;
+  padding: 0.8rem 0.95rem 0.95rem;
+}
+
+.lum-content-list article {
+  border: 1px solid rgba(86, 112, 147, 0.4);
+  border-radius: 12px;
+  padding: 0.66rem;
+  background: rgba(7, 15, 30, 0.7);
+}
+
+.lum-content-list h4 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.lum-content-list p {
+  margin: 0.4rem 0 0;
+  color: #b7cbe4;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.lum-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.75rem 0.95rem 0.95rem;
+}
+
+.lum-invest-body {
+  padding-top: 0.85rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.lum-invest-row {
+  display: flex;
+  justify-content: space-between;
+  color: #d7e6f9;
+}
+
+.lum-invest-row span {
+  color: #97afca;
+}
+
+.lum-invest-body label {
+  color: #b7cbe4;
+  font-size: 0.86rem;
+}
+
+.lum-invest-body input {
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(89, 119, 155, 0.5);
+  background: rgba(7, 15, 30, 0.9);
+  color: #edf7ff;
+  padding: 0 0.75rem;
+}
+
+.lum-invest-projection {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.lum-invest-projection article {
+  border: 1px solid rgba(88, 117, 154, 0.38);
+  border-radius: 10px;
+  background: rgba(5, 13, 28, 0.78);
+  padding: 0.6rem;
+}
+
+.lum-invest-projection span {
+  display: block;
+  color: #92abcd;
+  font-size: 0.74rem;
+}
+
+.lum-invest-projection strong {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.lum-risk-note {
+  margin: 0;
+  border: 1px solid rgba(252, 206, 98, 0.4);
+  border-radius: 10px;
+  padding: 0.62rem;
+  color: #ffe8a7;
+  background: rgba(62, 44, 10, 0.45);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.lum-entrust-modal {
+  width: min(1100px, 100%);
+}
+
+.lum-entrust-summary {
+  padding-top: 0.8rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.lum-entrust-summary article {
+  border: 1px solid rgba(84, 113, 151, 0.4);
+  border-radius: 10px;
+  background: rgba(5, 13, 29, 0.8);
+  padding: 0.58rem;
+}
+
+.lum-entrust-summary span {
+  display: block;
+  font-size: 0.74rem;
+  color: #90aac8;
+}
+
+.lum-entrust-summary strong {
+  display: block;
+  margin-top: 0.24rem;
+}
+
+.lum-filter-tabs {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.lum-filter-tabs button {
+  border: 1px solid rgba(83, 112, 147, 0.45);
+  border-radius: 999px;
+  padding: 0.42rem 0.76rem;
+  background: rgba(7, 15, 29, 0.88);
+  color: #b9cee7;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.lum-filter-tabs button.active {
+  border-color: rgba(255, 208, 107, 0.5);
+  background: rgba(243, 200, 95, 0.22);
+  color: #ffd678;
+}
+
+.lum-investment-table-wrap {
+  overflow: auto;
+  padding-top: 0.8rem;
+  padding-bottom: 0.9rem;
+}
+
+.lum-investment-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+.lum-investment-table th,
+.lum-investment-table td {
+  border-bottom: 1px solid rgba(74, 102, 139, 0.35);
+  padding: 0.58rem;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.lum-investment-table th {
+  color: #97afcb;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lum-investment-table td {
+  color: #dde9f8;
+  vertical-align: top;
+}
+
+.lum-investment-table td small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #90a8c6;
+}
+
+.lum-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.lum-status-active {
+  background: rgba(31, 128, 79, 0.2);
+  border-color: rgba(94, 233, 165, 0.45);
+  color: #86f5bf;
+}
+
+.lum-status-completed {
+  background: rgba(39, 145, 126, 0.22);
+  border-color: rgba(146, 236, 216, 0.45);
+  color: #9ff0db;
+}
+
+.lum-status-pending {
+  background: rgba(122, 93, 22, 0.3);
+  border-color: rgba(255, 208, 92, 0.45);
+  color: #ffd670;
+}
+
+.lum-status-rejected,
+.lum-status-cancelled {
+  background: rgba(150, 35, 54, 0.26);
+  border-color: rgba(255, 151, 164, 0.48);
+  color: #ffbbc4;
+}
+
+.lum-status-redeemed-early {
+  background: rgba(41, 75, 146, 0.3);
+  border-color: rgba(143, 184, 255, 0.45);
+  color: #bdd7ff;
+}
+
+.lum-info-scroll {
+  max-height: min(68vh, 620px);
+  overflow: auto;
+  padding-top: 0.9rem;
+  padding-bottom: 1rem;
+}
+
+.lum-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(11, 35, 22, 0.9);
+  color: #c8f8df;
+  border: 1px solid rgba(95, 231, 163, 0.5);
+  padding: 0.52rem 0.95rem;
+  font-size: 0.85rem;
+  z-index: 150;
+}
+
+@media (max-width: 760px) {
+  .lum-page {
+    padding: 0.72rem;
+  }
+
+  .lum-user-strip {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lum-summary-grid,
+  .lum-plan-grid,
+  .lum-invest-projection,
+  .lum-entrust-summary,
+  .lum-detail-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .lum-plan-actions {
+    grid-auto-flow: row;
+    justify-items: end;
+  }
+
+  .lum-plan-tabs {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .lum-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .lum-modal-card,
+  .lum-detail-modal,
+  .lum-info-modal,
+  .lum-entrust-modal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+  }
+}

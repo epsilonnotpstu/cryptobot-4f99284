@@ -9,6 +9,8 @@ import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { OAuth2Client } from "google-auth-library";
+import { createLumModule } from "./lum-module.js";
+import { createBinaryModule } from "./binary-module.js";
 
 dotenv.config();
 
@@ -130,6 +132,17 @@ db.exec(`
     asset_symbol TEXT NOT NULL,
     asset_name TEXT NOT NULL,
     total_usd REAL NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    UNIQUE(user_id, asset_symbol)
+  );
+
+  CREATE TABLE IF NOT EXISTS user_wallet_balance_details (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    asset_symbol TEXT NOT NULL,
+    available_usd REAL NOT NULL DEFAULT 0,
+    locked_usd REAL NOT NULL DEFAULT 0,
+    reward_earned_usd REAL NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL,
     UNIQUE(user_id, asset_symbol)
   );
@@ -804,6 +817,20 @@ const listUserWalletBalancesStatement = db.prepare(`
   WHERE user_id = ?
   ORDER BY total_usd DESC, asset_symbol ASC
 `);
+const findWalletDetailByUserAssetStatement = db.prepare(`
+  SELECT user_id, asset_symbol, available_usd, locked_usd, reward_earned_usd, updated_at
+  FROM user_wallet_balance_details
+  WHERE user_id = ? AND asset_symbol = ?
+  LIMIT 1
+`);
+const updateWalletDetailStatement = db.prepare(`
+  UPDATE user_wallet_balance_details
+  SET available_usd = @availableUsd,
+      locked_usd = @lockedUsd,
+      reward_earned_usd = @rewardEarnedUsd,
+      updated_at = @updatedAt
+  WHERE user_id = @userId AND asset_symbol = @assetSymbol
+`);
 const getUserTotalSpotAssetsStatement = db.prepare(`
   SELECT COALESCE(SUM(total_usd), 0) AS total
   FROM user_wallet_balances
@@ -1264,6 +1291,71 @@ function normalizeDepositStatus(status = "") {
   return "pending";
 }
 
+const lumModule = createLumModule({
+  db,
+  getNow,
+  toIso,
+  normalizeAssetSymbol,
+  normalizeUsdAmount,
+  sanitizeShortText,
+});
+
+const {
+  handleLumSummary,
+  handleLumPlans,
+  handleLumPlanDetail,
+  handleLumInvest,
+  handleLumInvestments,
+  handleLumInvestmentDetail,
+  handleLumEntrust,
+  handleLumInfo,
+  handleAdminLumPlansList,
+  handleAdminLumPlanCreate,
+  handleAdminLumPlanUpdate,
+  handleAdminLumPlanDelete,
+  handleAdminLumPlanToggleStatus,
+  handleAdminLumInvestments,
+  handleAdminLumInvestmentReview,
+  handleAdminLumForceSettle,
+  handleAdminLumDashboardSummary,
+  handleAdminLumContentSave,
+} = lumModule;
+
+const binaryModule = createBinaryModule({
+  db,
+  getNow,
+  toIso,
+  normalizeAssetSymbol,
+  normalizeUsdAmount,
+  sanitizeShortText,
+});
+
+const {
+  handleBinarySummary,
+  handleBinaryPairs,
+  handleBinaryPairChart,
+  handleBinaryConfig,
+  handleBinaryTradeOpen,
+  handleBinaryActiveTrades,
+  handleBinaryTradeHistory,
+  handleBinaryTradeDetail,
+  handleBinaryTradeSettle,
+  handleAdminBinaryDashboardSummary,
+  handleAdminBinaryPairs,
+  handleAdminBinaryPairCreate,
+  handleAdminBinaryPairUpdate,
+  handleAdminBinaryPairDelete,
+  handleAdminBinaryPairToggle,
+  handleAdminBinaryPeriodRules,
+  handleAdminBinaryPeriodRuleSave,
+  handleAdminBinaryTrades,
+  handleAdminBinaryTradeSettle,
+  handleAdminBinaryTradeCancel,
+  handleAdminBinaryEngineSettingsGet,
+  handleAdminBinaryEngineSettingsSave,
+  handleAdminBinaryManualTickPush,
+} = binaryModule;
+
 function buildNoticePayload(row) {
   if (!row) {
     return {
@@ -1352,13 +1444,64 @@ function readDashboardWallet(userId) {
     .all(userId)
     .map((row) => buildWalletBalancePayload(row))
     .filter(Boolean);
-  const usdBalance = balances.find((item) => normalizeAssetSymbol(item.symbol) === "USD");
-  const totalSpotAssetsUsd = usdBalance ? Number(Number(usdBalance.totalUsd || 0).toFixed(8)) : null;
+  const spotBalance =
+    balances.find((item) => normalizeAssetSymbol(item.symbol) === "SPOT_USDT") ||
+    balances.find((item) => normalizeAssetSymbol(item.symbol) === "USD") ||
+    balances.find((item) => normalizeAssetSymbol(item.symbol) === "USDT") ||
+    null;
+  const totalSpotAssetsUsd = spotBalance ? Number(Number(spotBalance.totalUsd || 0).toFixed(8)) : null;
 
   return {
     totalSpotAssetsUsd,
     balances,
   };
+}
+
+function applyWalletDetailDeltaIfExists({ userId, assetSymbol, deltaUsd, updatedAt }) {
+  const symbol = normalizeAssetSymbol(assetSymbol || "");
+  if (!symbol) {
+    return null;
+  }
+
+  const existing = findWalletDetailByUserAssetStatement.get(userId, symbol);
+  if (!existing) {
+    return null;
+  }
+
+  const nextAvailable = Math.max(0, Number(existing.available_usd || 0) + Number(deltaUsd || 0));
+  const lockedUsd = Number(existing.locked_usd || 0);
+  const rewardEarnedUsd = Number(existing.reward_earned_usd || 0);
+
+  updateWalletDetailStatement.run({
+    userId,
+    assetSymbol: symbol,
+    availableUsd: Number(nextAvailable.toFixed(8)),
+    lockedUsd: Number(lockedUsd.toFixed(8)),
+    rewardEarnedUsd: Number(rewardEarnedUsd.toFixed(8)),
+    updatedAt,
+  });
+
+  return findWalletDetailByUserAssetStatement.get(userId, symbol) || null;
+}
+
+function syncWalletSummaryFromDetailIfExists({ userId, assetSymbol, assetName, updatedAt }) {
+  const symbol = normalizeAssetSymbol(assetSymbol || "");
+  if (!symbol) {
+    return;
+  }
+  const detail = findWalletDetailByUserAssetStatement.get(userId, symbol);
+  if (!detail) {
+    return;
+  }
+
+  const totalUsd = Number((Number(detail.available_usd || 0) + Number(detail.locked_usd || 0)).toFixed(8));
+  setWalletBalanceStatement.run({
+    userId,
+    assetSymbol: symbol,
+    assetName: sanitizeShortText(assetName || symbol, 80),
+    totalUsd,
+    updatedAt,
+  });
 }
 
 function ensureDefaultDepositAssets() {
@@ -2864,6 +3007,38 @@ function handleAdminDepositRequestReview(req, res) {
           totalUsd: Number(request.amount_usd || 0),
           updatedAt: reviewedAt,
         });
+        upsertWalletBalanceStatement.run({
+          userId: request.user_id,
+          assetSymbol: "SPOT_USDT",
+          assetName: "Spot Wallet (USDT)",
+          totalUsd: Number(request.amount_usd || 0),
+          updatedAt: reviewedAt,
+        });
+
+        applyWalletDetailDeltaIfExists({
+          userId: request.user_id,
+          assetSymbol: request.asset_symbol,
+          deltaUsd: Number(request.amount_usd || 0),
+          updatedAt: reviewedAt,
+        });
+        applyWalletDetailDeltaIfExists({
+          userId: request.user_id,
+          assetSymbol: "SPOT_USDT",
+          deltaUsd: Number(request.amount_usd || 0),
+          updatedAt: reviewedAt,
+        });
+        syncWalletSummaryFromDetailIfExists({
+          userId: request.user_id,
+          assetSymbol: request.asset_symbol,
+          assetName: request.asset_name,
+          updatedAt: reviewedAt,
+        });
+        syncWalletSummaryFromDetailIfExists({
+          userId: request.user_id,
+          assetSymbol: "SPOT_USDT",
+          assetName: "Spot Wallet (USDT)",
+          updatedAt: reviewedAt,
+        });
       }
 
       if (previousStatus === "approved" && decision !== "approved") {
@@ -2877,6 +3052,42 @@ function handleAdminDepositRequestReview(req, res) {
           assetSymbol,
           assetName: sanitizeShortText(request.asset_name || assetSymbol || "Asset", 80),
           totalUsd: Number(deductedTotal.toFixed(8)),
+          updatedAt: reviewedAt,
+        });
+
+        const existingSpotBalance = findWalletBalanceByUserAssetStatement.get(request.user_id, "SPOT_USDT");
+        const currentSpotTotal = Number(existingSpotBalance?.total_usd || 0);
+        const deductedSpotTotal = Math.max(0, currentSpotTotal - Number(request.amount_usd || 0));
+        setWalletBalanceStatement.run({
+          userId: request.user_id,
+          assetSymbol: "SPOT_USDT",
+          assetName: "Spot Wallet (USDT)",
+          totalUsd: Number(deductedSpotTotal.toFixed(8)),
+          updatedAt: reviewedAt,
+        });
+
+        applyWalletDetailDeltaIfExists({
+          userId: request.user_id,
+          assetSymbol: request.asset_symbol,
+          deltaUsd: -Number(request.amount_usd || 0),
+          updatedAt: reviewedAt,
+        });
+        applyWalletDetailDeltaIfExists({
+          userId: request.user_id,
+          assetSymbol: "SPOT_USDT",
+          deltaUsd: -Number(request.amount_usd || 0),
+          updatedAt: reviewedAt,
+        });
+        syncWalletSummaryFromDetailIfExists({
+          userId: request.user_id,
+          assetSymbol: request.asset_symbol,
+          assetName: request.asset_name,
+          updatedAt: reviewedAt,
+        });
+        syncWalletSummaryFromDetailIfExists({
+          userId: request.user_id,
+          assetSymbol: "SPOT_USDT",
+          assetName: "Spot Wallet (USDT)",
           updatedAt: reviewedAt,
         });
       }
@@ -2972,6 +3183,60 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "deposit.records":
       requireSession(req, res, () => handleDepositRecords(req, res));
       return;
+    case "lum.summary":
+      requireSession(req, res, () => handleLumSummary(req, res));
+      return;
+    case "lum.plans":
+      requireSession(req, res, () => handleLumPlans(req, res));
+      return;
+    case "lum.plan.detail":
+      requireSession(req, res, () => handleLumPlanDetail(req, res));
+      return;
+    case "lum.invest":
+      requireSession(req, res, () => handleLumInvest(req, res));
+      return;
+    case "lum.investments":
+      requireSession(req, res, () => handleLumInvestments(req, res));
+      return;
+    case "lum.investment.detail":
+      requireSession(req, res, () => handleLumInvestmentDetail(req, res));
+      return;
+    case "lum.entrust":
+      requireSession(req, res, () => handleLumEntrust(req, res));
+      return;
+    case "lum.info":
+      requireSession(req, res, () => handleLumInfo(req, res));
+      return;
+    case "binary.summary":
+      requireSession(req, res, () => handleBinarySummary(req, res));
+      return;
+    case "binary.pairs":
+      requireSession(req, res, () => handleBinaryPairs(req, res));
+      return;
+    case "binary.pair.chart":
+      req.params = { ...(req.params || {}), id: String(req.body?.pairId || req.query?.pairId || "") };
+      requireSession(req, res, () => handleBinaryPairChart(req, res));
+      return;
+    case "binary.config":
+      requireSession(req, res, () => handleBinaryConfig(req, res));
+      return;
+    case "binary.trade.open":
+      requireSession(req, res, () => handleBinaryTradeOpen(req, res));
+      return;
+    case "binary.trades.active":
+      requireSession(req, res, () => handleBinaryActiveTrades(req, res));
+      return;
+    case "binary.trades.history":
+      requireSession(req, res, () => handleBinaryTradeHistory(req, res));
+      return;
+    case "binary.trade.detail":
+      req.params = { ...(req.params || {}), id: String(req.body?.tradeId || req.query?.tradeId || "") };
+      requireSession(req, res, () => handleBinaryTradeDetail(req, res));
+      return;
+    case "binary.trade.settle":
+      req.params = { ...(req.params || {}), id: String(req.body?.tradeId || req.query?.tradeId || "") };
+      requireSession(req, res, () => handleBinaryTradeSettle(req, res));
+      return;
     case "admin.kyc.list":
       requireAdminSession(req, res, () => handleAdminKycList(req, res));
       return;
@@ -3011,6 +3276,78 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.deposit.request.review":
       requireAdminSession(req, res, () => handleAdminDepositRequestReview(req, res));
       return;
+    case "admin.lum.plans.list":
+      requireAdminSession(req, res, () => handleAdminLumPlansList(req, res));
+      return;
+    case "admin.lum.plans.create":
+      requireAdminSession(req, res, () => handleAdminLumPlanCreate(req, res));
+      return;
+    case "admin.lum.plans.update":
+      requireAdminSession(req, res, () => handleAdminLumPlanUpdate(req, res));
+      return;
+    case "admin.lum.plans.delete":
+      requireAdminSession(req, res, () => handleAdminLumPlanDelete(req, res));
+      return;
+    case "admin.lum.plans.toggle-status":
+      requireAdminSession(req, res, () => handleAdminLumPlanToggleStatus(req, res));
+      return;
+    case "admin.lum.investments.list":
+      requireAdminSession(req, res, () => handleAdminLumInvestments(req, res));
+      return;
+    case "admin.lum.investments.review":
+      requireAdminSession(req, res, () => handleAdminLumInvestmentReview(req, res));
+      return;
+    case "admin.lum.investments.force-settle":
+      requireAdminSession(req, res, () => handleAdminLumForceSettle(req, res));
+      return;
+    case "admin.lum.dashboard-summary":
+      requireAdminSession(req, res, () => handleAdminLumDashboardSummary(req, res));
+      return;
+    case "admin.lum.content.save":
+      requireAdminSession(req, res, () => handleAdminLumContentSave(req, res));
+      return;
+    case "admin.binary.dashboard-summary":
+      requireAdminSession(req, res, () => handleAdminBinaryDashboardSummary(req, res));
+      return;
+    case "admin.binary.pairs":
+      requireAdminSession(req, res, () => handleAdminBinaryPairs(req, res));
+      return;
+    case "admin.binary.pairs.create":
+      requireAdminSession(req, res, () => handleAdminBinaryPairCreate(req, res));
+      return;
+    case "admin.binary.pairs.update":
+      requireAdminSession(req, res, () => handleAdminBinaryPairUpdate(req, res));
+      return;
+    case "admin.binary.pairs.delete":
+      requireAdminSession(req, res, () => handleAdminBinaryPairDelete(req, res));
+      return;
+    case "admin.binary.pairs.toggle-status":
+      requireAdminSession(req, res, () => handleAdminBinaryPairToggle(req, res));
+      return;
+    case "admin.binary.period-rules":
+      requireAdminSession(req, res, () => handleAdminBinaryPeriodRules(req, res));
+      return;
+    case "admin.binary.period-rules.save":
+      requireAdminSession(req, res, () => handleAdminBinaryPeriodRuleSave(req, res));
+      return;
+    case "admin.binary.trades":
+      requireAdminSession(req, res, () => handleAdminBinaryTrades(req, res));
+      return;
+    case "admin.binary.trades.settle":
+      requireAdminSession(req, res, () => handleAdminBinaryTradeSettle(req, res));
+      return;
+    case "admin.binary.trades.cancel":
+      requireAdminSession(req, res, () => handleAdminBinaryTradeCancel(req, res));
+      return;
+    case "admin.binary.engine-settings":
+      requireAdminSession(req, res, () => handleAdminBinaryEngineSettingsGet(req, res));
+      return;
+    case "admin.binary.engine-settings.save":
+      requireAdminSession(req, res, () => handleAdminBinaryEngineSettingsSave(req, res));
+      return;
+    case "admin.binary.manual-tick.push":
+      requireAdminSession(req, res, () => handleAdminBinaryManualTickPush(req, res));
+      return;
     default:
       res.status(400).json({ error: "Unknown auth action." });
   }
@@ -3032,6 +3369,23 @@ app.get("/api/auth/kyc", requireSession, handleKycStatus);
 app.get("/api/auth/dashboard", requireSession, handleDashboardSnapshot);
 app.post("/api/auth/deposit", requireSession, handleDepositCreate);
 app.get("/api/auth/deposit/records", requireSession, handleDepositRecords);
+app.get("/api/lum/summary", requireSession, handleLumSummary);
+app.get("/api/lum/plans", requireSession, handleLumPlans);
+app.get("/api/lum/plans/:id", requireSession, handleLumPlanDetail);
+app.post("/api/lum/invest", requireSession, handleLumInvest);
+app.get("/api/lum/investments", requireSession, handleLumInvestments);
+app.get("/api/lum/investments/:id", requireSession, handleLumInvestmentDetail);
+app.get("/api/lum/entrust", requireSession, handleLumEntrust);
+app.get("/api/lum/info", requireSession, handleLumInfo);
+app.get("/api/binary/summary", requireSession, handleBinarySummary);
+app.get("/api/binary/pairs", requireSession, handleBinaryPairs);
+app.get("/api/binary/pairs/:id/chart", requireSession, handleBinaryPairChart);
+app.get("/api/binary/config", requireSession, handleBinaryConfig);
+app.post("/api/binary/trades/open", requireSession, handleBinaryTradeOpen);
+app.get("/api/binary/trades/active", requireSession, handleBinaryActiveTrades);
+app.get("/api/binary/trades/history", requireSession, handleBinaryTradeHistory);
+app.get("/api/binary/trades/:id", requireSession, handleBinaryTradeDetail);
+app.post("/api/binary/trades/:id/settle", requireSession, handleBinaryTradeSettle);
 app.post("/api/admin/auth/signup", handleAdminSignup);
 app.post("/api/admin/auth/login", handleAdminLogin);
 app.get("/api/admin/auth/session", requireAdminSession, handleAdminSession);
@@ -3051,6 +3405,30 @@ app.post("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAss
 app.post("/api/admin/deposit/assets/delete", requireAdminSession, handleAdminDepositAssetDelete);
 app.get("/api/admin/deposit/requests", requireAdminSession, handleAdminDepositRequestsList);
 app.post("/api/admin/deposit/requests/review", requireAdminSession, handleAdminDepositRequestReview);
+app.get("/api/admin/lum/plans", requireAdminSession, handleAdminLumPlansList);
+app.post("/api/admin/lum/plans/create", requireAdminSession, handleAdminLumPlanCreate);
+app.post("/api/admin/lum/plans/update", requireAdminSession, handleAdminLumPlanUpdate);
+app.post("/api/admin/lum/plans/delete", requireAdminSession, handleAdminLumPlanDelete);
+app.post("/api/admin/lum/plans/toggle-status", requireAdminSession, handleAdminLumPlanToggleStatus);
+app.get("/api/admin/lum/investments", requireAdminSession, handleAdminLumInvestments);
+app.post("/api/admin/lum/investments/review", requireAdminSession, handleAdminLumInvestmentReview);
+app.post("/api/admin/lum/investments/force-settle", requireAdminSession, handleAdminLumForceSettle);
+app.get("/api/admin/lum/dashboard-summary", requireAdminSession, handleAdminLumDashboardSummary);
+app.post("/api/admin/lum/content/save", requireAdminSession, handleAdminLumContentSave);
+app.get("/api/admin/binary/dashboard-summary", requireAdminSession, handleAdminBinaryDashboardSummary);
+app.get("/api/admin/binary/pairs", requireAdminSession, handleAdminBinaryPairs);
+app.post("/api/admin/binary/pairs/create", requireAdminSession, handleAdminBinaryPairCreate);
+app.post("/api/admin/binary/pairs/update", requireAdminSession, handleAdminBinaryPairUpdate);
+app.post("/api/admin/binary/pairs/delete", requireAdminSession, handleAdminBinaryPairDelete);
+app.post("/api/admin/binary/pairs/toggle-status", requireAdminSession, handleAdminBinaryPairToggle);
+app.get("/api/admin/binary/period-rules", requireAdminSession, handleAdminBinaryPeriodRules);
+app.post("/api/admin/binary/period-rules/save", requireAdminSession, handleAdminBinaryPeriodRuleSave);
+app.get("/api/admin/binary/trades", requireAdminSession, handleAdminBinaryTrades);
+app.post("/api/admin/binary/trades/settle", requireAdminSession, handleAdminBinaryTradeSettle);
+app.post("/api/admin/binary/trades/cancel", requireAdminSession, handleAdminBinaryTradeCancel);
+app.get("/api/admin/binary/engine-settings", requireAdminSession, handleAdminBinaryEngineSettingsGet);
+app.post("/api/admin/binary/engine-settings/save", requireAdminSession, handleAdminBinaryEngineSettingsSave);
+app.post("/api/admin/binary/manual-tick/push", requireAdminSession, handleAdminBinaryManualTickPush);
 
 const isExecutedDirectly = (() => {
   if (!process.argv[1]) {

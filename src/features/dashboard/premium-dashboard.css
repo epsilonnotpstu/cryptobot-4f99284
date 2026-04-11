@@ -302,6 +302,14 @@
 .prodash-promo-card {
   border-radius: 18px;
   padding: 0.96rem;
+  text-align: left;
+}
+
+button.prodash-promo-card {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .prodash-promo-primary {

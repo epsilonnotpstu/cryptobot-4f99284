@@ -163,3 +163,101 @@ All values now come from DB-backed API payloads:
 ## Notes for Future Planning
 - If you later want hard physical separation, create dedicated `admins` and `platform_users` tables and migrate auth/session references.
 - Current implementation keeps one `users` table for compatibility but enforces separation through role-based views and stats queries.
+
+## LUM Module Impact (Backend Ready)
+
+LUM integration adds DB-backed investment products and admin-reviewable order lifecycle without breaking existing deposit/KYC/user flows.
+
+New LUM tables:
+- `lum_plans`
+- `lum_plan_contents`
+- `lum_investments`
+- `lum_investment_rewards`
+- `lum_wallet_ledger`
+- `user_wallet_balance_details`
+- `lum_admin_audit_logs`
+
+Admin backend actions now available:
+- `admin.lum.plans.list`
+- `admin.lum.plans.create`
+- `admin.lum.plans.update`
+- `admin.lum.plans.delete`
+- `admin.lum.plans.toggle-status`
+- `admin.lum.investments.list`
+- `admin.lum.investments.review`
+- `admin.lum.investments.force-settle`
+- `admin.lum.dashboard-summary`
+- `admin.lum.content.save`
+
+Admin UI section:
+- Sidebar entry: `LUM Management`
+- Component: `src/admin/components/LUMManagementPage.jsx`
+- Sub-sections:
+  - Plan Studio (create/update/activate-disable/archive)
+  - Investment Desk (review pending, force settle active)
+  - Content Editor (pledge/risk/faq/terms blocks per plan)
+
+Wallet synchronization rule:
+- LUM uses `user_wallet_balance_details` for `available_usd` and `locked_usd`.
+- `user_wallet_balances.total_usd` remains active and is synced from details (`available + locked`) so current dashboard remains compatible.
+
+## Binary Module Impact (Backend Ready)
+
+Binary options backend now supports full DB-backed lifecycle and admin control.
+
+New Binary tables:
+- `binary_pairs`
+- `binary_period_rules`
+- `binary_price_ticks`
+- `binary_trades`
+- `binary_wallet_ledger`
+- `binary_admin_audit_logs`
+- `binary_engine_settings`
+
+Admin backend actions now available:
+- `admin.binary.dashboard-summary`
+- `admin.binary.pairs`
+- `admin.binary.pairs.create`
+- `admin.binary.pairs.update`
+- `admin.binary.pairs.delete`
+- `admin.binary.pairs.toggle-status`
+- `admin.binary.period-rules`
+- `admin.binary.period-rules.save`
+- `admin.binary.trades`
+- `admin.binary.trades.settle`
+- `admin.binary.trades.cancel`
+- `admin.binary.engine-settings`
+- `admin.binary.engine-settings.save`
+- `admin.binary.manual-tick.push`
+
+Important engine control:
+- `binary_engine_settings.trade_outcome_mode` supports:
+  - `auto`
+  - `force_win`
+  - `force_loss`
+- This gives admin a global outcome override capability for newly settled trades.
+
+Admin UI integration:
+- Sidebar section: `Binary Management`
+- Component: `src/admin/components/BinaryManagementPage.jsx`
+- Tabs/areas:
+  - `Control Center`: engine settings + manual tick push + outcome override card
+  - `Pairs Desk`: create/update/delete/toggle pair
+  - `Period Rules`: create/update payout rules
+  - `Trade Desk`: monitor all trades, force settle, cancel active trades
+- Primary forced-outcome control from admin panel:
+  - `Always Win` => saves `tradeOutcomeMode = force_win`
+  - `Always Loss` => saves `tradeOutcomeMode = force_loss`
+  - `Auto` => saves `tradeOutcomeMode = auto`
+
+Wallet synchronization rule for Binary:
+- Trade stake locks from `user_wallet_balance_details.available_usd` to `locked_usd` on `BINARY_USDT`.
+- On settlement:
+  - win: principal unlock + profit credit
+  - loss: locked stake consumed
+  - draw: refund by configured draw refund %
+- `user_wallet_balances` is synced from detail table after each wallet-affecting action.
+
+Deposit-credit adjustment:
+- Approved deposits now also credit `SPOT_USDT` (spot wallet symbol).
+- Current wallet symbols in use: `SPOT_USDT`, `MAIN_USDT`, `BINARY_USDT`.

@@ -28,6 +28,34 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
   - records view
 - `premium-dashboard.css`: styles for dashboard + deposit page
 
+### LUM Module (`src/features/lum/`)
+
+- `LUMPage.jsx`: dedicated LUM center page
+- `LUMSummaryCard.jsx`: custodial/expected/return summary card
+- `LUMPlanTabs.jsx`: LUM vs Mining tabs
+- `LUMPlanCard.jsx`: plan listing card UI
+- `LUMPlanDetailModal.jsx`: plan detail + pledge/risk information
+- `LUMInvestModal.jsx`: investment amount + projection + confirm flow
+- `LUMEntrustModal.jsx`: active/completed/pending investment history
+- `LUMInvestmentTable.jsx`: reusable investment table
+- `LUMInfoModal.jsx`: pledge/risk info modal
+- `lum-utils.js`: format/projection helpers
+- `lum.css`: LUM-specific styles
+
+### Binary Module (`src/features/binary/`)
+
+- `BinaryPage.jsx`: dedicated Binary Options page (chart, periods, amount, trade flow)
+- `BinaryHeader.jsx`: pair selector + live price + refresh/history actions
+- `BinaryChartCard.jsx`: synchronized tick chart card
+- `BinaryDirectionToggle.jsx`: Long/Short selector
+- `BinaryPeriodSelector.jsx`: payout period picker
+- `BinaryAmountCard.jsx`: stake input, slider, quick %, projection summary
+- `BinaryActiveTradeModal.jsx`: active trade countdown + details
+- `BinaryResultModal.jsx`: settled result modal (win/loss/draw)
+- `BinaryRecordsSection.jsx`: filterable binary trade history
+- `binary-utils.js`: formatting/projection/countdown helpers
+- `binary.css`: Binary-specific styles
+
 ### Admin App (`src/admin/`)
 
 - `AdminSectionPage.jsx`: admin auth/session state + data orchestration + handlers
@@ -41,6 +69,8 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `UserManagementPage.jsx`: user list/search/filter/detail/delete
 - `KycReviewPage.jsx`: KYC request review queue + media preview + decisions
 - `DepositManagementPage.jsx`: deposit asset CRUD + deposit request review
+- `LUMManagementPage.jsx`: LUM plan studio + investment desk + content editor (admin)
+- `BinaryManagementPage.jsx`: binary control center (engine/outcome mode), pair desk, period rules, trade desk
 
 #### Admin Utils (`src/admin/utils/`)
 
@@ -50,6 +80,8 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 ## Backend (`server/`)
 
 - `server/index.js`: Express API + SQLite schema/init + auth + admin actions
+- `server/lum-module.js`: LUM schema bootstrap + wallet-lock logic + settlement + user/admin LUM handlers
+- `server/binary-module.js`: Binary schema bootstrap + tick engine + trade open/settlement + user/admin Binary handlers
 - `server/data/auth.sqlite`: primary database file
 - `server/data/auth.sqlite-wal`, `server/data/auth.sqlite-shm`: SQLite WAL files
 

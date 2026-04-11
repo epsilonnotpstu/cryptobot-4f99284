@@ -8,6 +8,8 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "users", label: "User Management", icon: "fa-users" },
   { key: "kycReview", label: "KYC Review & Approvals", icon: "fa-id-card" },
   { key: "depositCenter", label: "Deposit Management", icon: "fa-coins" },
+  { key: "lumCenter", label: "LUM Management", icon: "fa-layer-group" },
+  { key: "binaryCenter", label: "Binary Management", icon: "fa-chart-simple" },
   { key: "bots", label: "Bot Management", icon: "fa-robot" },
   { key: "trades", label: "Trades & Orders", icon: "fa-arrow-trend-up" },
   { key: "strategies", label: "Strategies", icon: "fa-brain" },

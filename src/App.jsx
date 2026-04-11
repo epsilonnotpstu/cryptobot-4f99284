@@ -4,6 +4,8 @@ import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import PremiumDashboardPage from "./features/dashboard/PremiumDashboardPage";
 import DepositPage from "./features/dashboard/DepositPage";
+import LUMPage from "./features/lum/LUMPage";
+import BinaryPage from "./features/binary/BinaryPage";
 import AdminSectionPage from "./admin/AdminSectionPage";
 
 const ROUTES = {
@@ -858,6 +860,112 @@ const remoteAuthService = {
       sessionToken,
     });
   },
+  async getLumSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "lum.summary",
+      sessionToken,
+    });
+  },
+  async getLumPlans({ sessionToken, category = "all" }) {
+    return this.requestGatewayAction({
+      action: "lum.plans",
+      sessionToken,
+      payload: { category },
+    });
+  },
+  async getLumPlanDetail({ sessionToken, planId }) {
+    return this.requestGatewayAction({
+      action: "lum.plan.detail",
+      sessionToken,
+      payload: { planId },
+    });
+  },
+  async createLumInvestment({ sessionToken, planId, amountUsd }) {
+    return this.requestGatewayAction({
+      action: "lum.invest",
+      sessionToken,
+      payload: { planId, amountUsd },
+    });
+  },
+  async getLumInvestments({ sessionToken, status = "all", category = "all", page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "lum.investments",
+      sessionToken,
+      payload: { status, category, page, limit },
+    });
+  },
+  async getLumEntrust({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "lum.entrust",
+      sessionToken,
+    });
+  },
+  async getLumInfo({ sessionToken, planId }) {
+    return this.requestGatewayAction({
+      action: "lum.info",
+      sessionToken,
+      payload: { planId },
+    });
+  },
+  async getBinarySummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "binary.summary",
+      sessionToken,
+    });
+  },
+  async getBinaryPairs({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "binary.pairs",
+      sessionToken,
+    });
+  },
+  async getBinaryPairChart({ sessionToken, pairId }) {
+    return this.requestGatewayAction({
+      action: "binary.pair.chart",
+      sessionToken,
+      payload: { pairId },
+    });
+  },
+  async getBinaryConfig({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "binary.config",
+      sessionToken,
+    });
+  },
+  async openBinaryTrade({ sessionToken, pairId, direction, periodSeconds, stakeAmountUsd }) {
+    return this.requestGatewayAction({
+      action: "binary.trade.open",
+      sessionToken,
+      payload: { pairId, direction, periodSeconds, stakeAmountUsd },
+    });
+  },
+  async getBinaryActiveTrades({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "binary.trades.active",
+      sessionToken,
+    });
+  },
+  async getBinaryTradeHistory({ sessionToken, result = "all", pairId = 0, page = 1, limit = 40 }) {
+    return this.requestGatewayAction({
+      action: "binary.trades.history",
+      sessionToken,
+      payload: { result, pairId, page, limit },
+    });
+  },
+  async getBinaryTradeDetail({ sessionToken, tradeId }) {
+    return this.requestGatewayAction({
+      action: "binary.trade.detail",
+      sessionToken,
+      payload: { tradeId },
+    });
+  },
+  async settleBinaryTrade({ sessionToken, tradeId }) {
+    return this.requestGatewayAction({
+      action: "binary.trade.settle",
+      sessionToken,
+      payload: { tradeId },
+    });
+  },
   async adminSignup({ name, email, phone, password }) {
     const data = await this.requestGatewayAction({
       action: "admin.auth.signup",
@@ -950,6 +1058,169 @@ const remoteAuthService = {
       action: "admin.deposit.request.review",
       sessionToken,
       payload: { requestId, decision, note },
+    });
+  },
+  async adminListLumPlans({ sessionToken, category = "all", status = "all" }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.plans.list",
+      sessionToken,
+      payload: { category, status },
+    });
+  },
+  async adminCreateLumPlan({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.plans.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateLumPlan({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.plans.update",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminDeleteLumPlan({ sessionToken, planId }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.plans.delete",
+      sessionToken,
+      payload: { planId },
+    });
+  },
+  async adminToggleLumPlanStatus({ sessionToken, planId, status }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.plans.toggle-status",
+      sessionToken,
+      payload: { planId, status },
+    });
+  },
+  async adminListLumInvestments({ sessionToken, status = "all", category = "all", page = 1, limit = 50, keyword = "" }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.investments.list",
+      sessionToken,
+      payload: { status, category, page, limit, keyword },
+    });
+  },
+  async adminReviewLumInvestment({ sessionToken, investmentId, decision, note }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.investments.review",
+      sessionToken,
+      payload: { investmentId, decision, note },
+    });
+  },
+  async adminForceSettleLumInvestment({ sessionToken, investmentId, note }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.investments.force-settle",
+      sessionToken,
+      payload: { investmentId, note },
+    });
+  },
+  async adminGetLumDashboardSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.dashboard-summary",
+      sessionToken,
+    });
+  },
+  async adminSaveLumContent({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.content.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminGetBinaryDashboardSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.dashboard-summary",
+      sessionToken,
+    });
+  },
+  async adminListBinaryPairs({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.pairs",
+      sessionToken,
+    });
+  },
+  async adminCreateBinaryPair({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.pairs.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateBinaryPair({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.pairs.update",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminDeleteBinaryPair({ sessionToken, pairId }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.pairs.delete",
+      sessionToken,
+      payload: { pairId },
+    });
+  },
+  async adminToggleBinaryPairStatus({ sessionToken, pairId, isEnabled }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.pairs.toggle-status",
+      sessionToken,
+      payload: { pairId, isEnabled },
+    });
+  },
+  async adminListBinaryPeriodRules({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.period-rules",
+      sessionToken,
+    });
+  },
+  async adminSaveBinaryPeriodRule({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.period-rules.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminListBinaryTrades({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.trades",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminSettleBinaryTrade({ sessionToken, tradeId, note }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.trades.settle",
+      sessionToken,
+      payload: { tradeId, note },
+    });
+  },
+  async adminCancelBinaryTrade({ sessionToken, tradeId, note }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.trades.cancel",
+      sessionToken,
+      payload: { tradeId, note },
+    });
+  },
+  async adminGetBinaryEngineSettings({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.engine-settings",
+      sessionToken,
+    });
+  },
+  async adminSaveBinaryEngineSettings({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.engine-settings.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminPushBinaryManualTick({ sessionToken, pairId, price }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.manual-tick.push",
+      sessionToken,
+      payload: { pairId, price },
     });
   },
   async adminListKycRequests({ sessionToken }) {
@@ -1826,9 +2097,11 @@ function MobileLoadingPage() {
 function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   const authService = getAuthService();
   const [activeAppScreen, setActiveAppScreen] = useState("dashboard");
+  const [dashboardEntryTab, setDashboardEntryTab] = useState("home");
 
   useEffect(() => {
     setActiveAppScreen("dashboard");
+    setDashboardEntryTab("home");
   }, [authSnapshot.sessionToken, authSnapshot.userId]);
 
   const handleLogout = async () => {
@@ -1908,6 +2181,105 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleLumSummary = async () => {
+    return authService.getLumSummary({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleLumPlans = async ({ category }) => {
+    return authService.getLumPlans({
+      sessionToken: authSnapshot.sessionToken,
+      category,
+    });
+  };
+
+  const handleLumPlanDetail = async ({ planId }) => {
+    return authService.getLumPlanDetail({
+      sessionToken: authSnapshot.sessionToken,
+      planId,
+    });
+  };
+
+  const handleLumInvest = async ({ planId, amountUsd }) => {
+    return authService.createLumInvestment({
+      sessionToken: authSnapshot.sessionToken,
+      planId,
+      amountUsd,
+    });
+  };
+
+  const handleLumEntrust = async () => {
+    return authService.getLumEntrust({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleLumInfo = async ({ planId }) => {
+    return authService.getLumInfo({
+      sessionToken: authSnapshot.sessionToken,
+      planId,
+    });
+  };
+
+  const handleBinarySummary = async () => {
+    return authService.getBinarySummary({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleBinaryPairs = async () => {
+    return authService.getBinaryPairs({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleBinaryConfig = async () => {
+    return authService.getBinaryConfig({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleBinaryPairChart = async ({ pairId }) => {
+    return authService.getBinaryPairChart({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+    });
+  };
+
+  const handleOpenBinaryTrade = async ({ pairId, direction, periodSeconds, stakeAmountUsd }) => {
+    return authService.openBinaryTrade({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      direction,
+      periodSeconds,
+      stakeAmountUsd,
+    });
+  };
+
+  const handleBinaryActiveTrades = async () => {
+    return authService.getBinaryActiveTrades({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleBinaryTradeHistory = async ({ result, pairId, page, limit }) => {
+    return authService.getBinaryTradeHistory({
+      sessionToken: authSnapshot.sessionToken,
+      result,
+      pairId,
+      page,
+      limit,
+    });
+  };
+
+  const handleSettleBinaryTrade = async ({ tradeId }) => {
+    return authService.settleBinaryTrade({
+      sessionToken: authSnapshot.sessionToken,
+      tradeId,
+    });
+  };
+
   if (!authReady) {
     return <MobileLoadingPage />;
   }
@@ -1929,9 +2301,54 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
       );
     }
 
+    if (activeAppScreen === "lum") {
+      return (
+        <LUMPage
+          user={authSnapshot}
+          onBack={() => setActiveAppScreen("dashboard")}
+          onDashboardSnapshot={handleDashboardSnapshot}
+          onLoadSummary={handleLumSummary}
+          onLoadPlans={handleLumPlans}
+          onLoadPlanDetail={handleLumPlanDetail}
+          onLoadEntrust={handleLumEntrust}
+          onLoadInfo={handleLumInfo}
+          onCreateInvestment={handleLumInvest}
+          onAfterInvestmentSuccess={async () => {
+            await onAuthChanged();
+          }}
+        />
+      );
+    }
+
+    if (activeAppScreen === "binary") {
+      return (
+        <BinaryPage
+          user={authSnapshot}
+          onBack={() => setActiveAppScreen("dashboard")}
+          onLoadSummary={handleBinarySummary}
+          onLoadPairs={handleBinaryPairs}
+          onLoadConfig={handleBinaryConfig}
+          onLoadPairChart={handleBinaryPairChart}
+          onOpenTrade={handleOpenBinaryTrade}
+          onLoadActiveTrades={handleBinaryActiveTrades}
+          onLoadHistory={handleBinaryTradeHistory}
+          onSettleTrade={handleSettleBinaryTrade}
+          onNavigateTab={(tabId) => {
+            if (tabId === "binary") {
+              setActiveAppScreen("binary");
+              return;
+            }
+            setDashboardEntryTab(tabId);
+            setActiveAppScreen("dashboard");
+          }}
+        />
+      );
+    }
+
     return (
       <PremiumDashboardPage
         user={authSnapshot}
+        entryMainTab={dashboardEntryTab}
         onLogout={handleLogout}
         onProfileUpdate={handleProfileUpdate}
         onPasswordChange={handlePasswordChange}
@@ -1939,6 +2356,8 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onKycRefresh={handleKycRefresh}
         onDashboardSnapshot={handleDashboardSnapshot}
         onOpenDepositPage={() => setActiveAppScreen("deposit")}
+        onOpenLumPage={() => setActiveAppScreen("lum")}
+        onOpenBinaryPage={() => setActiveAppScreen("binary")}
         onCreateDepositRequest={handleCreateDepositRequest}
         onDepositRecords={handleDepositRecords}
       />

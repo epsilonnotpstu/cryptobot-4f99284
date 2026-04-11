@@ -9,6 +9,8 @@ import { formatCompactNumber, formatDateHeading, formatRelativeTime } from "../u
 import UserManagementPage from "./UserManagementPage";
 import KycReviewPage from "./KycReviewPage";
 import DepositManagementPage from "./DepositManagementPage";
+import LUMManagementPage from "./LUMManagementPage";
+import BinaryManagementPage from "./BinaryManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -74,6 +76,8 @@ export default function AdminDashboardPage({
   userDirectory,
   kycQueue,
   depositCenter,
+  lumCenter,
+  binaryCenter,
   activeSection,
   onSectionChange,
   onRefresh,
@@ -86,6 +90,22 @@ export default function AdminDashboardPage({
   onUpsertDepositAsset,
   onDeleteDepositAsset,
   onReviewDepositRequest,
+  onCreateLumPlan,
+  onUpdateLumPlan,
+  onDeleteLumPlan,
+  onToggleLumPlanStatus,
+  onSaveLumPlanContent,
+  onReviewLumInvestment,
+  onForceSettleLumInvestment,
+  onCreateBinaryPair,
+  onUpdateBinaryPair,
+  onDeleteBinaryPair,
+  onToggleBinaryPairStatus,
+  onSaveBinaryPeriodRule,
+  onSettleBinaryTrade,
+  onCancelBinaryTrade,
+  onSaveBinaryEngineSettings,
+  onPushBinaryManualTick,
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
@@ -128,6 +148,10 @@ export default function AdminDashboardPage({
         ? "KYC Review & Approvals"
       : activeSection === "depositCenter"
         ? "Deposit Management"
+      : activeSection === "lumCenter"
+        ? "LUM Management"
+      : activeSection === "binaryCenter"
+        ? "Binary Management"
       : activeSection === "dashboard"
         ? "Dashboard Overview"
         : "Admin Workspace";
@@ -301,17 +325,41 @@ export default function AdminDashboardPage({
                     ? "Search users..."
                     : activeSection === "kycReview"
                       ? "Search KYC requests..."
-                      : activeSection === "depositCenter"
-                        ? "Search assets, requests, users..."
+                    : activeSection === "depositCenter"
+                      ? "Search assets, requests, users..."
+                    : activeSection === "lumCenter"
+                        ? "Search LUM plans or investments..."
+                      : activeSection === "binaryCenter"
+                        ? "Search binary pairs, rules, trades..."
                       : "Search users, bots, trades..."
                 }
-                value={activeSection === "users" || activeSection === "kycReview" || activeSection === "depositCenter" ? adminSearch : ""}
+                value={
+                  activeSection === "users" ||
+                  activeSection === "kycReview" ||
+                  activeSection === "depositCenter" ||
+                  activeSection === "lumCenter" ||
+                  activeSection === "binaryCenter"
+                    ? adminSearch
+                    : ""
+                }
                 onChange={(event) => {
-                  if (activeSection === "users" || activeSection === "kycReview" || activeSection === "depositCenter") {
+                  if (
+                    activeSection === "users" ||
+                    activeSection === "kycReview" ||
+                    activeSection === "depositCenter" ||
+                    activeSection === "lumCenter" ||
+                    activeSection === "binaryCenter"
+                  ) {
                     setAdminSearch(event.target.value);
                   }
                 }}
-                readOnly={activeSection !== "users" && activeSection !== "kycReview" && activeSection !== "depositCenter"}
+                readOnly={
+                  activeSection !== "users" &&
+                  activeSection !== "kycReview" &&
+                  activeSection !== "depositCenter" &&
+                  activeSection !== "lumCenter" &&
+                  activeSection !== "binaryCenter"
+                }
               />
             </label>
 
@@ -375,7 +423,54 @@ export default function AdminDashboardPage({
             onReviewRequest={onReviewDepositRequest}
           />
         ) : null}
-        {activeSection !== "dashboard" && activeSection !== "users" && activeSection !== "kycReview" && activeSection !== "depositCenter" ? renderPlaceholder() : null}
+        {activeSection === "lumCenter" ? (
+          <LUMManagementPage
+            summary={lumCenter?.summary || {}}
+            plans={Array.isArray(lumCenter?.plans) ? lumCenter.plans : []}
+            investments={Array.isArray(lumCenter?.investments) ? lumCenter.investments : []}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onCreatePlan={onCreateLumPlan}
+            onUpdatePlan={onUpdateLumPlan}
+            onDeletePlan={onDeleteLumPlan}
+            onTogglePlanStatus={onToggleLumPlanStatus}
+            onSaveContent={onSaveLumPlanContent}
+            onReviewInvestment={onReviewLumInvestment}
+            onForceSettleInvestment={onForceSettleLumInvestment}
+          />
+        ) : null}
+        {activeSection === "binaryCenter" ? (
+          <BinaryManagementPage
+            summary={binaryCenter?.summary || {}}
+            pairs={Array.isArray(binaryCenter?.pairs) ? binaryCenter.pairs : []}
+            rules={Array.isArray(binaryCenter?.rules) ? binaryCenter.rules : []}
+            trades={Array.isArray(binaryCenter?.trades) ? binaryCenter.trades : []}
+            settings={binaryCenter?.settings || {}}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onCreatePair={onCreateBinaryPair}
+            onUpdatePair={onUpdateBinaryPair}
+            onDeletePair={onDeleteBinaryPair}
+            onTogglePairStatus={onToggleBinaryPairStatus}
+            onSavePeriodRule={onSaveBinaryPeriodRule}
+            onSettleTrade={onSettleBinaryTrade}
+            onCancelTrade={onCancelBinaryTrade}
+            onSaveEngineSettings={onSaveBinaryEngineSettings}
+            onPushManualTick={onPushBinaryManualTick}
+          />
+        ) : null}
+        {activeSection !== "dashboard" &&
+        activeSection !== "users" &&
+        activeSection !== "kycReview" &&
+        activeSection !== "depositCenter" &&
+        activeSection !== "lumCenter" &&
+        activeSection !== "binaryCenter"
+          ? renderPlaceholder()
+          : null}
       </section>
 
       {showProfile ? (
