@@ -373,6 +373,61 @@ Columns:
 - `updated_by` TEXT nullable
 - UNIQUE(`user_id`, `wallet_symbol`)
 
+## Support Module Tables
+
+### `support_tickets`
+Core support ticket container table used by both user and admin desks.
+
+Columns:
+- `id` INTEGER PK
+- `ticket_ref` TEXT UNIQUE
+- `user_id` TEXT
+- `category` TEXT (e.g. `general`, `deposit`, `assets`, `trading`, `security`)
+- `subject` TEXT
+- `status` TEXT (`open`, `pending_admin`, `pending_user`, `resolved`, `closed`)
+- `priority` TEXT (`low`, `normal`, `high`, `urgent`)
+- `assigned_admin_user_id` TEXT nullable
+- `assigned_admin_email` TEXT nullable
+- `last_message_preview` TEXT
+- `last_message_at` TEXT
+- `user_unread_count` INTEGER
+- `admin_unread_count` INTEGER
+- `created_at` TEXT
+- `updated_at` TEXT
+- `resolved_at` TEXT nullable
+- `closed_at` TEXT nullable
+
+### `support_ticket_messages`
+Message rows per support ticket thread.
+
+Columns:
+- `id` INTEGER PK
+- `ticket_id` INTEGER
+- `ticket_ref` TEXT
+- `sender_role` TEXT (`user`, `admin`, `system`)
+- `sender_user_id` TEXT
+- `sender_name` TEXT nullable
+- `sender_email` TEXT nullable
+- `message_text` TEXT
+- `message_type` TEXT (`text`, `note`)
+- `is_internal_note` INTEGER (`0/1`)
+- `created_at` TEXT
+- `read_by_user_at` TEXT nullable
+- `read_by_admin_at` TEXT nullable
+
+### `support_admin_audit_logs`
+Audit table for admin support actions.
+
+Columns:
+- `id` INTEGER PK
+- `admin_user_id` TEXT
+- `admin_email` TEXT nullable
+- `action_type` TEXT (`ticket_reply`, `ticket_note`, `ticket_update`)
+- `target_type` TEXT (e.g. `support_ticket`)
+- `target_id` TEXT
+- `note` TEXT nullable
+- `created_at` TEXT
+
 ## Transaction Module Tables
 
 ### `convert_pairs`
@@ -692,6 +747,23 @@ Assets module exposes:
 - `GET /api/assets/withdrawals`
 - `GET /api/assets/transfers`
 - `GET /api/assets/conversions`
+
+### Support user routes
+Support module exposes:
+- `GET /api/support/tickets`
+- `GET /api/support/tickets/:ticketRef`
+- `POST /api/support/tickets`
+- `POST /api/support/tickets/:ticketRef/messages`
+- `POST /api/support/tickets/:ticketRef/status`
+
+### Support admin routes
+Support admin module exposes:
+- `GET /api/admin/support/dashboard-summary`
+- `GET /api/admin/support/tickets`
+- `GET /api/admin/support/tickets/:ticketRef`
+- `POST /api/admin/support/tickets/reply`
+- `POST /api/admin/support/tickets/update`
+- `GET /api/admin/support/audit-logs`
 
 ### Transaction user routes
 Transaction module exposes:

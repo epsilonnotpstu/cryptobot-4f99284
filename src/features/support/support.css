@@ -1,0 +1,541 @@
+.supportchat-overlay {
+  z-index: 110;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.supportchat-modal {
+  width: min(1080px, 100%);
+  height: min(780px, 94vh);
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(160deg, rgba(9, 18, 34, 0.96), rgba(12, 22, 40, 0.94));
+  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.62);
+  display: grid;
+  grid-template-rows: auto auto auto auto 1fr;
+  gap: 0.62rem;
+  padding: 0.84rem;
+  color: #dcedff;
+}
+
+.supportchat-header {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(135deg, rgba(8, 16, 30, 0.86), rgba(12, 22, 38, 0.82));
+  padding: 0.65rem 0.74rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.supportchat-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.supportchat-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #baf2ff;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(45, 212, 191, 0.16));
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.supportchat-title-wrap strong {
+  display: block;
+  color: #f2f8ff;
+  font-size: 1rem;
+}
+
+.supportchat-title-wrap p {
+  margin: 0.08rem 0 0;
+  color: #92b0d2;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.supportchat-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+
+.supportchat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.supportchat-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(10, 18, 34, 0.8);
+  color: #cde4ff;
+  cursor: pointer;
+}
+
+.supportchat-topbar {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(6, 13, 25, 0.72);
+  padding: 0.54rem 0.62rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.62rem;
+}
+
+.supportchat-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+}
+
+.supportchat-stats span {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(9, 17, 31, 0.74);
+  color: #adc7e5;
+  font-size: 0.74rem;
+  padding: 0.22rem 0.5rem;
+}
+
+.supportchat-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.48rem;
+}
+
+.supportchat-topbar-actions select,
+.supportchat-composer select,
+.supportchat-composer input,
+.supportchat-composer textarea,
+.supportchat-thread-footer input {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(3, 10, 20, 0.8);
+  color: #e7f2ff;
+  padding: 0.54rem 0.64rem;
+  outline: none;
+}
+
+.supportchat-primary-btn,
+.supportchat-ghost-btn {
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.supportchat-primary-btn {
+  border: none;
+  background: linear-gradient(135deg, #38bdf8 0%, #2dd4bf 100%);
+  color: #041a25;
+  padding: 0.56rem 0.82rem;
+}
+
+.supportchat-ghost-btn {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(9, 17, 32, 0.76);
+  color: #cde4ff;
+  padding: 0.52rem 0.74rem;
+}
+
+.supportchat-primary-btn:disabled,
+.supportchat-ghost-btn:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.supportchat-composer {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(7, 14, 27, 0.74);
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.52rem;
+}
+
+.supportchat-composer h3 {
+  margin: 0;
+  font-size: 0.96rem;
+  color: #f2f8ff;
+}
+
+.supportchat-composer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.48rem;
+}
+
+.supportchat-composer-grid label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #b8d0ec;
+}
+
+.supportchat-field-span-2 {
+  grid-column: span 2;
+}
+
+.supportchat-composer textarea {
+  resize: vertical;
+}
+
+.supportchat-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.supportchat-error,
+.supportchat-notice,
+.supportchat-muted {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.supportchat-error {
+  color: #fda4af;
+}
+
+.supportchat-notice {
+  color: #7dd3fc;
+}
+
+.supportchat-muted {
+  color: #95b1d2;
+}
+
+.supportchat-layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 0.62rem;
+}
+
+.supportchat-ticket-list,
+.supportchat-thread {
+  min-height: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(6, 13, 25, 0.72);
+}
+
+.supportchat-ticket-list {
+  padding: 0.55rem;
+  display: grid;
+  gap: 0.42rem;
+  overflow: auto;
+}
+
+.supportchat-ticket-item {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  background: rgba(10, 18, 34, 0.8);
+  padding: 0.56rem;
+  text-align: left;
+  color: #dceeff;
+  cursor: pointer;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.supportchat-ticket-item.active {
+  border-color: rgba(56, 189, 248, 0.44);
+  box-shadow: 0 8px 18px rgba(2, 10, 24, 0.32);
+}
+
+.supportchat-ticket-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.supportchat-ticket-item strong {
+  font-size: 0.78rem;
+}
+
+.supportchat-ticket-item p,
+.supportchat-ticket-item small {
+  margin: 0;
+}
+
+.supportchat-ticket-item p {
+  color: #e8f3ff;
+  font-size: 0.82rem;
+}
+
+.supportchat-ticket-item small {
+  color: #8ea9ce;
+  font-size: 0.72rem;
+}
+
+.supportchat-ticket-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+  color: #9db7d7;
+  font-size: 0.72rem;
+}
+
+.supportchat-chip {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+
+.supportchat-chip.is-positive {
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.36);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.supportchat-chip.is-warning {
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.36);
+  background: rgba(250, 204, 21, 0.12);
+}
+
+.supportchat-chip.is-neutral {
+  color: #7dd3fc;
+  border-color: rgba(125, 211, 252, 0.36);
+  background: rgba(125, 211, 252, 0.12);
+}
+
+.supportchat-chip.is-negative {
+  color: #fda4af;
+  border-color: rgba(244, 114, 182, 0.35);
+  background: rgba(244, 114, 182, 0.1);
+}
+
+.supportchat-thread {
+  padding: 0.65rem;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.58rem;
+}
+
+.supportchat-thread-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.supportchat-thread-head strong {
+  display: block;
+  color: #f3f8ff;
+}
+
+.supportchat-thread-head p {
+  margin: 0.15rem 0 0;
+  color: #8ea9cd;
+  font-size: 0.76rem;
+}
+
+.supportchat-messages {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(160deg, rgba(6, 12, 23, 0.86), rgba(8, 15, 28, 0.78));
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.supportchat-message {
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(10, 18, 34, 0.8);
+  padding: 0.52rem;
+  display: grid;
+  gap: 0.24rem;
+}
+
+.supportchat-message.is-admin {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.supportchat-message header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.supportchat-message header strong {
+  color: #f1f8ff;
+  font-size: 0.78rem;
+}
+
+.supportchat-message header small {
+  color: #92aed1;
+  font-size: 0.7rem;
+}
+
+.supportchat-message p {
+  margin: 0;
+  color: #d7e9ff;
+  font-size: 0.82rem;
+  line-height: 1.52;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.supportchat-thread-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.supportchat-thread-empty {
+  min-height: 220px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.32);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.8rem;
+}
+
+.supportchat-thread-empty h3 {
+  margin: 0;
+  color: #eff7ff;
+}
+
+.supportchat-thread-empty p {
+  margin: 0.35rem 0 0;
+  color: #94b2d4;
+  max-width: 320px;
+}
+
+@media (max-width: 980px) {
+  .supportchat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .supportchat-ticket-list {
+    max-height: 210px;
+  }
+}
+
+@media (max-width: 760px) {
+  .supportchat-modal {
+    border-radius: 16px;
+    padding: 0.62rem;
+    height: min(760px, 95vh);
+  }
+
+  .supportchat-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .supportchat-composer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .supportchat-field-span-2 {
+    grid-column: auto;
+  }
+
+  .supportchat-thread {
+    min-height: 0;
+  }
+
+  .supportchat-thread-footer {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Support premium polish overrides */
+.supportchat-modal {
+  width: min(1120px, 100%);
+  border-radius: 24px;
+  border-color: rgba(125, 211, 252, 0.24);
+  box-shadow: 0 34px 84px rgba(2, 6, 23, 0.62);
+}
+
+.supportchat-header,
+.supportchat-topbar,
+.supportchat-composer,
+.supportchat-ticket-list,
+.supportchat-thread {
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+.supportchat-ticket-item {
+  border-color: rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+}
+
+.supportchat-ticket-item.active {
+  border-color: rgba(56, 189, 248, 0.52);
+  box-shadow: 0 10px 22px rgba(4, 18, 38, 0.36);
+}
+
+.supportchat-thread-head {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(7, 14, 27, 0.66);
+  padding: 0.56rem;
+}
+
+.supportchat-thread-footer input,
+.supportchat-composer input,
+.supportchat-composer select,
+.supportchat-composer textarea,
+.supportchat-topbar-actions select {
+  min-height: 44px;
+}
+
+.supportchat-primary-btn,
+.supportchat-ghost-btn,
+.supportchat-icon-btn {
+  min-height: 40px;
+}
+
+@media (max-width: 980px) {
+  .supportchat-modal {
+    height: min(820px, 95vh);
+  }
+}
+
+@media (max-width: 760px) {
+  .supportchat-modal {
+    border-radius: 16px;
+    padding: 0.58rem;
+  }
+
+  .supportchat-ticket-list {
+    max-height: 230px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .supportchat-icon-btn,
+  .supportchat-ticket-item,
+  .supportchat-primary-btn,
+  .supportchat-ghost-btn {
+    transition: none;
+  }
+}

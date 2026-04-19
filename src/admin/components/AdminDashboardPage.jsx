@@ -13,6 +13,7 @@ import LUMManagementPage from "./LUMManagementPage";
 import BinaryManagementPage from "./BinaryManagementPage";
 import TransactionManagementPage from "./TransactionManagementPage";
 import AssetManagementPage from "./AssetManagementPage";
+import SupportManagementPage from "./SupportManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -82,6 +83,7 @@ export default function AdminDashboardPage({
   binaryCenter,
   transactionCenter,
   assetCenter,
+  supportCenter,
   activeSection,
   onSectionChange,
   onRefresh,
@@ -130,6 +132,9 @@ export default function AdminDashboardPage({
   onReviewAssetWithdrawal,
   onCompleteAssetWithdrawal,
   onSaveAssetSettings,
+  onLoadSupportTicketDetail,
+  onReplySupportTicket,
+  onUpdateSupportTicket,
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
@@ -180,6 +185,8 @@ export default function AdminDashboardPage({
         ? "Transaction Management"
       : activeSection === "assetCenter"
         ? "Asset Management"
+      : activeSection === "supportCenter"
+        ? "Support Management"
       : activeSection === "dashboard"
         ? "Dashboard Overview"
         : "Admin Workspace";
@@ -363,6 +370,8 @@ export default function AdminDashboardPage({
                         ? "Search transaction pairs, orders, logs..."
                       : activeSection === "assetCenter"
                         ? "Search wallets, withdrawals, transfers..."
+                      : activeSection === "supportCenter"
+                        ? "Search support tickets, user, subjects..."
                       : "Search users, bots, trades..."
                 }
                 value={
@@ -372,7 +381,8 @@ export default function AdminDashboardPage({
                   activeSection === "lumCenter" ||
                   activeSection === "binaryCenter" ||
                   activeSection === "transactionCenter" ||
-                  activeSection === "assetCenter"
+                  activeSection === "assetCenter" ||
+                  activeSection === "supportCenter"
                     ? adminSearch
                     : ""
                 }
@@ -384,7 +394,8 @@ export default function AdminDashboardPage({
                     activeSection === "lumCenter" ||
                     activeSection === "binaryCenter" ||
                     activeSection === "transactionCenter" ||
-                    activeSection === "assetCenter"
+                    activeSection === "assetCenter" ||
+                    activeSection === "supportCenter"
                   ) {
                     setAdminSearch(event.target.value);
                   }
@@ -396,7 +407,8 @@ export default function AdminDashboardPage({
                   activeSection !== "lumCenter" &&
                   activeSection !== "binaryCenter" &&
                   activeSection !== "transactionCenter" &&
-                  activeSection !== "assetCenter"
+                  activeSection !== "assetCenter" &&
+                  activeSection !== "supportCenter"
                 }
               />
             </label>
@@ -552,6 +564,22 @@ export default function AdminDashboardPage({
             onSaveSettings={onSaveAssetSettings}
           />
         ) : null}
+        {activeSection === "supportCenter" ? (
+          <SupportManagementPage
+            summary={supportCenter?.summary || {}}
+            tickets={supportCenter?.tickets || {}}
+            ticketDetail={supportCenter?.ticketDetail || {}}
+            auditLogs={supportCenter?.auditLogs || {}}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onLoadTicketDetail={onLoadSupportTicketDetail}
+            onReplyTicket={onReplySupportTicket}
+            onUpdateTicket={onUpdateSupportTicket}
+            adminUser={adminUser}
+          />
+        ) : null}
         {activeSection !== "dashboard" &&
         activeSection !== "users" &&
         activeSection !== "kycReview" &&
@@ -559,7 +587,8 @@ export default function AdminDashboardPage({
         activeSection !== "lumCenter" &&
         activeSection !== "binaryCenter" &&
         activeSection !== "transactionCenter" &&
-        activeSection !== "assetCenter"
+        activeSection !== "assetCenter" &&
+        activeSection !== "supportCenter"
           ? renderPlaceholder()
           : null}
       </section>

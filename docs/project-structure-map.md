@@ -58,6 +58,11 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `assets-utils.js`: money/percentage/status/helper utilities
 - `assets.css`: assets module styles
 
+### Support Module (`src/features/support/`)
+
+- `SupportChatModal.jsx`: user support ticket/chat modal integrated into dashboard support entry
+- `support.css`: premium support modal styles (ticket list + thread + composer)
+
 ### LUM Module (`src/features/lum/`)
 
 - `LUMPage.jsx`: dedicated LUM center page
@@ -103,6 +108,7 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `BinaryManagementPage.jsx`: binary control center (engine/outcome mode), pair desk, period rules, trade desk
 - `TransactionManagementPage.jsx`: transaction control center (engine, convert, spot, order, audit)
 - `AssetManagementPage.jsx`: asset management desk (overview, wallet desk, withdrawal desk, transfer desk, conversion desk, controls, audit)
+- `SupportManagementPage.jsx`: admin support desk (overview, inbox/thread reply, ticket controls, audit)
 
 #### Admin Utils (`src/admin/utils/`)
 
@@ -118,6 +124,7 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
   - stale spot tick auto-refresh fallback keeps convert/spot flows functional without manual admin tick push
   - wallet snapshot aggregation merges alias wallet symbols before response serialization
 - `server/assets-module.js`: user assets handlers + admin asset management handlers (dashboard, wallets, withdrawal desk, settings, audit) + assets DB bootstrap
+- `server/support-module.js`: user/admin support ticketing handlers + support DB bootstrap (tickets/messages/audit)
 - `server/data/auth.sqlite`: primary database file
 - `server/data/auth.sqlite-wal`, `server/data/auth.sqlite-shm`: SQLite WAL files
 

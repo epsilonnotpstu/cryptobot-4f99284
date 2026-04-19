@@ -10,10 +10,13 @@
     "dev:all": "concurrently \"npm run server:dev\" \"npm run dev -- --host\"",
     "tunnel:start": "./.tools/cloudflared tunnel --protocol http2 --url http://localhost:5173",
     "build": "vite build",
+    "build:prod": "npm run build",
     "preview": "vite preview",
+    "verify:user": "npm run build",
+    "release:mobile:prepare": "npm run build && npx cap sync",
     "cap:copy": "npm run build && npx cap copy",
     "cap:sync": "npm run build && npx cap sync",
-    "cap:open:android": "npx cap open android",
+    "cap:open:android": "CAPACITOR_ANDROID_STUDIO_PATH=/opt/android-studio/bin/studio.sh npx cap open android",
     "cap:open:ios": "npx cap open ios"
   },
   "dependencies": {

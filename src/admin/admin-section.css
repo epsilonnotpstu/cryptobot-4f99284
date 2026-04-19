@@ -1706,3 +1706,220 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.adminx-support-root,
+.adminx-support-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.adminx-support-kpi-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.adminx-support-kpi-card small {
+  color: #97b1d3;
+  font-size: 0.74rem;
+}
+
+.adminx-support-overview-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.adminx-support-filter-row {
+  grid-template-columns: repeat(2, minmax(170px, 240px));
+}
+
+.adminx-support-layout {
+  display: grid;
+  grid-template-columns: 1.12fr 0.88fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.adminx-support-list-panel,
+.adminx-support-thread-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(8, 15, 28, 0.74);
+  padding: 0.75rem;
+}
+
+.adminx-support-selected-row {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.adminx-support-ticket-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.adminx-support-ticket-meta p {
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(4, 10, 20, 0.55);
+  padding: 0.55rem 0.62rem;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.adminx-support-ticket-meta span {
+  color: #8faad1;
+  font-size: 0.75rem;
+}
+
+.adminx-support-ticket-meta strong {
+  color: #eef7ff;
+  font-size: 0.84rem;
+}
+
+.adminx-support-thread-body {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(160deg, rgba(6, 12, 23, 0.86), rgba(8, 15, 28, 0.8));
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.5rem;
+  max-height: min(45vh, 460px);
+  overflow: auto;
+}
+
+.adminx-support-message {
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(10, 18, 34, 0.78);
+  padding: 0.5rem 0.58rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.adminx-support-message header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.adminx-support-message header strong {
+  color: #f3f8ff;
+  font-size: 0.78rem;
+}
+
+.adminx-support-message header small {
+  color: #8ea9d0;
+  font-size: 0.72rem;
+}
+
+.adminx-support-message p {
+  margin: 0;
+  color: #d7e9ff;
+  line-height: 1.5;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.adminx-support-message.is-admin {
+  border-color: rgba(59, 130, 246, 0.36);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.adminx-support-message.is-note {
+  border-style: dashed;
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.adminx-support-thread-actions,
+.adminx-support-ticket-controls {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.adminx-support-thread-actions label,
+.adminx-support-ticket-controls label {
+  display: grid;
+  gap: 0.28rem;
+  color: #bad0ec;
+  font-size: 0.8rem;
+}
+
+.adminx-support-thread-actions textarea,
+.adminx-support-ticket-controls input,
+.adminx-support-ticket-controls select {
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(2, 8, 20, 0.88);
+  color: #d8e8fb;
+  padding: 0.55rem 0.62rem;
+}
+
+.adminx-support-thread-actions textarea:focus,
+.adminx-support-ticket-controls input:focus,
+.adminx-support-ticket-controls select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.74);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+}
+
+.adminx-support-inline-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.adminx-support-form-span-2 {
+  grid-column: span 2;
+}
+
+.adminx-support-empty-detail {
+  min-height: 320px;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.8rem;
+}
+
+.adminx-support-empty-detail h3 {
+  margin: 0;
+  color: #f1f7ff;
+}
+
+.adminx-support-empty-detail p {
+  margin: 0.32rem 0 0;
+  color: #9ab4d8;
+  max-width: 340px;
+}
+
+@media (max-width: 1360px) {
+  .adminx-support-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .adminx-support-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .adminx-support-kpi-grid,
+  .adminx-support-overview-grid,
+  .adminx-support-filter-row,
+  .adminx-support-ticket-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-support-form-span-2 {
+    grid-column: auto;
+  }
+
+  .adminx-support-inline-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

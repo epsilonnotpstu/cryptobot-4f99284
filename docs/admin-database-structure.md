@@ -340,6 +340,51 @@ Withdrawal review accounting model:
 Deposit approval wallet target:
 - Deposit approval credit target is now resolved from `asset_module_settings.deposits_credit_wallet_symbol` (default `SPOT_USDT`), not hardcoded.
 
+## Support Management Impact (User + Admin)
+
+Support chat is now DB-backed and integrated for both user dashboard and admin panel.
+
+New support tables:
+- `support_tickets`
+- `support_ticket_messages`
+- `support_admin_audit_logs`
+
+User gateway actions:
+- `support.tickets.list`
+- `support.ticket.detail`
+- `support.ticket.create`
+- `support.ticket.message.send`
+- `support.ticket.status.update`
+
+User REST routes:
+- `GET /api/support/tickets`
+- `GET /api/support/tickets/:ticketRef`
+- `POST /api/support/tickets`
+- `POST /api/support/tickets/:ticketRef/messages`
+- `POST /api/support/tickets/:ticketRef/status`
+
+Admin support gateway actions:
+- `admin.support.dashboard-summary`
+- `admin.support.tickets`
+- `admin.support.ticket.detail`
+- `admin.support.ticket.reply`
+- `admin.support.ticket.update`
+- `admin.support.audit-logs`
+
+Admin support REST routes:
+- `GET /api/admin/support/dashboard-summary`
+- `GET /api/admin/support/tickets`
+- `GET /api/admin/support/tickets/:ticketRef`
+- `POST /api/admin/support/tickets/reply`
+- `POST /api/admin/support/tickets/update`
+- `GET /api/admin/support/audit-logs`
+
+Support state model notes:
+- User message -> ticket moves to `pending_admin` and increments `admin_unread_count`.
+- Admin reply -> ticket moves to `pending_user` and increments `user_unread_count`.
+- Admin/user thread open marks relevant unread counters as read.
+- Admin status/priority/assignment changes append to `support_admin_audit_logs`.
+
 ## Transaction Management Impact (User + Admin)
 
 Transaction center is fully DB-backed for both convert and spot flows.

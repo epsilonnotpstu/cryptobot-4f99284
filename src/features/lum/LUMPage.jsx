@@ -242,6 +242,26 @@ export default function LUMPage({
     });
   }, []);
 
+  const lumInsights = useMemo(() => {
+    const visiblePlans = Array.isArray(plans) ? plans : [];
+    const highestYieldPlan =
+      [...visiblePlans].sort(
+        (left, right) =>
+          Number(right?.yearlyRatePercent ?? right?.aprPercent ?? right?.dailyRatePercent ?? 0) -
+          Number(left?.yearlyRatePercent ?? left?.aprPercent ?? left?.dailyRatePercent ?? 0),
+      )[0] || null;
+
+    return {
+      planCount: visiblePlans.length,
+      activeInvestments: Number(summary?.activeInvestments ?? summary?.activeCount ?? 0),
+      totalInvestedUsd: Number(summary?.totalInvestedUsd ?? summary?.totalInvested ?? 0),
+      highestYieldLabel: highestYieldPlan?.title || "--",
+      highestYieldValue: Number(
+        highestYieldPlan?.yearlyRatePercent ?? highestYieldPlan?.aprPercent ?? highestYieldPlan?.dailyRatePercent ?? 0,
+      ),
+    };
+  }, [plans, summary?.activeCount, summary?.activeInvestments, summary?.totalInvested, summary?.totalInvestedUsd]);
+
   return (
     <main className="lum-page">
       <div className="lum-shell">
@@ -267,6 +287,35 @@ export default function LUMPage({
           </div>
           <span>Available: {formatMoney(walletAvailableUsd || 0, "USDT")}</span>
         </div>
+
+        <section className="lum-overview-strip">
+          <article className="lum-overview-main">
+            <p>Liquidity Overview</p>
+            <h2>{formatMoney(summary?.totalProfitUsd || summary?.totalProfit || 0, "USDT")}</h2>
+            <span>Total profit snapshot across your LUM positions</span>
+          </article>
+
+          <div className="lum-overview-grid">
+            <article>
+              <span>Visible Plans</span>
+              <strong>{lumInsights.planCount}</strong>
+            </article>
+            <article>
+              <span>Active Investments</span>
+              <strong>{lumInsights.activeInvestments}</strong>
+            </article>
+            <article>
+              <span>Total Invested</span>
+              <strong>{formatMoney(lumInsights.totalInvestedUsd, "USDT")}</strong>
+            </article>
+            <article>
+              <span>Top Yield Plan</span>
+              <strong>
+                {lumInsights.highestYieldLabel} • {lumInsights.highestYieldValue.toFixed(2)}%
+              </strong>
+            </article>
+          </div>
+        </section>
 
         <LUMSummaryCard summary={summary} loading={summaryLoading} onOpenEntrust={openEntrust} />
 

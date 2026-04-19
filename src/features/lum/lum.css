@@ -671,3 +671,154 @@
     border-radius: 16px 16px 0 0;
   }
 }
+
+/* LUM premium polish overrides (web + capacitor app) */
+.lum-page {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  padding-bottom: calc(0.9rem + env(safe-area-inset-bottom));
+}
+
+.lum-shell {
+  max-width: 1140px;
+  border-radius: 28px;
+  border: 1px solid rgba(110, 143, 182, 0.26);
+  background: linear-gradient(165deg, rgba(8, 19, 37, 0.88), rgba(6, 14, 28, 0.84));
+  box-shadow: 0 34px 84px rgba(2, 6, 18, 0.5);
+  padding: 0.95rem;
+}
+
+.lum-topbar {
+  border-radius: 14px;
+  border: 1px solid rgba(90, 121, 158, 0.3);
+  background: rgba(8, 18, 34, 0.74);
+  padding: 0.42rem;
+}
+
+.lum-user-strip {
+  border-radius: 18px;
+  border-color: rgba(110, 143, 182, 0.32);
+  background: linear-gradient(145deg, rgba(9, 20, 39, 0.82), rgba(10, 23, 45, 0.74));
+}
+
+.lum-overview-strip {
+  border-radius: 18px;
+  border: 1px solid rgba(110, 143, 182, 0.3);
+  background: linear-gradient(150deg, rgba(8, 16, 31, 0.8), rgba(11, 22, 39, 0.74));
+  padding: 0.75rem;
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 0.62rem;
+}
+
+.lum-overview-main {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 220, 145, 0.4);
+  background: linear-gradient(145deg, rgba(248, 203, 97, 0.2), rgba(216, 159, 48, 0.14));
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.lum-overview-main p {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  color: #c4d5e8;
+}
+
+.lum-overview-main h2 {
+  margin: 0;
+  font-size: clamp(1.16rem, 2.2vw, 1.54rem);
+  color: #fff2c7;
+  line-height: 1.2;
+}
+
+.lum-overview-main span {
+  color: #c5d6e8;
+  font-size: 0.8rem;
+}
+
+.lum-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.48rem;
+}
+
+.lum-overview-grid article {
+  border-radius: 13px;
+  border: 1px solid rgba(110, 143, 182, 0.3);
+  background: rgba(8, 16, 30, 0.72);
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.lum-overview-grid span {
+  color: #b5c8de;
+  font-size: 0.72rem;
+}
+
+.lum-overview-grid strong {
+  color: #f2f8ff;
+  font-size: 0.84rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.lum-summary-card,
+.lum-plan-card,
+.lum-modal-card {
+  border-color: rgba(110, 143, 182, 0.3);
+}
+
+.lum-plan-card {
+  border-radius: 22px;
+}
+
+.lum-info-btn,
+.lum-buy-btn,
+.lum-primary-btn,
+.lum-secondary-btn,
+.lum-icon-btn,
+.lum-plan-tabs button,
+.lum-filter-tabs button {
+  min-height: 42px;
+}
+
+.lum-modal-card {
+  border-radius: 20px;
+}
+
+@media (max-width: 980px) {
+  .lum-overview-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .lum-shell {
+    padding: 0.75rem;
+    border-radius: 22px;
+  }
+
+  .lum-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lum-overview-strip {
+    padding: 0.64rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lum-icon-btn,
+  .lum-info-btn,
+  .lum-buy-btn,
+  .lum-primary-btn,
+  .lum-secondary-btn,
+  .lum-filter-tabs button,
+  .lum-plan-card {
+    transition: none;
+  }
+}

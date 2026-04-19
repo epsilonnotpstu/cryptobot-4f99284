@@ -503,3 +503,133 @@
     line-height: 1.18;
   }
 }
+
+/* Transaction premium polish overrides */
+.txpage-shell {
+  border-radius: 30px;
+  border-color: rgba(125, 211, 252, 0.24);
+  box-shadow: 0 34px 82px rgba(2, 6, 23, 0.58);
+}
+
+.txpage-overview-strip {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(150deg, rgba(8, 16, 31, 0.78), rgba(11, 22, 39, 0.72));
+  padding: 0.74rem;
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 0.62rem;
+}
+
+.txpage-overview-main {
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.14), rgba(45, 212, 191, 0.1));
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.txpage-overview-main p {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  color: #9cb5cf;
+}
+
+.txpage-overview-main h2 {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.52rem);
+  color: #eef8ff;
+  line-height: 1.2;
+}
+
+.txpage-overview-main span {
+  color: #9db6d0;
+  font-size: 0.8rem;
+}
+
+.txpage-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.txpage-overview-grid article {
+  border-radius: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(8, 16, 30, 0.72);
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.txpage-overview-grid span {
+  color: #96aec9;
+  font-size: 0.72rem;
+}
+
+.txpage-overview-grid strong {
+  color: #edf8ff;
+  font-size: 0.84rem;
+  line-height: 1.32;
+  word-break: break-word;
+}
+
+.tx-card {
+  border-radius: 20px;
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.tx-primary-btn,
+.tx-mini-btn,
+.txpage-icon-btn,
+.tx-toggle-pill button {
+  min-height: 42px;
+}
+
+.tx-field-grid input,
+.tx-field-grid select,
+.tx-filter-row select,
+.tx-card-head select {
+  min-height: 42px;
+}
+
+.tx-table tbody tr:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+@media (max-width: 1024px) {
+  .txpage-overview-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .txpage-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .txpage-overview-strip {
+    padding: 0.64rem;
+  }
+
+  .txpage-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tx-card {
+    padding: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .txpage-icon-btn,
+  .tx-mini-btn,
+  .tx-primary-btn,
+  .tx-toggle-pill button {
+    transition: none;
+  }
+}

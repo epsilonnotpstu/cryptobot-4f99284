@@ -12,6 +12,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "binaryCenter", label: "Binary Management", icon: "fa-chart-simple" },
   { key: "transactionCenter", label: "Transaction Management", icon: "fa-right-left" },
   { key: "assetCenter", label: "Asset Management", icon: "fa-wallet" },
+  { key: "supportCenter", label: "Support Management", icon: "fa-headset" },
   { key: "bots", label: "Bot Management", icon: "fa-robot" },
   { key: "trades", label: "Trades & Orders", icon: "fa-arrow-trend-up" },
   { key: "strategies", label: "Strategies", icon: "fa-brain" },

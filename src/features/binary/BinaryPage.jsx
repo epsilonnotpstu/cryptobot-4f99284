@@ -499,6 +499,16 @@ export default function BinaryPage({
     ];
   }, [autoTransferFromSpot, binaryWallet, spotWallet, summary, tradableBalance, walletAsset]);
 
+  const binaryOverview = useMemo(() => {
+    const selectedPeriodRule = periods.find((item) => Number(item.periodSeconds) === Number(selectedPeriod)) || null;
+    return {
+      pairName: selectedPair?.displayName || selectedPair?.symbol || "--",
+      periodLabel: selectedPeriodRule ? `${toNumber(selectedPeriodRule.periodSeconds, selectedPeriod)}s` : `${selectedPeriod}s`,
+      payoutLabel: `${toNumber(selectedPeriodRule?.payoutPercent, 0)}%`,
+      activeTradeCount: toNumber(summary?.activeTradeCount, 0),
+    };
+  }, [periods, selectedPair, selectedPeriod, summary?.activeTradeCount]);
+
   return (
     <main className="binary-page">
       <div className="binary-background-orb binary-background-orb-left" />
@@ -524,6 +534,29 @@ export default function BinaryPage({
         </div>
 
         <section className="binary-summary-grid">
+          <article className="binary-summary-highlight">
+            <span>Trade Desk Overview</span>
+            <strong>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</strong>
+            <small>Ready balance for new trade positions</small>
+          </article>
+          <article>
+            <span>Selected Pair</span>
+            <strong>{binaryOverview.pairName}</strong>
+            <small>Live chart synced</small>
+          </article>
+          <article>
+            <span>Period / Payout</span>
+            <strong>
+              {binaryOverview.periodLabel} • {binaryOverview.payoutLabel}
+            </strong>
+            <small>Current rule view</small>
+          </article>
+          <article>
+            <span>Open Positions</span>
+            <strong>{binaryOverview.activeTradeCount}</strong>
+            <small>Active trades right now</small>
+          </article>
+
           {summaryCards.map((card) => (
             <article key={card.label}>
               <span>{card.label}</span>

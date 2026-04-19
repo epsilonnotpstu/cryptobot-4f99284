@@ -310,6 +310,20 @@ export default function AssetsPage({
     return [...merged].sort((a, b) => a.localeCompare(b));
   }, [walletDetailMap, withdrawConfig?.assets, withdrawConfig?.supportedAssets]);
 
+  const assetsInsights = useMemo(() => {
+    const wallets = Array.isArray(summary.wallets) ? summary.wallets : [];
+    const activeWallets = wallets.filter((wallet) => Number(wallet?.availableUsd || 0) > 0).length;
+    const topWallet = [...wallets].sort((a, b) => Number(b?.availableUsd || 0) - Number(a?.availableUsd || 0))[0] || null;
+
+    return {
+      walletCount: wallets.length,
+      activeWallets,
+      topWalletLabel: topWallet ? String(topWallet.walletSymbol || "--") : "--",
+      topWalletUsd: topWallet ? toNumber(topWallet.availableUsd, 0) : 0,
+      historyTotal: toNumber(historyPagination?.total, 0),
+    };
+  }, [historyPagination?.total, summary.wallets]);
+
   return (
     <main className="assetspage-root">
       <div className="assetspage-bg-orb assetspage-bg-left" />
@@ -335,6 +349,38 @@ export default function AssetsPage({
         {notice ? <p className="assetspage-alert-notice">{notice}</p> : null}
 
         <div className="assetspage-content-stack">
+          <section className="assetspage-overview-strip">
+            <article className="assetspage-overview-main">
+              <p>Portfolio Overview</p>
+              <h2>${toNumber(summary.totalAssets, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
+              <span>Total assets across your tracked wallets</span>
+            </article>
+
+            <div className="assetspage-overview-grid">
+              <article>
+                <span>Total Wallets</span>
+                <strong>{assetsInsights.walletCount}</strong>
+              </article>
+              <article>
+                <span>Active Wallets</span>
+                <strong>{assetsInsights.activeWallets}</strong>
+              </article>
+              <article>
+                <span>Top Wallet</span>
+                <strong>
+                  {assetsInsights.topWalletLabel} • ${assetsInsights.topWalletUsd.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </strong>
+              </article>
+              <article>
+                <span>History Rows</span>
+                <strong>{assetsInsights.historyTotal}</strong>
+              </article>
+            </div>
+          </section>
+
           <WalletDistributionCard totalAssets={summary.totalAssets} chartData={summary.chartData} loading={loading} />
 
           <AssetsQuickActions disabled={loading} onAction={handleQuickAction} />

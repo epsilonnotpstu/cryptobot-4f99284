@@ -13,6 +13,7 @@ import { createLumModule } from "./lum-module.js";
 import { createBinaryModule } from "./binary-module.js";
 import { createTransactionModule } from "./transaction-module.js";
 import { createAssetsModule } from "./assets-module.js";
+import { createSupportModule } from "./support-module.js";
 
 dotenv.config();
 
@@ -1572,6 +1573,27 @@ const {
   ensureWalletDetailMirroredFromSummary,
   insertAssetWalletLedgerEntry,
 } = assetsModule;
+
+const supportModule = createSupportModule({
+  db,
+  getNow,
+  toIso,
+  sanitizeShortText,
+});
+
+const {
+  handleSupportTicketsList,
+  handleSupportTicketDetail,
+  handleSupportTicketCreate,
+  handleSupportTicketMessageSend,
+  handleSupportTicketStatusUpdate,
+  handleAdminSupportDashboardSummary,
+  handleAdminSupportTickets,
+  handleAdminSupportTicketDetail,
+  handleAdminSupportReply,
+  handleAdminSupportTicketUpdate,
+  handleAdminSupportAuditLogs,
+} = supportModule;
 
 function buildNoticePayload(row) {
   if (!row) {
@@ -3712,6 +3734,24 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "assets.conversions":
       requireSession(req, res, () => handleAssetsConversions(req, res));
       return;
+    case "support.tickets.list":
+      requireSession(req, res, () => handleSupportTicketsList(req, res));
+      return;
+    case "support.ticket.detail":
+      req.params = { ...(req.params || {}), ticketRef: String(req.body?.ticketRef || req.query?.ticketRef || "") };
+      requireSession(req, res, () => handleSupportTicketDetail(req, res));
+      return;
+    case "support.ticket.create":
+      requireSession(req, res, () => handleSupportTicketCreate(req, res));
+      return;
+    case "support.ticket.message.send":
+      req.params = { ...(req.params || {}), ticketRef: String(req.body?.ticketRef || req.query?.ticketRef || "") };
+      requireSession(req, res, () => handleSupportTicketMessageSend(req, res));
+      return;
+    case "support.ticket.status.update":
+      req.params = { ...(req.params || {}), ticketRef: String(req.body?.ticketRef || req.query?.ticketRef || "") };
+      requireSession(req, res, () => handleSupportTicketStatusUpdate(req, res));
+      return;
     case "admin.assets.dashboard-summary":
       requireAdminSession(req, res, () => handleAdminAssetsDashboardSummary(req, res));
       return;
@@ -3750,6 +3790,25 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.assets.audit-logs":
       requireAdminSession(req, res, () => handleAdminAssetsAuditLogs(req, res));
+      return;
+    case "admin.support.dashboard-summary":
+      requireAdminSession(req, res, () => handleAdminSupportDashboardSummary(req, res));
+      return;
+    case "admin.support.tickets":
+      requireAdminSession(req, res, () => handleAdminSupportTickets(req, res));
+      return;
+    case "admin.support.ticket.detail":
+      req.params = { ...(req.params || {}), ticketRef: String(req.body?.ticketRef || req.query?.ticketRef || "") };
+      requireAdminSession(req, res, () => handleAdminSupportTicketDetail(req, res));
+      return;
+    case "admin.support.ticket.reply":
+      requireAdminSession(req, res, () => handleAdminSupportReply(req, res));
+      return;
+    case "admin.support.ticket.update":
+      requireAdminSession(req, res, () => handleAdminSupportTicketUpdate(req, res));
+      return;
+    case "admin.support.audit-logs":
+      requireAdminSession(req, res, () => handleAdminSupportAuditLogs(req, res));
       return;
     case "admin.kyc.list":
       requireAdminSession(req, res, () => handleAdminKycList(req, res));
@@ -3986,6 +4045,11 @@ app.post("/api/assets/withdraw", requireSession, handleAssetsWithdraw);
 app.get("/api/assets/withdrawals", requireSession, handleAssetsWithdrawals);
 app.get("/api/assets/transfers", requireSession, handleAssetsTransfers);
 app.get("/api/assets/conversions", requireSession, handleAssetsConversions);
+app.get("/api/support/tickets", requireSession, handleSupportTicketsList);
+app.get("/api/support/tickets/:ticketRef", requireSession, handleSupportTicketDetail);
+app.post("/api/support/tickets", requireSession, handleSupportTicketCreate);
+app.post("/api/support/tickets/:ticketRef/messages", requireSession, handleSupportTicketMessageSend);
+app.post("/api/support/tickets/:ticketRef/status", requireSession, handleSupportTicketStatusUpdate);
 app.get("/api/admin/assets/dashboard-summary", requireAdminSession, handleAdminAssetsDashboardSummary);
 app.get("/api/admin/assets/wallets", requireAdminSession, handleAdminAssetsWallets);
 app.get("/api/admin/assets/wallets/:userId", requireAdminSession, handleAdminAssetsWalletDetail);
@@ -3999,6 +4063,12 @@ app.get("/api/admin/assets/conversions", requireAdminSession, handleAdminAssetsC
 app.get("/api/admin/assets/settings", requireAdminSession, handleAdminAssetsSettingsGet);
 app.post("/api/admin/assets/settings/save", requireAdminSession, handleAdminAssetsSettingsSave);
 app.get("/api/admin/assets/audit-logs", requireAdminSession, handleAdminAssetsAuditLogs);
+app.get("/api/admin/support/dashboard-summary", requireAdminSession, handleAdminSupportDashboardSummary);
+app.get("/api/admin/support/tickets", requireAdminSession, handleAdminSupportTickets);
+app.get("/api/admin/support/tickets/:ticketRef", requireAdminSession, handleAdminSupportTicketDetail);
+app.post("/api/admin/support/tickets/reply", requireAdminSession, handleAdminSupportReply);
+app.post("/api/admin/support/tickets/update", requireAdminSession, handleAdminSupportTicketUpdate);
+app.get("/api/admin/support/audit-logs", requireAdminSession, handleAdminSupportAuditLogs);
 app.post("/api/admin/auth/signup", handleAdminSignup);
 app.post("/api/admin/auth/login", handleAdminLogin);
 app.get("/api/admin/auth/session", requireAdminSession, handleAdminSession);

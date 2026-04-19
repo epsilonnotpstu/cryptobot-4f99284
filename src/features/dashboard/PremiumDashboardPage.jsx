@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./premium-dashboard.css";
+import SupportChatModal from "../support/SupportChatModal";
 
 const BINANCE_TICKER_24H_URL = "https://api.binance.com/api/v3/ticker/24hr";
 
@@ -262,6 +263,11 @@ export default function PremiumDashboardPage({
   onOpenAssetsPage,
   onCreateDepositRequest,
   onDepositRecords,
+  onLoadSupportTickets,
+  onLoadSupportTicketDetail,
+  onCreateSupportTicket,
+  onSendSupportTicketMessage,
+  onUpdateSupportTicketStatus,
 }) {
   const [assetVisible, setAssetVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -1704,39 +1710,15 @@ export default function PremiumDashboardPage({
         </div>
       </section>
 
-      {chatOpen ? (
-        <div className="prodash-chat-overlay" onClick={() => setChatOpen(false)}>
-          <section className="prodash-chat-modal" onClick={(event) => event.stopPropagation()}>
-            <header className="prodash-chat-header">
-              <div className="prodash-chat-agent-avatar">A</div>
-              <div className="prodash-chat-agent-copy">
-                <strong>Support Chat</strong>
-                <p>
-                  <span className="prodash-chat-online-dot" /> Chat with customer support
-                </p>
-              </div>
-              <button type="button" aria-label="Close support chat" onClick={() => setChatOpen(false)}>
-                <i className="fas fa-xmark" />
-              </button>
-            </header>
-
-            <div className="prodash-chat-body" />
-
-            <footer className="prodash-chat-footer">
-              <button type="button" aria-label="Emoji">
-                <i className="far fa-face-smile" />
-              </button>
-              <button type="button" aria-label="Attach">
-                <i className="fas fa-paperclip" />
-              </button>
-              <input type="text" readOnly value="" placeholder="Write a message..." />
-              <button type="button" className="prodash-chat-send" aria-label="Send">
-                <i className="fas fa-paper-plane" />
-              </button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
+      <SupportChatModal
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onLoadTickets={onLoadSupportTickets}
+        onLoadTicketDetail={onLoadSupportTicketDetail}
+        onCreateTicket={onCreateSupportTicket}
+        onSendTicketMessage={onSendSupportTicketMessage}
+        onUpdateTicketStatus={onUpdateSupportTicketStatus}
+      />
 
       {kycSuccessPopup ? (
         <div className="prodash-popup-overlay" onClick={() => setKycSuccessPopup("") }>

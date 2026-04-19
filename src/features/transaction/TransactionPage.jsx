@@ -37,6 +37,30 @@ export default function TransactionPage({
   const [walletSnapshot, setWalletSnapshot] = useState({ balances: [], details: [] });
 
   const walletMap = useMemo(() => walletDetailsToMap(walletSnapshot?.details || []), [walletSnapshot?.details]);
+  const overview = useMemo(() => {
+    const details = Array.isArray(walletSnapshot?.details) ? walletSnapshot.details : [];
+    const latestUpdatedAt = details.reduce((latest, row) => {
+      const nextValue = row?.updatedAt ? new Date(row.updatedAt).getTime() : 0;
+      return nextValue > latest ? nextValue : latest;
+    }, 0);
+
+    const trackedSymbols = new Set(details.map((row) => String(row?.symbol || "").trim()).filter(Boolean));
+    const availableUsd = details.reduce((sum, row) => sum + Number(row?.availableUsd || 0), 0);
+    const lockedUsd = details.reduce((sum, row) => sum + Number(row?.lockedUsd || 0), 0);
+
+    return {
+      trackedSymbols: trackedSymbols.size,
+      availableUsd,
+      lockedUsd,
+      latestUpdatedAt: latestUpdatedAt ? new Date(latestUpdatedAt).toLocaleString() : "--",
+    };
+  }, [walletSnapshot?.balances, walletSnapshot?.details]);
+
+  const formatUsd = (value) =>
+    Number(value || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
 
   const syncWallet = (wallet) => {
     if (!wallet || typeof wallet !== "object") {
@@ -91,6 +115,33 @@ export default function TransactionPage({
           pairLabel={activeSpotPair?.displayName || "Market Pair"}
           pairChange={activeSpotPair?.changePercent || 0}
         />
+
+        <section className="txpage-overview-strip">
+          <article className="txpage-overview-main">
+            <p>Trading Overview</p>
+            <h2>${formatUsd(overview.availableUsd + overview.lockedUsd)}</h2>
+            <span>Combined trading wallet value</span>
+          </article>
+
+          <div className="txpage-overview-grid">
+            <article>
+              <span>Available</span>
+              <strong>${formatUsd(overview.availableUsd)}</strong>
+            </article>
+            <article>
+              <span>Locked</span>
+              <strong>${formatUsd(overview.lockedUsd)}</strong>
+            </article>
+            <article>
+              <span>Wallet Symbols</span>
+              <strong>{overview.trackedSymbols}</strong>
+            </article>
+            <article>
+              <span>Last Sync</span>
+              <strong>{overview.latestUpdatedAt}</strong>
+            </article>
+          </div>
+        </section>
 
         {error ? <p className="tx-alert tx-alert-error">{error}</p> : null}
         {notice ? <p className="tx-alert tx-alert-notice">{notice}</p> : null}

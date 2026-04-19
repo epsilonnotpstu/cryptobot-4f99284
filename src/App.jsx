@@ -1161,6 +1161,41 @@ const remoteAuthService = {
       payload: { page, limit },
     });
   },
+  async getSupportTickets({ sessionToken, status = "all", page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "support.tickets.list",
+      sessionToken,
+      payload: { status, page, limit },
+    });
+  },
+  async getSupportTicketDetail({ sessionToken, ticketRef }) {
+    return this.requestGatewayAction({
+      action: "support.ticket.detail",
+      sessionToken,
+      payload: { ticketRef },
+    });
+  },
+  async createSupportTicket({ sessionToken, subject, message, category = "general" }) {
+    return this.requestGatewayAction({
+      action: "support.ticket.create",
+      sessionToken,
+      payload: { subject, message, category },
+    });
+  },
+  async sendSupportTicketMessage({ sessionToken, ticketRef, message }) {
+    return this.requestGatewayAction({
+      action: "support.ticket.message.send",
+      sessionToken,
+      payload: { ticketRef, message },
+    });
+  },
+  async updateSupportTicketStatus({ sessionToken, ticketRef, status }) {
+    return this.requestGatewayAction({
+      action: "support.ticket.status.update",
+      sessionToken,
+      payload: { ticketRef, status },
+    });
+  },
   async adminSignup({ name, email, phone, password }) {
     const data = await this.requestGatewayAction({
       action: "admin.auth.signup",
@@ -1703,6 +1738,63 @@ const remoteAuthService = {
       action: "admin.assets.audit-logs",
       sessionToken,
       payload: { actionType, keyword, page, limit },
+    });
+  },
+  async adminGetSupportDashboardSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.support.dashboard-summary",
+      sessionToken,
+    });
+  },
+  async adminListSupportTickets({
+    sessionToken,
+    status = "all",
+    priority = "all",
+    assigned = "all",
+    keyword = "",
+    page = 1,
+    limit = 60,
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.support.tickets",
+      sessionToken,
+      payload: { status, priority, assigned, keyword, page, limit },
+    });
+  },
+  async adminGetSupportTicketDetail({ sessionToken, ticketRef }) {
+    return this.requestGatewayAction({
+      action: "admin.support.ticket.detail",
+      sessionToken,
+      payload: { ticketRef },
+    });
+  },
+  async adminReplySupportTicket({ sessionToken, ticketRef, message, isInternalNote = false }) {
+    return this.requestGatewayAction({
+      action: "admin.support.ticket.reply",
+      sessionToken,
+      payload: { ticketRef, message, isInternalNote },
+    });
+  },
+  async adminUpdateSupportTicket({
+    sessionToken,
+    ticketRef,
+    status,
+    priority,
+    assignedAdminUserId,
+    assignedAdminEmail,
+    note = "",
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.support.ticket.update",
+      sessionToken,
+      payload: { ticketRef, status, priority, assignedAdminUserId, assignedAdminEmail, note },
+    });
+  },
+  async adminListSupportAuditLogs({ sessionToken, keyword = "", page = 1, limit = 100 }) {
+    return this.requestGatewayAction({
+      action: "admin.support.audit-logs",
+      sessionToken,
+      payload: { keyword, page, limit },
     });
   },
   async adminListKycRequests({ sessionToken }) {
@@ -2974,6 +3066,47 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleSupportTicketsList = async ({ status, page, limit } = {}) => {
+    return authService.getSupportTickets({
+      sessionToken: authSnapshot.sessionToken,
+      status,
+      page,
+      limit,
+    });
+  };
+
+  const handleSupportTicketDetail = async ({ ticketRef }) => {
+    return authService.getSupportTicketDetail({
+      sessionToken: authSnapshot.sessionToken,
+      ticketRef,
+    });
+  };
+
+  const handleSupportTicketCreate = async ({ subject, message, category }) => {
+    return authService.createSupportTicket({
+      sessionToken: authSnapshot.sessionToken,
+      subject,
+      message,
+      category,
+    });
+  };
+
+  const handleSupportTicketMessageSend = async ({ ticketRef, message }) => {
+    return authService.sendSupportTicketMessage({
+      sessionToken: authSnapshot.sessionToken,
+      ticketRef,
+      message,
+    });
+  };
+
+  const handleSupportTicketStatusUpdate = async ({ ticketRef, status }) => {
+    return authService.updateSupportTicketStatus({
+      sessionToken: authSnapshot.sessionToken,
+      ticketRef,
+      status,
+    });
+  };
+
   if (!authReady) {
     return <MobileLoadingPage />;
   }
@@ -3139,6 +3272,11 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onOpenAssetsPage={() => setActiveAppScreen("assets")}
         onCreateDepositRequest={handleCreateDepositRequest}
         onDepositRecords={handleDepositRecords}
+        onLoadSupportTickets={handleSupportTicketsList}
+        onLoadSupportTicketDetail={handleSupportTicketDetail}
+        onCreateSupportTicket={handleSupportTicketCreate}
+        onSendSupportTicketMessage={handleSupportTicketMessageSend}
+        onUpdateSupportTicketStatus={handleSupportTicketStatusUpdate}
       />
     );
   }
