@@ -53,6 +53,9 @@
                 <data
                     android:host="auth-callback"
                     android:scheme="cryptobotprime" />
+                <data
+                    android:host="auth-callback"
+                    android:scheme="cryptobot" />
             </intent-filter>
         </activity>
         <activity

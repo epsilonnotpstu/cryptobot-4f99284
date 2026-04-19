@@ -6,6 +6,8 @@ import PremiumDashboardPage from "./features/dashboard/PremiumDashboardPage";
 import DepositPage from "./features/dashboard/DepositPage";
 import LUMPage from "./features/lum/LUMPage";
 import BinaryPage from "./features/binary/BinaryPage";
+import TransactionPage from "./features/transaction/TransactionPage";
+import AssetsPage from "./features/assets/AssetsPage";
 import AdminSectionPage from "./admin/AdminSectionPage";
 
 const ROUTES = {
@@ -326,7 +328,7 @@ function isDevOrLocalBrowserContext() {
 
 function buildFetchErrorMessage() {
   if (isNativeAppRuntime()) {
-    return "API reach করা যাচ্ছে না. Mobile app-এর জন্য backend server চালু রাখো, .env-এ VITE_API_BASE_URL-এ PC/LAN IP দাও, AndroidManifest.xml-এ usesCleartextTraffic=true রাখো, তারপর npm run cap:sync করে app rebuild করো.";
+    return "API reach করা যাচ্ছে না. Mobile app-এ real device হলে `localhost/127.0.0.1` কাজ করে না. .env-এ `VITE_API_BASE_URL`-এ PC/LAN IP বা public HTTPS URL দাও; emulator হলে `10.0.2.2` ব্যবহার করা যায়. তারপর npm run cap:sync করে app rebuild করো.";
   }
 
   if (typeof window !== "undefined" && !isDevOrLocalBrowserContext()) {
@@ -453,6 +455,7 @@ function pushCandidate(list, value, options = {}) {
 function getApiBaseCandidates() {
   const configuredBase = sanitizeEnvUrl(AUTH_CONFIG.apiBase || "");
   const storedBase = sanitizeEnvUrl(readStoredApiBase());
+  const publicAuthBase = sanitizeEnvUrl(PUBLIC_AUTH_BASE_URL || "");
   const candidates = [];
   const localContext = isDevOrLocalBrowserContext();
 
@@ -487,8 +490,29 @@ function getApiBaseCandidates() {
       }
     } else {
       // Prefer fresh env config on native so stale localStorage values do not shadow LAN API base.
-      pushCandidate(candidates, configuredBase);
-      pushCandidate(candidates, storedBase);
+      const priorityBases = [configuredBase, storedBase];
+      const deferredLoopbackBases = [];
+
+      for (const base of priorityBases) {
+        if (!base) {
+          continue;
+        }
+        if (isLoopbackApiBase(base)) {
+          deferredLoopbackBases.push(base);
+          continue;
+        }
+        pushCandidate(candidates, base);
+      }
+
+      // On physical devices, loopback URLs commonly fail. Keep public HTTPS fallback ahead of loopback.
+      if (publicAuthBase && !isLocalLikeApiBase(publicAuthBase)) {
+        pushCandidate(candidates, publicAuthBase);
+      }
+
+      for (const base of deferredLoopbackBases) {
+        pushCandidate(candidates, base);
+      }
+
       pushCandidate(candidates, "http://10.0.2.2:4000");
       pushCandidate(candidates, "http://localhost:4000");
     }
@@ -966,6 +990,177 @@ const remoteAuthService = {
       payload: { tradeId },
     });
   },
+  async getTransactionConvertPairs({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "transaction.convert.pairs.list",
+      sessionToken,
+    });
+  },
+  async getTransactionConvertQuote({ sessionToken, pairId, amount }) {
+    return this.requestGatewayAction({
+      action: "transaction.convert.quote",
+      sessionToken,
+      payload: { pairId, amount },
+    });
+  },
+  async submitTransactionConvert({ sessionToken, pairId, amount, note }) {
+    return this.requestGatewayAction({
+      action: "transaction.convert.submit",
+      sessionToken,
+      payload: { pairId, amount, note },
+    });
+  },
+  async getTransactionConvertHistory({ sessionToken, status = "all", pairCode = "", page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "transaction.convert.history",
+      sessionToken,
+      payload: { status, pairCode, page, limit },
+    });
+  },
+  async getTransactionSpotPairs({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.pairs.list",
+      sessionToken,
+    });
+  },
+  async getTransactionSpotMarketSummary({ sessionToken, pairId }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.market-summary",
+      sessionToken,
+      payload: { pairId },
+    });
+  },
+  async getTransactionSpotTicks({ sessionToken, pairId, limit = 120 }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.ticks",
+      sessionToken,
+      payload: { pairId, limit },
+    });
+  },
+  async getTransactionSpotRecentTrades({ sessionToken, pairId, limit = 60 }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.recent-trades",
+      sessionToken,
+      payload: { pairId, limit },
+    });
+  },
+  async placeTransactionSpotOrder({ sessionToken, pairId, side, orderType, price, quantity, note }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.order.place",
+      sessionToken,
+      payload: { pairId, side, orderType, price, quantity, note },
+    });
+  },
+  async getTransactionSpotOpenOrders({ sessionToken, pairId = 0, page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.orders.open",
+      sessionToken,
+      payload: { pairId, page, limit },
+    });
+  },
+  async getTransactionSpotOrderHistory({ sessionToken, pairId = 0, status = "all", page = 1, limit = 40 }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.orders.history",
+      sessionToken,
+      payload: { pairId, status, page, limit },
+    });
+  },
+  async cancelTransactionSpotOrder({ sessionToken, orderId, note }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.order.cancel",
+      sessionToken,
+      payload: { orderId, note },
+    });
+  },
+  async getTransactionSpotOrderbook({ sessionToken, pairId }) {
+    return this.requestGatewayAction({
+      action: "transaction.spot.orderbook",
+      sessionToken,
+      payload: { pairId },
+    });
+  },
+  async getAssetsSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "assets.summary",
+      sessionToken,
+    });
+  },
+  async getAssetsWallets({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "assets.wallets",
+      sessionToken,
+    });
+  },
+  async getAssetsHistory({ sessionToken, type = "all", wallet = "all", page = 1, limit = 20 }) {
+    return this.requestGatewayAction({
+      action: "assets.history",
+      sessionToken,
+      payload: { type, wallet, page, limit },
+    });
+  },
+  async createAssetsTransfer({ sessionToken, fromWalletSymbol, toWalletSymbol, amountUsd, note = "" }) {
+    return this.requestGatewayAction({
+      action: "assets.transfer",
+      sessionToken,
+      payload: { fromWalletSymbol, toWalletSymbol, amountUsd, note },
+    });
+  },
+  async getAssetsConvertQuote({ sessionToken, walletSymbol, fromAssetSymbol, toAssetSymbol, amount }) {
+    return this.requestGatewayAction({
+      action: "assets.convert.quote",
+      sessionToken,
+      payload: { walletSymbol, fromAssetSymbol, toAssetSymbol, amount, previewOnly: true },
+    });
+  },
+  async createAssetsConvert({ sessionToken, walletSymbol, fromAssetSymbol, toAssetSymbol, amount, note = "" }) {
+    return this.requestGatewayAction({
+      action: "assets.convert",
+      sessionToken,
+      payload: { walletSymbol, fromAssetSymbol, toAssetSymbol, amount, note },
+    });
+  },
+  async getAssetsWithdrawConfig({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "assets.withdraw.config",
+      sessionToken,
+    });
+  },
+  async createAssetsWithdraw({ sessionToken, walletSymbol, assetSymbol, networkType, amountUsd, destinationAddress, destinationLabel = "", note = "" }) {
+    return this.requestGatewayAction({
+      action: "assets.withdraw.submit",
+      sessionToken,
+      payload: {
+        walletSymbol,
+        assetSymbol,
+        networkType,
+        amountUsd,
+        destinationAddress,
+        destinationLabel,
+        note,
+      },
+    });
+  },
+  async getAssetsWithdrawals({ sessionToken, page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "assets.withdrawals",
+      sessionToken,
+      payload: { page, limit },
+    });
+  },
+  async getAssetsTransfers({ sessionToken, page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "assets.transfers",
+      sessionToken,
+      payload: { page, limit },
+    });
+  },
+  async getAssetsConversions({ sessionToken, page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "assets.conversions",
+      sessionToken,
+      payload: { page, limit },
+    });
+  },
   async adminSignup({ name, email, phone, password }) {
     const data = await this.requestGatewayAction({
       action: "admin.auth.signup",
@@ -1221,6 +1416,293 @@ const remoteAuthService = {
       action: "admin.binary.manual-tick.push",
       sessionToken,
       payload: { pairId, price },
+    });
+  },
+  async adminGetTransactionDashboardSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.dashboard-summary",
+      sessionToken,
+    });
+  },
+  async adminGetTransactionEngineSettings({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.engine-settings.get",
+      sessionToken,
+    });
+  },
+  async adminSaveTransactionEngineSettings({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.engine-settings.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminListTransactionConvertPairs({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.pairs.list",
+      sessionToken,
+    });
+  },
+  async adminCreateTransactionConvertPair({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.pairs.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateTransactionConvertPair({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.pairs.update",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminDeleteTransactionConvertPair({ sessionToken, pairId, note }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.pairs.delete",
+      sessionToken,
+      payload: { pairId, note },
+    });
+  },
+  async adminToggleTransactionConvertPairStatus({ sessionToken, pairId, isEnabled }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.pairs.toggle-status",
+      sessionToken,
+      payload: { pairId, isEnabled },
+    });
+  },
+  async adminListTransactionConvertOrders({
+    sessionToken,
+    status = "all",
+    pairCode = "",
+    userKeyword = "",
+    fromDate = "",
+    toDate = "",
+    page = 1,
+    limit = 60,
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.orders.list",
+      sessionToken,
+      payload: { status, pairCode, userKeyword, fromDate, toDate, page, limit },
+    });
+  },
+  async adminPushTransactionConvertManualRate({ sessionToken, pairId, manualRate }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.convert.manual-rate.push",
+      sessionToken,
+      payload: { pairId, manualRate },
+    });
+  },
+  async adminListTransactionSpotPairs({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.pairs.list",
+      sessionToken,
+    });
+  },
+  async adminCreateTransactionSpotPair({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.pairs.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateTransactionSpotPair({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.pairs.update",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminDeleteTransactionSpotPair({ sessionToken, pairId, note }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.pairs.delete",
+      sessionToken,
+      payload: { pairId, note },
+    });
+  },
+  async adminToggleTransactionSpotPairStatus({ sessionToken, pairId, isEnabled }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.pairs.toggle-status",
+      sessionToken,
+      payload: { pairId, isEnabled },
+    });
+  },
+  async adminListTransactionSpotOrders({
+    sessionToken,
+    status = "all",
+    pairId = 0,
+    orderType = "all",
+    side = "all",
+    userKeyword = "",
+    fromDate = "",
+    toDate = "",
+    page = 1,
+    limit = 80,
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.orders.list",
+      sessionToken,
+      payload: { status, pairId, orderType, side, userKeyword, fromDate, toDate, page, limit },
+    });
+  },
+  async adminCancelTransactionSpotOrder({ sessionToken, orderId, note }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.order.cancel",
+      sessionToken,
+      payload: { orderId, note },
+    });
+  },
+  async adminForceFillTransactionSpotOrder({ sessionToken, orderId, executionPrice, note }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.order.force-fill",
+      sessionToken,
+      payload: { orderId, executionPrice, note },
+    });
+  },
+  async adminPushTransactionSpotManualTick({ sessionToken, pairId, price }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.manual-tick.push",
+      sessionToken,
+      payload: { pairId, price },
+    });
+  },
+  async adminSaveTransactionSpotFeedSettings({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.spot.feed.settings.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminListTransactionAuditLogs({ sessionToken, page = 1, limit = 100 }) {
+    return this.requestGatewayAction({
+      action: "admin.transaction.audit.list",
+      sessionToken,
+      payload: { page, limit },
+    });
+  },
+  async adminGetAssetsDashboardSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.dashboard-summary",
+      sessionToken,
+    });
+  },
+  async adminListAssetsWallets({ sessionToken, wallet = "all", userKeyword = "", page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.wallets",
+      sessionToken,
+      payload: { wallet, userKeyword, page, limit },
+    });
+  },
+  async adminGetAssetsWalletDetail({ sessionToken, userId, wallet = "all", type = "all", page = 1, limit = 40 }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.wallet.detail",
+      sessionToken,
+      payload: { userId, wallet, type, page, limit },
+    });
+  },
+  async adminAdjustAssetsWallet({ sessionToken, userId, walletSymbol, amountUsd, movementType, note = "" }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.wallet.adjust",
+      sessionToken,
+      payload: { userId, walletSymbol, amountUsd, movementType, note },
+    });
+  },
+  async adminFreezeAssetsWallet({
+    sessionToken,
+    userId,
+    walletSymbol,
+    freezeDeposit = false,
+    freezeWithdraw = false,
+    freezeTransfer = false,
+    freezeConvert = false,
+    note = "",
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.wallet.freeze",
+      sessionToken,
+      payload: {
+        userId,
+        walletSymbol,
+        freezeDeposit,
+        freezeWithdraw,
+        freezeTransfer,
+        freezeConvert,
+        note,
+      },
+    });
+  },
+  async adminListAssetsWithdrawals({
+    sessionToken,
+    status = "all",
+    asset = "all",
+    network = "all",
+    wallet = "all",
+    userKeyword = "",
+    page = 1,
+    limit = 40,
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.withdrawals",
+      sessionToken,
+      payload: { status, asset, network, wallet, userKeyword, page, limit },
+    });
+  },
+  async adminReviewAssetsWithdrawal({ sessionToken, withdrawalId, withdrawalRef, decision, note = "" }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.withdrawals.review",
+      sessionToken,
+      payload: { withdrawalId, withdrawalRef, decision, note },
+    });
+  },
+  async adminCompleteAssetsWithdrawal({ sessionToken, withdrawalId, withdrawalRef, note = "" }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.withdrawals.complete",
+      sessionToken,
+      payload: { withdrawalId, withdrawalRef, note },
+    });
+  },
+  async adminListAssetsTransfers({ sessionToken, status = "all", route = "all", wallet = "all", userKeyword = "", page = 1, limit = 50 }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.transfers",
+      sessionToken,
+      payload: { status, route, wallet, userKeyword, page, limit },
+    });
+  },
+  async adminListAssetsConversions({
+    sessionToken,
+    status = "all",
+    wallet = "all",
+    fromAsset = "all",
+    toAsset = "all",
+    userKeyword = "",
+    page = 1,
+    limit = 50,
+  }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.conversions",
+      sessionToken,
+      payload: { status, wallet, fromAsset, toAsset, userKeyword, page, limit },
+    });
+  },
+  async adminGetAssetsSettings({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.settings",
+      sessionToken,
+    });
+  },
+  async adminSaveAssetsSettings({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.settings.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminListAssetsAuditLogs({ sessionToken, actionType = "all", keyword = "", page = 1, limit = 50 }) {
+    return this.requestGatewayAction({
+      action: "admin.assets.audit-logs",
+      sessionToken,
+      payload: { actionType, keyword, page, limit },
     });
   },
   async adminListKycRequests({ sessionToken }) {
@@ -2280,6 +2762,218 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleTransactionConvertPairs = async () => {
+    return authService.getTransactionConvertPairs({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleTransactionConvertQuote = async ({ pairId, amount }) => {
+    return authService.getTransactionConvertQuote({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      amount,
+    });
+  };
+
+  const handleTransactionConvertSubmit = async ({ pairId, amount, note }) => {
+    return authService.submitTransactionConvert({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      amount,
+      note,
+    });
+  };
+
+  const handleTransactionConvertHistory = async ({ status, pairCode, page, limit }) => {
+    return authService.getTransactionConvertHistory({
+      sessionToken: authSnapshot.sessionToken,
+      status,
+      pairCode,
+      page,
+      limit,
+    });
+  };
+
+  const handleTransactionSpotPairs = async () => {
+    return authService.getTransactionSpotPairs({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleTransactionSpotMarketSummary = async ({ pairId }) => {
+    return authService.getTransactionSpotMarketSummary({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+    });
+  };
+
+  const handleTransactionSpotTicks = async ({ pairId, limit }) => {
+    return authService.getTransactionSpotTicks({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      limit,
+    });
+  };
+
+  const handleTransactionSpotRecentTrades = async ({ pairId, limit }) => {
+    return authService.getTransactionSpotRecentTrades({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      limit,
+    });
+  };
+
+  const handleTransactionSpotOrderPlace = async ({ pairId, side, orderType, price, quantity, note }) => {
+    return authService.placeTransactionSpotOrder({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      side,
+      orderType,
+      price,
+      quantity,
+      note,
+    });
+  };
+
+  const handleTransactionSpotOpenOrders = async ({ pairId, page, limit }) => {
+    return authService.getTransactionSpotOpenOrders({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      page,
+      limit,
+    });
+  };
+
+  const handleTransactionSpotOrderHistory = async ({ pairId, status, page, limit }) => {
+    return authService.getTransactionSpotOrderHistory({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+      status,
+      page,
+      limit,
+    });
+  };
+
+  const handleTransactionSpotOrderCancel = async ({ orderId, note }) => {
+    return authService.cancelTransactionSpotOrder({
+      sessionToken: authSnapshot.sessionToken,
+      orderId,
+      note,
+    });
+  };
+
+  const handleTransactionSpotOrderbook = async ({ pairId }) => {
+    return authService.getTransactionSpotOrderbook({
+      sessionToken: authSnapshot.sessionToken,
+      pairId,
+    });
+  };
+
+  const handleAssetsSummary = async () => {
+    return authService.getAssetsSummary({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleAssetsWallets = async () => {
+    return authService.getAssetsWallets({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleAssetsHistory = async ({ type, wallet, page, limit }) => {
+    return authService.getAssetsHistory({
+      sessionToken: authSnapshot.sessionToken,
+      type,
+      wallet,
+      page,
+      limit,
+    });
+  };
+
+  const handleAssetsTransfer = async ({ fromWalletSymbol, toWalletSymbol, amountUsd, note }) => {
+    return authService.createAssetsTransfer({
+      sessionToken: authSnapshot.sessionToken,
+      fromWalletSymbol,
+      toWalletSymbol,
+      amountUsd,
+      note,
+    });
+  };
+
+  const handleAssetsConvertQuote = async ({ walletSymbol, fromAssetSymbol, toAssetSymbol, amount }) => {
+    return authService.getAssetsConvertQuote({
+      sessionToken: authSnapshot.sessionToken,
+      walletSymbol,
+      fromAssetSymbol,
+      toAssetSymbol,
+      amount,
+    });
+  };
+
+  const handleAssetsConvert = async ({ walletSymbol, fromAssetSymbol, toAssetSymbol, amount, note }) => {
+    return authService.createAssetsConvert({
+      sessionToken: authSnapshot.sessionToken,
+      walletSymbol,
+      fromAssetSymbol,
+      toAssetSymbol,
+      amount,
+      note,
+    });
+  };
+
+  const handleAssetsWithdrawConfig = async () => {
+    return authService.getAssetsWithdrawConfig({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleAssetsWithdrawSubmit = async ({
+    walletSymbol,
+    assetSymbol,
+    networkType,
+    amountUsd,
+    destinationAddress,
+    destinationLabel,
+    note,
+  }) => {
+    return authService.createAssetsWithdraw({
+      sessionToken: authSnapshot.sessionToken,
+      walletSymbol,
+      assetSymbol,
+      networkType,
+      amountUsd,
+      destinationAddress,
+      destinationLabel,
+      note,
+    });
+  };
+
+  const handleAssetsWithdrawals = async ({ page, limit }) => {
+    return authService.getAssetsWithdrawals({
+      sessionToken: authSnapshot.sessionToken,
+      page,
+      limit,
+    });
+  };
+
+  const handleAssetsTransfers = async ({ page, limit }) => {
+    return authService.getAssetsTransfers({
+      sessionToken: authSnapshot.sessionToken,
+      page,
+      limit,
+    });
+  };
+
+  const handleAssetsConversions = async ({ page, limit }) => {
+    return authService.getAssetsConversions({
+      sessionToken: authSnapshot.sessionToken,
+      page,
+      limit,
+    });
+  };
+
   if (!authReady) {
     return <MobileLoadingPage />;
   }
@@ -2338,6 +3032,89 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
               setActiveAppScreen("binary");
               return;
             }
+            if (tabId === "transaction") {
+              setActiveAppScreen("transaction");
+              return;
+            }
+            if (tabId === "assets") {
+              setActiveAppScreen("assets");
+              return;
+            }
+            setDashboardEntryTab(tabId);
+            setActiveAppScreen("dashboard");
+          }}
+        />
+      );
+    }
+
+    if (activeAppScreen === "transaction") {
+      return (
+        <TransactionPage
+          user={authSnapshot}
+          onBack={() => setActiveAppScreen("dashboard")}
+          onLoadConvertPairs={handleTransactionConvertPairs}
+          onConvertQuote={handleTransactionConvertQuote}
+          onConvertSubmit={handleTransactionConvertSubmit}
+          onLoadConvertHistory={handleTransactionConvertHistory}
+          onLoadSpotPairs={handleTransactionSpotPairs}
+          onLoadMarketSummary={handleTransactionSpotMarketSummary}
+          onLoadTicks={handleTransactionSpotTicks}
+          onLoadRecentTrades={handleTransactionSpotRecentTrades}
+          onPlaceOrder={handleTransactionSpotOrderPlace}
+          onLoadOpenOrders={handleTransactionSpotOpenOrders}
+          onLoadOrderHistory={handleTransactionSpotOrderHistory}
+          onCancelOrder={handleTransactionSpotOrderCancel}
+          onLoadOrderbook={handleTransactionSpotOrderbook}
+          onNavigateTab={(tabId) => {
+            if (tabId === "transaction") {
+              setActiveAppScreen("transaction");
+              return;
+            }
+            if (tabId === "binary") {
+              setActiveAppScreen("binary");
+              return;
+            }
+            if (tabId === "assets") {
+              setActiveAppScreen("assets");
+              return;
+            }
+            setDashboardEntryTab(tabId);
+            setActiveAppScreen("dashboard");
+          }}
+        />
+      );
+    }
+
+    if (activeAppScreen === "assets") {
+      return (
+        <AssetsPage
+          user={authSnapshot}
+          onBack={() => setActiveAppScreen("dashboard")}
+          onOpenDepositPage={() => setActiveAppScreen("deposit")}
+          onLoadSummary={handleAssetsSummary}
+          onLoadWallets={handleAssetsWallets}
+          onLoadHistory={handleAssetsHistory}
+          onTransfer={handleAssetsTransfer}
+          onConvertQuote={handleAssetsConvertQuote}
+          onConvert={handleAssetsConvert}
+          onLoadWithdrawConfig={handleAssetsWithdrawConfig}
+          onWithdraw={handleAssetsWithdrawSubmit}
+          onLoadWithdrawals={handleAssetsWithdrawals}
+          onLoadTransfers={handleAssetsTransfers}
+          onLoadConversions={handleAssetsConversions}
+          onNavigateTab={(tabId) => {
+            if (tabId === "assets") {
+              setActiveAppScreen("assets");
+              return;
+            }
+            if (tabId === "transaction") {
+              setActiveAppScreen("transaction");
+              return;
+            }
+            if (tabId === "binary") {
+              setActiveAppScreen("binary");
+              return;
+            }
             setDashboardEntryTab(tabId);
             setActiveAppScreen("dashboard");
           }}
@@ -2358,6 +3135,8 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onOpenDepositPage={() => setActiveAppScreen("deposit")}
         onOpenLumPage={() => setActiveAppScreen("lum")}
         onOpenBinaryPage={() => setActiveAppScreen("binary")}
+        onOpenTransactionPage={() => setActiveAppScreen("transaction")}
+        onOpenAssetsPage={() => setActiveAppScreen("assets")}
         onCreateDepositRequest={handleCreateDepositRequest}
         onDepositRecords={handleDepositRecords}
       />

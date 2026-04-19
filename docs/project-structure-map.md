@@ -1,6 +1,6 @@
 # Project Structure Map
 
-_Last updated: 2026-04-10_
+_Last updated: 2026-04-19_
 
 This file gives a high-level map of the CryptoBot codebase so future prompts can quickly target the right module.
 
@@ -18,7 +18,7 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `src/App.jsx`: top-level routing + auth service wrapper + app/admin flow wiring
 - `src/styles.css`: global website/auth styles
 
-### User App (`src/features/dashboard/`)
+### Dashboard Module (`src/features/dashboard/`)
 
 - `PremiumDashboardPage.jsx`: main logged-in user dashboard
 - `DepositPage.jsx`: separate deposit flow page
@@ -27,6 +27,36 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
   - amount + screenshot upload + submit
   - records view
 - `premium-dashboard.css`: styles for dashboard + deposit page
+
+### Transaction Module (`src/features/transaction/`)
+
+- `TransactionPage.jsx`: user transaction hub (convert + spot trade tabs)
+- `TransactionHeader.jsx`: page header + tab switch + pair strip
+- `ConvertTab.jsx`: convert flow container
+- `ConvertForm.jsx`: convert input + quote + submit
+- `ConvertHistoryTable.jsx`: conversion history table
+- `TradesTab.jsx`: spot trading tab container
+- `SpotMarketSummary.jsx`: market overview strip
+- `SpotOrderForm.jsx`: buy/sell order form
+- `SpotRecentTrades.jsx`: recent trade feed
+- `SpotOpenOrders.jsx`: open orders table
+- `SpotOrderHistory.jsx`: order history table
+- `transaction-utils.js`: transaction formatting/wallet helpers
+  - wallet detail map aggregation now merges duplicate alias symbols safely (`SPOTUSDT` + `SPOT_USDT`)
+- `transaction.css`: transaction page styles
+
+### Assets Module (`src/features/assets/`)
+
+- `AssetsPage.jsx`: assets overview + quick actions + modals + history
+- `WalletDistributionCard.jsx`: data-driven wallet distribution donut + list
+- `WalletRowCard.jsx`: Spot/Main/Binary wallet cards with expand details
+- `AssetsQuickActions.jsx`: Deposit/Withdraw/Transfer/Convert quick action block
+- `WithdrawModal.jsx`: withdraw request flow (form + confirm)
+- `TransferModal.jsx`: internal wallet transfer flow
+- `ConvertModal.jsx`: internal conversion flow
+- `AssetsHistorySection.jsx`: filterable assets history panel
+- `assets-utils.js`: money/percentage/status/helper utilities
+- `assets.css`: assets module styles
 
 ### LUM Module (`src/features/lum/`)
 
@@ -71,6 +101,8 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `DepositManagementPage.jsx`: deposit asset CRUD + deposit request review
 - `LUMManagementPage.jsx`: LUM plan studio + investment desk + content editor (admin)
 - `BinaryManagementPage.jsx`: binary control center (engine/outcome mode), pair desk, period rules, trade desk
+- `TransactionManagementPage.jsx`: transaction control center (engine, convert, spot, order, audit)
+- `AssetManagementPage.jsx`: asset management desk (overview, wallet desk, withdrawal desk, transfer desk, conversion desk, controls, audit)
 
 #### Admin Utils (`src/admin/utils/`)
 
@@ -82,6 +114,10 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `server/index.js`: Express API + SQLite schema/init + auth + admin actions
 - `server/lum-module.js`: LUM schema bootstrap + wallet-lock logic + settlement + user/admin LUM handlers
 - `server/binary-module.js`: Binary schema bootstrap + tick engine + trade open/settlement + user/admin Binary handlers
+- `server/transaction-module.js`: spot/convert market + order workflow + wallet sync handlers
+  - stale spot tick auto-refresh fallback keeps convert/spot flows functional without manual admin tick push
+  - wallet snapshot aggregation merges alias wallet symbols before response serialization
+- `server/assets-module.js`: user assets handlers + admin asset management handlers (dashboard, wallets, withdrawal desk, settings, audit) + assets DB bootstrap
 - `server/data/auth.sqlite`: primary database file
 - `server/data/auth.sqlite-wal`, `server/data/auth.sqlite-shm`: SQLite WAL files
 

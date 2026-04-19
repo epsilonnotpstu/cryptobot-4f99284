@@ -258,6 +258,8 @@ export default function PremiumDashboardPage({
   onOpenDepositPage,
   onOpenLumPage,
   onOpenBinaryPage,
+  onOpenTransactionPage,
+  onOpenAssetsPage,
   onCreateDepositRequest,
   onDepositRecords,
 }) {
@@ -570,6 +572,22 @@ export default function PremiumDashboardPage({
       onOpenBinaryPage();
       return;
     }
+    if (nextTab === "transaction" && onOpenTransactionPage) {
+      if (!isUserKycAuthenticated) {
+        setProfileNotice("KYC authentication pending. Complete authentication before using Transaction.");
+        return;
+      }
+      onOpenTransactionPage();
+      return;
+    }
+    if (nextTab === "assets" && onOpenAssetsPage) {
+      if (!isUserKycAuthenticated) {
+        setProfileNotice("KYC authentication pending. Complete authentication before using Assets.");
+        return;
+      }
+      onOpenAssetsPage();
+      return;
+    }
 
     if (!isUserKycAuthenticated && nextTab !== "home") {
       setProfileNotice("KYC authentication pending. Complete authentication to unlock this section.");
@@ -827,6 +845,19 @@ export default function PremiumDashboardPage({
     }
     setActiveMainTab("binary");
     setActiveView("binary");
+  };
+
+  const openTransactionPage = () => {
+    if (!isUserKycAuthenticated) {
+      setProfileNotice("KYC authentication pending. Complete authentication before using Transaction.");
+      return;
+    }
+    if (onOpenTransactionPage) {
+      onOpenTransactionPage();
+      return;
+    }
+    setActiveMainTab("transaction");
+    setActiveView("transaction");
   };
 
   const handleSelectDepositAsset = (assetId) => {
@@ -1115,6 +1146,8 @@ export default function PremiumDashboardPage({
                             ? openLumPage
                             : action.id === "binary"
                               ? openBinaryPage
+                            : action.id === "transaction"
+                              ? openTransactionPage
                             : action.id === "recharge"
                               ? openDepositAssetSelector
                               : undefined

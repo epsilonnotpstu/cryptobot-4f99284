@@ -11,6 +11,8 @@ import KycReviewPage from "./KycReviewPage";
 import DepositManagementPage from "./DepositManagementPage";
 import LUMManagementPage from "./LUMManagementPage";
 import BinaryManagementPage from "./BinaryManagementPage";
+import TransactionManagementPage from "./TransactionManagementPage";
+import AssetManagementPage from "./AssetManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -78,6 +80,8 @@ export default function AdminDashboardPage({
   depositCenter,
   lumCenter,
   binaryCenter,
+  transactionCenter,
+  assetCenter,
   activeSection,
   onSectionChange,
   onRefresh,
@@ -106,6 +110,26 @@ export default function AdminDashboardPage({
   onCancelBinaryTrade,
   onSaveBinaryEngineSettings,
   onPushBinaryManualTick,
+  onSaveTransactionEngineSettings,
+  onCreateTransactionConvertPair,
+  onUpdateTransactionConvertPair,
+  onDeleteTransactionConvertPair,
+  onToggleTransactionConvertPairStatus,
+  onPushTransactionConvertManualRate,
+  onCreateTransactionSpotPair,
+  onUpdateTransactionSpotPair,
+  onDeleteTransactionSpotPair,
+  onToggleTransactionSpotPairStatus,
+  onCancelTransactionSpotOrder,
+  onForceFillTransactionSpotOrder,
+  onPushTransactionSpotManualTick,
+  onSaveTransactionSpotFeedSettings,
+  onLoadAssetWalletDetail,
+  onAdjustAssetWallet,
+  onFreezeAssetWallet,
+  onReviewAssetWithdrawal,
+  onCompleteAssetWithdrawal,
+  onSaveAssetSettings,
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
@@ -152,6 +176,10 @@ export default function AdminDashboardPage({
         ? "LUM Management"
       : activeSection === "binaryCenter"
         ? "Binary Management"
+      : activeSection === "transactionCenter"
+        ? "Transaction Management"
+      : activeSection === "assetCenter"
+        ? "Asset Management"
       : activeSection === "dashboard"
         ? "Dashboard Overview"
         : "Admin Workspace";
@@ -331,6 +359,10 @@ export default function AdminDashboardPage({
                         ? "Search LUM plans or investments..."
                       : activeSection === "binaryCenter"
                         ? "Search binary pairs, rules, trades..."
+                      : activeSection === "transactionCenter"
+                        ? "Search transaction pairs, orders, logs..."
+                      : activeSection === "assetCenter"
+                        ? "Search wallets, withdrawals, transfers..."
                       : "Search users, bots, trades..."
                 }
                 value={
@@ -338,7 +370,9 @@ export default function AdminDashboardPage({
                   activeSection === "kycReview" ||
                   activeSection === "depositCenter" ||
                   activeSection === "lumCenter" ||
-                  activeSection === "binaryCenter"
+                  activeSection === "binaryCenter" ||
+                  activeSection === "transactionCenter" ||
+                  activeSection === "assetCenter"
                     ? adminSearch
                     : ""
                 }
@@ -348,7 +382,9 @@ export default function AdminDashboardPage({
                     activeSection === "kycReview" ||
                     activeSection === "depositCenter" ||
                     activeSection === "lumCenter" ||
-                    activeSection === "binaryCenter"
+                    activeSection === "binaryCenter" ||
+                    activeSection === "transactionCenter" ||
+                    activeSection === "assetCenter"
                   ) {
                     setAdminSearch(event.target.value);
                   }
@@ -358,7 +394,9 @@ export default function AdminDashboardPage({
                   activeSection !== "kycReview" &&
                   activeSection !== "depositCenter" &&
                   activeSection !== "lumCenter" &&
-                  activeSection !== "binaryCenter"
+                  activeSection !== "binaryCenter" &&
+                  activeSection !== "transactionCenter" &&
+                  activeSection !== "assetCenter"
                 }
               />
             </label>
@@ -463,12 +501,65 @@ export default function AdminDashboardPage({
             onPushManualTick={onPushBinaryManualTick}
           />
         ) : null}
+        {activeSection === "transactionCenter" ? (
+          <TransactionManagementPage
+            summary={transactionCenter?.summary || {}}
+            settings={transactionCenter?.settings || {}}
+            convertPairs={Array.isArray(transactionCenter?.convertPairs) ? transactionCenter.convertPairs : []}
+            convertOrders={Array.isArray(transactionCenter?.convertOrders) ? transactionCenter.convertOrders : []}
+            spotPairs={Array.isArray(transactionCenter?.spotPairs) ? transactionCenter.spotPairs : []}
+            spotOrders={Array.isArray(transactionCenter?.spotOrders) ? transactionCenter.spotOrders : []}
+            auditLogs={Array.isArray(transactionCenter?.auditLogs) ? transactionCenter.auditLogs : []}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onSaveEngineSettings={onSaveTransactionEngineSettings}
+            onCreateConvertPair={onCreateTransactionConvertPair}
+            onUpdateConvertPair={onUpdateTransactionConvertPair}
+            onDeleteConvertPair={onDeleteTransactionConvertPair}
+            onToggleConvertPairStatus={onToggleTransactionConvertPairStatus}
+            onPushConvertManualRate={onPushTransactionConvertManualRate}
+            onCreateSpotPair={onCreateTransactionSpotPair}
+            onUpdateSpotPair={onUpdateTransactionSpotPair}
+            onDeleteSpotPair={onDeleteTransactionSpotPair}
+            onToggleSpotPairStatus={onToggleTransactionSpotPairStatus}
+            onCancelSpotOrder={onCancelTransactionSpotOrder}
+            onForceFillSpotOrder={onForceFillTransactionSpotOrder}
+            onPushSpotManualTick={onPushTransactionSpotManualTick}
+            onSaveSpotFeedSettings={onSaveTransactionSpotFeedSettings}
+          />
+        ) : null}
+        {activeSection === "assetCenter" ? (
+          <AssetManagementPage
+            dashboardSummary={assetCenter?.dashboardSummary || {}}
+            walletDesk={assetCenter?.walletDesk || {}}
+            walletDetail={assetCenter?.walletDetail || {}}
+            withdrawals={assetCenter?.withdrawals || {}}
+            transfers={assetCenter?.transfers || {}}
+            conversions={assetCenter?.conversions || {}}
+            settings={assetCenter?.settings || {}}
+            auditLogs={assetCenter?.auditLogs || {}}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onLoadWalletDetail={onLoadAssetWalletDetail}
+            onAdjustWallet={onAdjustAssetWallet}
+            onFreezeWallet={onFreezeAssetWallet}
+            onReviewWithdrawal={onReviewAssetWithdrawal}
+            onCompleteWithdrawal={onCompleteAssetWithdrawal}
+            onSaveSettings={onSaveAssetSettings}
+          />
+        ) : null}
         {activeSection !== "dashboard" &&
         activeSection !== "users" &&
         activeSection !== "kycReview" &&
         activeSection !== "depositCenter" &&
         activeSection !== "lumCenter" &&
-        activeSection !== "binaryCenter"
+        activeSection !== "binaryCenter" &&
+        activeSection !== "transactionCenter" &&
+        activeSection !== "assetCenter"
           ? renderPlaceholder()
           : null}
       </section>

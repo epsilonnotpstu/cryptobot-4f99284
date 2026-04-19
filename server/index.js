@@ -11,6 +11,8 @@ import { fileURLToPath } from "url";
 import { OAuth2Client } from "google-auth-library";
 import { createLumModule } from "./lum-module.js";
 import { createBinaryModule } from "./binary-module.js";
+import { createTransactionModule } from "./transaction-module.js";
+import { createAssetsModule } from "./assets-module.js";
 
 dotenv.config();
 
@@ -817,6 +819,12 @@ const listUserWalletBalancesStatement = db.prepare(`
   WHERE user_id = ?
   ORDER BY total_usd DESC, asset_symbol ASC
 `);
+const listUserWalletDetailRowsStatement = db.prepare(`
+  SELECT asset_symbol, available_usd, locked_usd, reward_earned_usd, updated_at
+  FROM user_wallet_balance_details
+  WHERE user_id = ?
+  ORDER BY asset_symbol ASC
+`);
 const findWalletDetailByUserAssetStatement = db.prepare(`
   SELECT user_id, asset_symbol, available_usd, locked_usd, reward_earned_usd, updated_at
   FROM user_wallet_balance_details
@@ -830,6 +838,24 @@ const updateWalletDetailStatement = db.prepare(`
       reward_earned_usd = @rewardEarnedUsd,
       updated_at = @updatedAt
   WHERE user_id = @userId AND asset_symbol = @assetSymbol
+`);
+const updateWalletDetailSymbolByUserStatement = db.prepare(`
+  UPDATE user_wallet_balance_details
+  SET asset_symbol = @toSymbol
+  WHERE user_id = @userId AND asset_symbol = @fromSymbol
+`);
+const deleteWalletDetailByUserAssetStatement = db.prepare(`
+  DELETE FROM user_wallet_balance_details
+  WHERE user_id = ? AND asset_symbol = ?
+`);
+const updateWalletBalanceSymbolByUserStatement = db.prepare(`
+  UPDATE user_wallet_balances
+  SET asset_symbol = @toSymbol
+  WHERE user_id = @userId AND asset_symbol = @fromSymbol
+`);
+const deleteWalletBalanceByUserAssetStatement = db.prepare(`
+  DELETE FROM user_wallet_balances
+  WHERE user_id = ? AND asset_symbol = ?
 `);
 const getUserTotalSpotAssetsStatement = db.prepare(`
   SELECT COALESCE(SUM(total_usd), 0) AS total
@@ -1238,6 +1264,113 @@ function normalizeAssetSymbol(value = "") {
     .slice(0, 15);
 }
 
+function normalizeWalletScopedSymbol(value = "") {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+  if (!raw) {
+    return "";
+  }
+
+  const scopedMatch = raw.match(/^(SPOT|MAIN|BINARY)_?([A-Z0-9]+)$/);
+  if (scopedMatch) {
+    const scope = scopedMatch[1];
+    const asset = scopedMatch[2];
+    if (!asset) {
+      return "";
+    }
+    return `${scope}_${asset}`.slice(0, 24);
+  }
+
+  return normalizeAssetSymbol(raw);
+}
+
+function normalizeDashboardWalletSymbol(value = "") {
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+  if (!raw) {
+    return "";
+  }
+
+  const aliases = {
+    SPOTUSDT: "SPOT_USDT",
+    MAINUSDT: "MAIN_USDT",
+    BINARYUSDT: "BINARY_USDT",
+  };
+  if (aliases[raw]) {
+    return aliases[raw];
+  }
+
+  const scopedMatch = raw.match(/^(SPOT|MAIN|BINARY)_?([A-Z0-9]+)$/);
+  if (scopedMatch) {
+    const scope = scopedMatch[1];
+    const asset = normalizeAssetSymbol(scopedMatch[2]);
+    if (!asset) {
+      return "";
+    }
+    return `${scope}_${asset}`.slice(0, 24);
+  }
+
+  const asset = normalizeAssetSymbol(raw);
+  if (!asset) {
+    return "";
+  }
+  if (asset === "USD") {
+    return "SPOT_USDT";
+  }
+  return `SPOT_${asset}`.slice(0, 24);
+}
+
+function buildDashboardWalletSymbolCandidates(value = "") {
+  const canonical = normalizeDashboardWalletSymbol(value || "SPOT_USDT");
+  const raw = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+
+  const candidates = [];
+  const push = (symbol = "") => {
+    const normalized = String(symbol || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]/g, "");
+    if (!normalized) {
+      return;
+    }
+    if (!candidates.includes(normalized)) {
+      candidates.push(normalized);
+    }
+  };
+
+  push(canonical);
+  push(raw);
+  push(canonical.replace(/_/g, ""));
+  push(raw.replace(/_/g, ""));
+
+  if (canonical.startsWith("SPOT_")) {
+    push(canonical.slice(5));
+  }
+
+  const assetOnly = canonical.includes("_") ? canonical.split("_").slice(1).join("_") : "";
+  push(assetOnly);
+
+  return candidates;
+}
+
+function buildWalletSymbolLabel(symbol = "") {
+  const normalized = normalizeDashboardWalletSymbol(symbol);
+  if (!normalized) {
+    return "Wallet";
+  }
+  const [scope = "SPOT", ...assetParts] = normalized.split("_");
+  const asset = assetParts.join("_") || "USDT";
+  const scopeLabel = `${scope.charAt(0)}${scope.slice(1).toLowerCase()}`;
+  return `${scopeLabel} Wallet (${asset})`;
+}
+
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") {
     return value;
@@ -1356,6 +1489,90 @@ const {
   handleAdminBinaryManualTickPush,
 } = binaryModule;
 
+const transactionModule = createTransactionModule({
+  db,
+  getNow,
+  toIso,
+  normalizeAssetSymbol,
+  normalizeUsdAmount,
+  sanitizeShortText,
+});
+
+const {
+  handleTransactionConvertPairsList,
+  handleTransactionConvertQuote,
+  handleTransactionConvertSubmit,
+  handleTransactionConvertHistory,
+  handleTransactionSpotPairsList,
+  handleTransactionSpotMarketSummary,
+  handleTransactionSpotTicks,
+  handleTransactionSpotRecentTrades,
+  handleTransactionSpotOrderPlace,
+  handleTransactionSpotOrdersOpen,
+  handleTransactionSpotOrdersHistory,
+  handleTransactionSpotOrderCancel,
+  handleTransactionSpotOrderbook,
+  handleAdminTransactionDashboardSummary,
+  handleAdminTransactionEngineSettingsGet,
+  handleAdminTransactionEngineSettingsSave,
+  handleAdminTransactionConvertPairsList,
+  handleAdminTransactionConvertPairCreate,
+  handleAdminTransactionConvertPairUpdate,
+  handleAdminTransactionConvertPairDelete,
+  handleAdminTransactionConvertPairToggleStatus,
+  handleAdminTransactionConvertOrdersList,
+  handleAdminTransactionConvertManualRatePush,
+  handleAdminTransactionSpotPairsList,
+  handleAdminTransactionSpotPairCreate,
+  handleAdminTransactionSpotPairUpdate,
+  handleAdminTransactionSpotPairDelete,
+  handleAdminTransactionSpotPairToggleStatus,
+  handleAdminTransactionSpotOrdersList,
+  handleAdminTransactionSpotOrderCancel,
+  handleAdminTransactionSpotOrderForceFill,
+  handleAdminTransactionSpotManualTickPush,
+  handleAdminTransactionSpotFeedSettingsSave,
+  handleAdminTransactionAuditList,
+} = transactionModule;
+
+const assetsModule = createAssetsModule({
+  db,
+  getNow,
+  toIso,
+  normalizeAssetSymbol,
+  normalizeUsdAmount,
+  sanitizeShortText,
+});
+
+const {
+  handleAssetsSummary,
+  handleAssetsWallets,
+  handleAssetsHistory,
+  handleAssetsTransfer,
+  handleAssetsConvert,
+  handleAssetsWithdrawConfig,
+  handleAssetsWithdraw,
+  handleAssetsWithdrawals,
+  handleAssetsTransfers,
+  handleAssetsConversions,
+  handleAdminAssetsDashboardSummary,
+  handleAdminAssetsWallets,
+  handleAdminAssetsWalletDetail,
+  handleAdminAssetsWalletAdjust,
+  handleAdminAssetsWalletFreeze,
+  handleAdminAssetsWithdrawals,
+  handleAdminAssetsWithdrawReview,
+  handleAdminAssetsWithdrawComplete,
+  handleAdminAssetsTransfers,
+  handleAdminAssetsConversions,
+  handleAdminAssetsSettingsGet,
+  handleAdminAssetsSettingsSave,
+  handleAdminAssetsAuditLogs,
+  getDepositCreditWalletSymbol,
+  ensureWalletDetailMirroredFromSummary,
+  insertAssetWalletLedgerEntry,
+} = assetsModule;
+
 function buildNoticePayload(row) {
   if (!row) {
     return {
@@ -1394,9 +1611,13 @@ function buildWalletBalancePayload(row) {
   if (!row) {
     return null;
   }
+  const symbol = normalizeDashboardWalletSymbol(row.asset_symbol || "");
+  if (!symbol) {
+    return null;
+  }
   return {
-    symbol: normalizeAssetSymbol(row.asset_symbol || ""),
-    name: sanitizeShortText(row.asset_name || "", 80),
+    symbol,
+    name: sanitizeShortText(row.asset_name || buildWalletSymbolLabel(symbol), 80),
     totalUsd: Number(row.total_usd || 0),
     updatedAt: row.updated_at || "",
   };
@@ -1439,17 +1660,187 @@ function buildDepositRequestPayload(row, options = {}) {
   return payload;
 }
 
+function findDashboardWalletDetailByAnySymbol(userId, assetSymbol = "") {
+  const candidates = buildDashboardWalletSymbolCandidates(assetSymbol);
+  for (const candidate of candidates) {
+    const row = findWalletDetailByUserAssetStatement.get(userId, candidate);
+    if (row) {
+      return { row, symbol: candidate };
+    }
+  }
+  return null;
+}
+
+function findDashboardWalletSummaryByAnySymbol(userId, assetSymbol = "") {
+  const candidates = buildDashboardWalletSymbolCandidates(assetSymbol);
+  for (const candidate of candidates) {
+    const row = findWalletBalanceByUserAssetStatement.get(userId, candidate);
+    if (row) {
+      return { row, symbol: candidate };
+    }
+  }
+  return null;
+}
+
+function migrateDashboardWalletSymbolForUser({ userId, fromSymbol, toSymbol, nowIso }) {
+  const from = String(fromSymbol || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+  const to = normalizeDashboardWalletSymbol(toSymbol || from);
+  if (!from || !to || from === to) {
+    return;
+  }
+
+  const detailFrom = findWalletDetailByUserAssetStatement.get(userId, from);
+  if (detailFrom) {
+    const detailTo = findWalletDetailByUserAssetStatement.get(userId, to);
+    if (detailTo) {
+      updateWalletDetailStatement.run({
+        userId,
+        assetSymbol: to,
+        availableUsd: Number((Number(detailTo.available_usd || 0) + Number(detailFrom.available_usd || 0)).toFixed(8)),
+        lockedUsd: Number((Number(detailTo.locked_usd || 0) + Number(detailFrom.locked_usd || 0)).toFixed(8)),
+        rewardEarnedUsd: Number((Number(detailTo.reward_earned_usd || 0) + Number(detailFrom.reward_earned_usd || 0)).toFixed(8)),
+        updatedAt: nowIso,
+      });
+      deleteWalletDetailByUserAssetStatement.run(userId, from);
+    } else {
+      updateWalletDetailSymbolByUserStatement.run({
+        toSymbol: to,
+        userId,
+        fromSymbol: from,
+      });
+    }
+  }
+
+  const summaryFrom = findWalletBalanceByUserAssetStatement.get(userId, from);
+  if (summaryFrom) {
+    const summaryTo = findWalletBalanceByUserAssetStatement.get(userId, to);
+    if (summaryTo) {
+      setWalletBalanceStatement.run({
+        userId,
+        assetSymbol: to,
+        assetName: sanitizeShortText(summaryTo.asset_name || summaryFrom.asset_name || buildWalletSymbolLabel(to), 80),
+        totalUsd: Number((Number(summaryTo.total_usd || 0) + Number(summaryFrom.total_usd || 0)).toFixed(8)),
+        updatedAt: nowIso,
+      });
+      deleteWalletBalanceByUserAssetStatement.run(userId, from);
+    } else {
+      updateWalletBalanceSymbolByUserStatement.run({
+        toSymbol: to,
+        userId,
+        fromSymbol: from,
+      });
+    }
+  }
+}
+
+function normalizeDashboardWalletDataForUser(userId, nowIso) {
+  const detailRows = listUserWalletDetailRowsStatement.all(userId);
+  for (const row of detailRows) {
+    const from = String(row.asset_symbol || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]/g, "");
+    const to = normalizeDashboardWalletSymbol(from);
+    if (!from || !to || from === to) {
+      continue;
+    }
+    migrateDashboardWalletSymbolForUser({ userId, fromSymbol: from, toSymbol: to, nowIso });
+  }
+
+  const summaryRows = listUserWalletBalancesStatement.all(userId);
+  for (const row of summaryRows) {
+    const from = String(row.asset_symbol || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]/g, "");
+    const to = normalizeDashboardWalletSymbol(from);
+    if (!from || !to || from === to) {
+      continue;
+    }
+    migrateDashboardWalletSymbolForUser({ userId, fromSymbol: from, toSymbol: to, nowIso });
+  }
+
+  const normalizedSummaryRows = listUserWalletBalancesStatement.all(userId);
+  for (const row of normalizedSummaryRows) {
+    const symbol = normalizeDashboardWalletSymbol(row.asset_symbol || "");
+    if (!symbol) {
+      continue;
+    }
+    ensureWalletDetailMirroredFromSummary({
+      userId,
+      assetSymbol: symbol,
+      assetName: row.asset_name || buildWalletSymbolLabel(symbol),
+      nowIso,
+    });
+  }
+
+  const syncedDetailRows = listUserWalletDetailRowsStatement.all(userId);
+  for (const row of syncedDetailRows) {
+    const symbol = normalizeDashboardWalletSymbol(row.asset_symbol || "");
+    if (!symbol) {
+      continue;
+    }
+    const totalUsd = Number((Number(row.available_usd || 0) + Number(row.locked_usd || 0)).toFixed(8));
+    const existingSummary = findWalletBalanceByUserAssetStatement.get(userId, symbol);
+    setWalletBalanceStatement.run({
+      userId,
+      assetSymbol: symbol,
+      assetName: sanitizeShortText(existingSummary?.asset_name || buildWalletSymbolLabel(symbol), 80),
+      totalUsd,
+      updatedAt: nowIso,
+    });
+  }
+}
+
 function readDashboardWallet(userId) {
-  const balances = listUserWalletBalancesStatement
-    .all(userId)
-    .map((row) => buildWalletBalancePayload(row))
-    .filter(Boolean);
-  const spotBalance =
-    balances.find((item) => normalizeAssetSymbol(item.symbol) === "SPOT_USDT") ||
-    balances.find((item) => normalizeAssetSymbol(item.symbol) === "USD") ||
-    balances.find((item) => normalizeAssetSymbol(item.symbol) === "USDT") ||
-    null;
-  const totalSpotAssetsUsd = spotBalance ? Number(Number(spotBalance.totalUsd || 0).toFixed(8)) : null;
+  const nowIso = toIso(getNow());
+  const normalizeTx = db.transaction(() => {
+    normalizeDashboardWalletDataForUser(userId, nowIso);
+  });
+  normalizeTx();
+
+  const summaryNameMap = listUserWalletBalancesStatement.all(userId).reduce((acc, row) => {
+    const symbol = normalizeDashboardWalletSymbol(row.asset_symbol || "");
+    if (!symbol || acc[symbol]) {
+      return acc;
+    }
+    acc[symbol] = sanitizeShortText(row.asset_name || buildWalletSymbolLabel(symbol), 80);
+    return acc;
+  }, {});
+
+  const aggregated = listUserWalletDetailRowsStatement.all(userId).reduce((acc, row) => {
+    const symbol = normalizeDashboardWalletSymbol(row.asset_symbol || "");
+    if (!symbol) {
+      return acc;
+    }
+    const totalUsd = Number((Number(row.available_usd || 0) + Number(row.locked_usd || 0)).toFixed(8));
+    if (!acc[symbol]) {
+      acc[symbol] = {
+        symbol,
+        name: summaryNameMap[symbol] || buildWalletSymbolLabel(symbol),
+        totalUsd: 0,
+        updatedAt: row.updated_at || nowIso,
+      };
+    }
+    acc[symbol].totalUsd = Number((acc[symbol].totalUsd + totalUsd).toFixed(8));
+    if (row.updated_at && new Date(row.updated_at).getTime() > new Date(acc[symbol].updatedAt || 0).getTime()) {
+      acc[symbol].updatedAt = row.updated_at;
+    }
+    return acc;
+  }, {});
+
+  const balances = Object.values(aggregated).sort((a, b) => b.totalUsd - a.totalUsd || a.symbol.localeCompare(b.symbol));
+  const totalSpotAssetsUsd = balances.length
+    ? Number(
+        balances
+          .filter((row) => String(row.symbol || "").startsWith("SPOT_"))
+          .reduce((sum, row) => sum + Number(row.totalUsd || 0), 0)
+          .toFixed(8),
+      )
+    : null;
 
   return {
     totalSpotAssetsUsd,
@@ -1458,9 +1849,22 @@ function readDashboardWallet(userId) {
 }
 
 function applyWalletDetailDeltaIfExists({ userId, assetSymbol, deltaUsd, updatedAt }) {
-  const symbol = normalizeAssetSymbol(assetSymbol || "");
+  const symbol = normalizeDashboardWalletSymbol(assetSymbol || "");
   if (!symbol) {
     return null;
+  }
+
+  const matched = findDashboardWalletDetailByAnySymbol(userId, symbol);
+  if (!matched) {
+    return null;
+  }
+  if (matched.symbol !== symbol) {
+    migrateDashboardWalletSymbolForUser({
+      userId,
+      fromSymbol: matched.symbol,
+      toSymbol: symbol,
+      nowIso: updatedAt,
+    });
   }
 
   const existing = findWalletDetailByUserAssetStatement.get(userId, symbol);
@@ -1485,10 +1889,24 @@ function applyWalletDetailDeltaIfExists({ userId, assetSymbol, deltaUsd, updated
 }
 
 function syncWalletSummaryFromDetailIfExists({ userId, assetSymbol, assetName, updatedAt }) {
-  const symbol = normalizeAssetSymbol(assetSymbol || "");
+  const symbol = normalizeDashboardWalletSymbol(assetSymbol || "");
   if (!symbol) {
     return;
   }
+
+  const matched = findDashboardWalletDetailByAnySymbol(userId, symbol);
+  if (!matched) {
+    return;
+  }
+  if (matched.symbol !== symbol) {
+    migrateDashboardWalletSymbolForUser({
+      userId,
+      fromSymbol: matched.symbol,
+      toSymbol: symbol,
+      nowIso: updatedAt,
+    });
+  }
+
   const detail = findWalletDetailByUserAssetStatement.get(userId, symbol);
   if (!detail) {
     return;
@@ -1498,7 +1916,7 @@ function syncWalletSummaryFromDetailIfExists({ userId, assetSymbol, assetName, u
   setWalletBalanceStatement.run({
     userId,
     assetSymbol: symbol,
-    assetName: sanitizeShortText(assetName || symbol, 80),
+    assetName: sanitizeShortText(assetName || buildWalletSymbolLabel(symbol), 80),
     totalUsd,
     updatedAt,
   });
@@ -2550,7 +2968,7 @@ function handleAdminUserUpdate(req, res) {
 
       if (nextWalletBalances) {
         for (const walletItem of nextWalletBalances) {
-          const symbol = normalizeAssetSymbol(walletItem?.symbol || "");
+          const symbol = normalizeWalletScopedSymbol(walletItem?.symbol || "");
           const assetName = sanitizeShortText(walletItem?.name || symbol || "Asset", 80);
           const totalUsd = Number(walletItem?.totalUsd || 0);
 
@@ -2988,9 +3406,13 @@ function handleAdminDepositRequestReview(req, res) {
       return;
     }
     const previousStatus = normalizeDepositStatus(request.status || "pending");
+    const depositCreditWalletSymbol = normalizeDashboardWalletSymbol(getDepositCreditWalletSymbol() || "SPOT_USDT") || "SPOT_USDT";
+    const depositCreditWalletName = buildWalletSymbolLabel(depositCreditWalletSymbol);
 
     const reviewedAt = toIso(getNow());
     const reviewTransaction = db.transaction(() => {
+      normalizeDashboardWalletDataForUser(request.user_id, reviewedAt);
+
       updateDepositRequestReviewStatement.run({
         id: requestId,
         status: decision,
@@ -3000,95 +3422,76 @@ function handleAdminDepositRequestReview(req, res) {
       });
 
       if (previousStatus !== "approved" && decision === "approved") {
-        upsertWalletBalanceStatement.run({
+        const approvedAmountUsd = Number(request.amount_usd || 0);
+
+        ensureWalletDetailMirroredFromSummary({
           userId: request.user_id,
-          assetSymbol: normalizeAssetSymbol(request.asset_symbol || ""),
-          assetName: sanitizeShortText(request.asset_name || "", 80),
-          totalUsd: Number(request.amount_usd || 0),
-          updatedAt: reviewedAt,
-        });
-        upsertWalletBalanceStatement.run({
-          userId: request.user_id,
-          assetSymbol: "SPOT_USDT",
-          assetName: "Spot Wallet (USDT)",
-          totalUsd: Number(request.amount_usd || 0),
-          updatedAt: reviewedAt,
+          assetSymbol: depositCreditWalletSymbol,
+          assetName: depositCreditWalletName,
+          nowIso: reviewedAt,
         });
 
         applyWalletDetailDeltaIfExists({
           userId: request.user_id,
-          assetSymbol: request.asset_symbol,
-          deltaUsd: Number(request.amount_usd || 0),
-          updatedAt: reviewedAt,
-        });
-        applyWalletDetailDeltaIfExists({
-          userId: request.user_id,
-          assetSymbol: "SPOT_USDT",
-          deltaUsd: Number(request.amount_usd || 0),
+          assetSymbol: depositCreditWalletSymbol,
+          deltaUsd: approvedAmountUsd,
           updatedAt: reviewedAt,
         });
         syncWalletSummaryFromDetailIfExists({
           userId: request.user_id,
-          assetSymbol: request.asset_symbol,
-          assetName: request.asset_name,
+          assetSymbol: depositCreditWalletSymbol,
+          assetName: depositCreditWalletName,
           updatedAt: reviewedAt,
         });
-        syncWalletSummaryFromDetailIfExists({
+
+        insertAssetWalletLedgerEntry({
           userId: request.user_id,
-          assetSymbol: "SPOT_USDT",
-          assetName: "Spot Wallet (USDT)",
-          updatedAt: reviewedAt,
+          ledgerRefType: "deposit_approval",
+          ledgerRefId: String(request.id || requestId),
+          walletSymbol: depositCreditWalletSymbol,
+          assetSymbol: request.asset_symbol || "USDT",
+          movementType: "credit",
+          amountUsd: approvedAmountUsd,
+          note: `Deposit approved (${request.asset_symbol || "USDT"}).`,
+          createdAt: reviewedAt,
+          createdBy: "admin",
         });
       }
 
       if (previousStatus === "approved" && decision !== "approved") {
-        const assetSymbol = normalizeAssetSymbol(request.asset_symbol || "");
-        const existingBalance = findWalletBalanceByUserAssetStatement.get(request.user_id, assetSymbol);
-        const currentTotal = Number(existingBalance?.total_usd || 0);
-        const deductedTotal = Math.max(0, currentTotal - Number(request.amount_usd || 0));
+        const approvedAmountUsd = Number(request.amount_usd || 0);
 
-        setWalletBalanceStatement.run({
+        ensureWalletDetailMirroredFromSummary({
           userId: request.user_id,
-          assetSymbol,
-          assetName: sanitizeShortText(request.asset_name || assetSymbol || "Asset", 80),
-          totalUsd: Number(deductedTotal.toFixed(8)),
-          updatedAt: reviewedAt,
-        });
-
-        const existingSpotBalance = findWalletBalanceByUserAssetStatement.get(request.user_id, "SPOT_USDT");
-        const currentSpotTotal = Number(existingSpotBalance?.total_usd || 0);
-        const deductedSpotTotal = Math.max(0, currentSpotTotal - Number(request.amount_usd || 0));
-        setWalletBalanceStatement.run({
-          userId: request.user_id,
-          assetSymbol: "SPOT_USDT",
-          assetName: "Spot Wallet (USDT)",
-          totalUsd: Number(deductedSpotTotal.toFixed(8)),
-          updatedAt: reviewedAt,
+          assetSymbol: depositCreditWalletSymbol,
+          assetName: depositCreditWalletName,
+          nowIso: reviewedAt,
         });
 
         applyWalletDetailDeltaIfExists({
           userId: request.user_id,
-          assetSymbol: request.asset_symbol,
-          deltaUsd: -Number(request.amount_usd || 0),
-          updatedAt: reviewedAt,
-        });
-        applyWalletDetailDeltaIfExists({
-          userId: request.user_id,
-          assetSymbol: "SPOT_USDT",
-          deltaUsd: -Number(request.amount_usd || 0),
+          assetSymbol: depositCreditWalletSymbol,
+          deltaUsd: -approvedAmountUsd,
           updatedAt: reviewedAt,
         });
         syncWalletSummaryFromDetailIfExists({
           userId: request.user_id,
-          assetSymbol: request.asset_symbol,
-          assetName: request.asset_name,
+          assetSymbol: depositCreditWalletSymbol,
+          assetName: depositCreditWalletName,
           updatedAt: reviewedAt,
         });
-        syncWalletSummaryFromDetailIfExists({
+
+        insertAssetWalletLedgerEntry({
           userId: request.user_id,
-          assetSymbol: "SPOT_USDT",
-          assetName: "Spot Wallet (USDT)",
-          updatedAt: reviewedAt,
+          ledgerRefType: "deposit_approval",
+          ledgerRefId: String(request.id || requestId),
+          walletSymbol: depositCreditWalletSymbol,
+          assetSymbol: request.asset_symbol || "USDT",
+          movementType: "debit",
+          amountUsd: approvedAmountUsd,
+          note: `Deposit approval reverted (${request.asset_symbol || "USDT"}).`,
+          createdAt: reviewedAt,
+          createdBy: "admin",
         });
       }
     });
@@ -3237,6 +3640,117 @@ app.post("/api/auth/gateway", async (req, res) => {
       req.params = { ...(req.params || {}), id: String(req.body?.tradeId || req.query?.tradeId || "") };
       requireSession(req, res, () => handleBinaryTradeSettle(req, res));
       return;
+    case "transaction.convert.pairs.list":
+      requireSession(req, res, () => handleTransactionConvertPairsList(req, res));
+      return;
+    case "transaction.convert.quote":
+      requireSession(req, res, () => handleTransactionConvertQuote(req, res));
+      return;
+    case "transaction.convert.submit":
+      requireSession(req, res, () => handleTransactionConvertSubmit(req, res));
+      return;
+    case "transaction.convert.history":
+      requireSession(req, res, () => handleTransactionConvertHistory(req, res));
+      return;
+    case "transaction.spot.pairs.list":
+      requireSession(req, res, () => handleTransactionSpotPairsList(req, res));
+      return;
+    case "transaction.spot.market-summary":
+      requireSession(req, res, () => handleTransactionSpotMarketSummary(req, res));
+      return;
+    case "transaction.spot.ticks":
+      requireSession(req, res, () => handleTransactionSpotTicks(req, res));
+      return;
+    case "transaction.spot.recent-trades":
+      requireSession(req, res, () => handleTransactionSpotRecentTrades(req, res));
+      return;
+    case "transaction.spot.order.place":
+      requireSession(req, res, () => handleTransactionSpotOrderPlace(req, res));
+      return;
+    case "transaction.spot.orders.open":
+      requireSession(req, res, () => handleTransactionSpotOrdersOpen(req, res));
+      return;
+    case "transaction.spot.orders.history":
+      requireSession(req, res, () => handleTransactionSpotOrdersHistory(req, res));
+      return;
+    case "transaction.spot.order.cancel":
+      requireSession(req, res, () => handleTransactionSpotOrderCancel(req, res));
+      return;
+    case "transaction.spot.orderbook":
+      requireSession(req, res, () => handleTransactionSpotOrderbook(req, res));
+      return;
+    case "assets.summary":
+      requireSession(req, res, () => handleAssetsSummary(req, res));
+      return;
+    case "assets.wallets":
+      requireSession(req, res, () => handleAssetsWallets(req, res));
+      return;
+    case "assets.history":
+      requireSession(req, res, () => handleAssetsHistory(req, res));
+      return;
+    case "assets.transfer":
+      requireSession(req, res, () => handleAssetsTransfer(req, res));
+      return;
+    case "assets.convert":
+      requireSession(req, res, () => handleAssetsConvert(req, res));
+      return;
+    case "assets.convert.quote":
+      requireSession(req, res, () => handleAssetsConvert(req, res));
+      return;
+    case "assets.withdraw.config":
+      requireSession(req, res, () => handleAssetsWithdrawConfig(req, res));
+      return;
+    case "assets.withdraw.submit":
+      requireSession(req, res, () => handleAssetsWithdraw(req, res));
+      return;
+    case "assets.withdrawals":
+      requireSession(req, res, () => handleAssetsWithdrawals(req, res));
+      return;
+    case "assets.transfers":
+      requireSession(req, res, () => handleAssetsTransfers(req, res));
+      return;
+    case "assets.conversions":
+      requireSession(req, res, () => handleAssetsConversions(req, res));
+      return;
+    case "admin.assets.dashboard-summary":
+      requireAdminSession(req, res, () => handleAdminAssetsDashboardSummary(req, res));
+      return;
+    case "admin.assets.wallets":
+      requireAdminSession(req, res, () => handleAdminAssetsWallets(req, res));
+      return;
+    case "admin.assets.wallet.detail":
+      requireAdminSession(req, res, () => handleAdminAssetsWalletDetail(req, res));
+      return;
+    case "admin.assets.wallet.adjust":
+      requireAdminSession(req, res, () => handleAdminAssetsWalletAdjust(req, res));
+      return;
+    case "admin.assets.wallet.freeze":
+      requireAdminSession(req, res, () => handleAdminAssetsWalletFreeze(req, res));
+      return;
+    case "admin.assets.withdrawals":
+      requireAdminSession(req, res, () => handleAdminAssetsWithdrawals(req, res));
+      return;
+    case "admin.assets.withdrawals.review":
+      requireAdminSession(req, res, () => handleAdminAssetsWithdrawReview(req, res));
+      return;
+    case "admin.assets.withdrawals.complete":
+      requireAdminSession(req, res, () => handleAdminAssetsWithdrawComplete(req, res));
+      return;
+    case "admin.assets.transfers":
+      requireAdminSession(req, res, () => handleAdminAssetsTransfers(req, res));
+      return;
+    case "admin.assets.conversions":
+      requireAdminSession(req, res, () => handleAdminAssetsConversions(req, res));
+      return;
+    case "admin.assets.settings":
+      requireAdminSession(req, res, () => handleAdminAssetsSettingsGet(req, res));
+      return;
+    case "admin.assets.settings.save":
+      requireAdminSession(req, res, () => handleAdminAssetsSettingsSave(req, res));
+      return;
+    case "admin.assets.audit-logs":
+      requireAdminSession(req, res, () => handleAdminAssetsAuditLogs(req, res));
+      return;
     case "admin.kyc.list":
       requireAdminSession(req, res, () => handleAdminKycList(req, res));
       return;
@@ -3348,6 +3862,69 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.binary.manual-tick.push":
       requireAdminSession(req, res, () => handleAdminBinaryManualTickPush(req, res));
       return;
+    case "admin.transaction.dashboard-summary":
+      requireAdminSession(req, res, () => handleAdminTransactionDashboardSummary(req, res));
+      return;
+    case "admin.transaction.engine-settings.get":
+      requireAdminSession(req, res, () => handleAdminTransactionEngineSettingsGet(req, res));
+      return;
+    case "admin.transaction.engine-settings.save":
+      requireAdminSession(req, res, () => handleAdminTransactionEngineSettingsSave(req, res));
+      return;
+    case "admin.transaction.convert.pairs.list":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertPairsList(req, res));
+      return;
+    case "admin.transaction.convert.pairs.create":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertPairCreate(req, res));
+      return;
+    case "admin.transaction.convert.pairs.update":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertPairUpdate(req, res));
+      return;
+    case "admin.transaction.convert.pairs.delete":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertPairDelete(req, res));
+      return;
+    case "admin.transaction.convert.pairs.toggle-status":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertPairToggleStatus(req, res));
+      return;
+    case "admin.transaction.convert.orders.list":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertOrdersList(req, res));
+      return;
+    case "admin.transaction.convert.manual-rate.push":
+      requireAdminSession(req, res, () => handleAdminTransactionConvertManualRatePush(req, res));
+      return;
+    case "admin.transaction.spot.pairs.list":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotPairsList(req, res));
+      return;
+    case "admin.transaction.spot.pairs.create":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotPairCreate(req, res));
+      return;
+    case "admin.transaction.spot.pairs.update":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotPairUpdate(req, res));
+      return;
+    case "admin.transaction.spot.pairs.delete":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotPairDelete(req, res));
+      return;
+    case "admin.transaction.spot.pairs.toggle-status":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotPairToggleStatus(req, res));
+      return;
+    case "admin.transaction.spot.orders.list":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotOrdersList(req, res));
+      return;
+    case "admin.transaction.spot.order.cancel":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotOrderCancel(req, res));
+      return;
+    case "admin.transaction.spot.order.force-fill":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotOrderForceFill(req, res));
+      return;
+    case "admin.transaction.spot.manual-tick.push":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotManualTickPush(req, res));
+      return;
+    case "admin.transaction.spot.feed.settings.save":
+      requireAdminSession(req, res, () => handleAdminTransactionSpotFeedSettingsSave(req, res));
+      return;
+    case "admin.transaction.audit.list":
+      requireAdminSession(req, res, () => handleAdminTransactionAuditList(req, res));
+      return;
     default:
       res.status(400).json({ error: "Unknown auth action." });
   }
@@ -3386,6 +3963,42 @@ app.get("/api/binary/trades/active", requireSession, handleBinaryActiveTrades);
 app.get("/api/binary/trades/history", requireSession, handleBinaryTradeHistory);
 app.get("/api/binary/trades/:id", requireSession, handleBinaryTradeDetail);
 app.post("/api/binary/trades/:id/settle", requireSession, handleBinaryTradeSettle);
+app.get("/api/transaction/convert/pairs", requireSession, handleTransactionConvertPairsList);
+app.post("/api/transaction/convert/quote", requireSession, handleTransactionConvertQuote);
+app.post("/api/transaction/convert/submit", requireSession, handleTransactionConvertSubmit);
+app.get("/api/transaction/convert/history", requireSession, handleTransactionConvertHistory);
+app.get("/api/transaction/spot/pairs", requireSession, handleTransactionSpotPairsList);
+app.get("/api/transaction/spot/market-summary", requireSession, handleTransactionSpotMarketSummary);
+app.get("/api/transaction/spot/ticks", requireSession, handleTransactionSpotTicks);
+app.get("/api/transaction/spot/recent-trades", requireSession, handleTransactionSpotRecentTrades);
+app.post("/api/transaction/spot/order/place", requireSession, handleTransactionSpotOrderPlace);
+app.get("/api/transaction/spot/orders/open", requireSession, handleTransactionSpotOrdersOpen);
+app.get("/api/transaction/spot/orders/history", requireSession, handleTransactionSpotOrdersHistory);
+app.post("/api/transaction/spot/order/cancel", requireSession, handleTransactionSpotOrderCancel);
+app.get("/api/transaction/spot/orderbook", requireSession, handleTransactionSpotOrderbook);
+app.get("/api/assets/summary", requireSession, handleAssetsSummary);
+app.get("/api/assets/wallets", requireSession, handleAssetsWallets);
+app.get("/api/assets/history", requireSession, handleAssetsHistory);
+app.post("/api/assets/transfer", requireSession, handleAssetsTransfer);
+app.post("/api/assets/convert", requireSession, handleAssetsConvert);
+app.get("/api/assets/withdraw/config", requireSession, handleAssetsWithdrawConfig);
+app.post("/api/assets/withdraw", requireSession, handleAssetsWithdraw);
+app.get("/api/assets/withdrawals", requireSession, handleAssetsWithdrawals);
+app.get("/api/assets/transfers", requireSession, handleAssetsTransfers);
+app.get("/api/assets/conversions", requireSession, handleAssetsConversions);
+app.get("/api/admin/assets/dashboard-summary", requireAdminSession, handleAdminAssetsDashboardSummary);
+app.get("/api/admin/assets/wallets", requireAdminSession, handleAdminAssetsWallets);
+app.get("/api/admin/assets/wallets/:userId", requireAdminSession, handleAdminAssetsWalletDetail);
+app.post("/api/admin/assets/wallets/adjust", requireAdminSession, handleAdminAssetsWalletAdjust);
+app.post("/api/admin/assets/wallets/freeze", requireAdminSession, handleAdminAssetsWalletFreeze);
+app.get("/api/admin/assets/withdrawals", requireAdminSession, handleAdminAssetsWithdrawals);
+app.post("/api/admin/assets/withdrawals/review", requireAdminSession, handleAdminAssetsWithdrawReview);
+app.post("/api/admin/assets/withdrawals/complete", requireAdminSession, handleAdminAssetsWithdrawComplete);
+app.get("/api/admin/assets/transfers", requireAdminSession, handleAdminAssetsTransfers);
+app.get("/api/admin/assets/conversions", requireAdminSession, handleAdminAssetsConversions);
+app.get("/api/admin/assets/settings", requireAdminSession, handleAdminAssetsSettingsGet);
+app.post("/api/admin/assets/settings/save", requireAdminSession, handleAdminAssetsSettingsSave);
+app.get("/api/admin/assets/audit-logs", requireAdminSession, handleAdminAssetsAuditLogs);
 app.post("/api/admin/auth/signup", handleAdminSignup);
 app.post("/api/admin/auth/login", handleAdminLogin);
 app.get("/api/admin/auth/session", requireAdminSession, handleAdminSession);
@@ -3429,6 +4042,27 @@ app.post("/api/admin/binary/trades/cancel", requireAdminSession, handleAdminBina
 app.get("/api/admin/binary/engine-settings", requireAdminSession, handleAdminBinaryEngineSettingsGet);
 app.post("/api/admin/binary/engine-settings/save", requireAdminSession, handleAdminBinaryEngineSettingsSave);
 app.post("/api/admin/binary/manual-tick/push", requireAdminSession, handleAdminBinaryManualTickPush);
+app.get("/api/admin/transaction/dashboard-summary", requireAdminSession, handleAdminTransactionDashboardSummary);
+app.get("/api/admin/transaction/engine-settings", requireAdminSession, handleAdminTransactionEngineSettingsGet);
+app.post("/api/admin/transaction/engine-settings/save", requireAdminSession, handleAdminTransactionEngineSettingsSave);
+app.get("/api/admin/transaction/convert/pairs", requireAdminSession, handleAdminTransactionConvertPairsList);
+app.post("/api/admin/transaction/convert/pairs/create", requireAdminSession, handleAdminTransactionConvertPairCreate);
+app.post("/api/admin/transaction/convert/pairs/update", requireAdminSession, handleAdminTransactionConvertPairUpdate);
+app.post("/api/admin/transaction/convert/pairs/delete", requireAdminSession, handleAdminTransactionConvertPairDelete);
+app.post("/api/admin/transaction/convert/pairs/toggle-status", requireAdminSession, handleAdminTransactionConvertPairToggleStatus);
+app.get("/api/admin/transaction/convert/orders", requireAdminSession, handleAdminTransactionConvertOrdersList);
+app.post("/api/admin/transaction/convert/manual-rate/push", requireAdminSession, handleAdminTransactionConvertManualRatePush);
+app.get("/api/admin/transaction/spot/pairs", requireAdminSession, handleAdminTransactionSpotPairsList);
+app.post("/api/admin/transaction/spot/pairs/create", requireAdminSession, handleAdminTransactionSpotPairCreate);
+app.post("/api/admin/transaction/spot/pairs/update", requireAdminSession, handleAdminTransactionSpotPairUpdate);
+app.post("/api/admin/transaction/spot/pairs/delete", requireAdminSession, handleAdminTransactionSpotPairDelete);
+app.post("/api/admin/transaction/spot/pairs/toggle-status", requireAdminSession, handleAdminTransactionSpotPairToggleStatus);
+app.get("/api/admin/transaction/spot/orders", requireAdminSession, handleAdminTransactionSpotOrdersList);
+app.post("/api/admin/transaction/spot/order/cancel", requireAdminSession, handleAdminTransactionSpotOrderCancel);
+app.post("/api/admin/transaction/spot/order/force-fill", requireAdminSession, handleAdminTransactionSpotOrderForceFill);
+app.post("/api/admin/transaction/spot/manual-tick/push", requireAdminSession, handleAdminTransactionSpotManualTickPush);
+app.post("/api/admin/transaction/spot/feed-settings/save", requireAdminSession, handleAdminTransactionSpotFeedSettingsSave);
+app.get("/api/admin/transaction/audit", requireAdminSession, handleAdminTransactionAuditList);
 
 const isExecutedDirectly = (() => {
   if (!process.argv[1]) {

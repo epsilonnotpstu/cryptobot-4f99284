@@ -1,6 +1,6 @@
 # Admin/User Database Structure Notes
 
-_Last updated: 2026-04-10_
+_Last updated: 2026-04-19_
 
 > Full project-wide DB reference now lives in [docs/database-structure.md](/home/afridi/Documents/cryptobot-4f99284/docs/database-structure.md).
 
@@ -261,3 +261,125 @@ Wallet synchronization rule for Binary:
 Deposit-credit adjustment:
 - Approved deposits now also credit `SPOT_USDT` (spot wallet symbol).
 - Current wallet symbols in use: `SPOT_USDT`, `MAIN_USDT`, `BINARY_USDT`.
+
+## Assets Module Impact (User-Facing + Admin-Aware)
+
+Assets integration keeps existing admin separation model intact while adding user wallet operations and unified wallet history logging.
+
+New wallet-operation tables:
+- `wallet_transfer_requests`
+- `wallet_conversion_requests`
+- `withdrawal_requests`
+- `asset_wallet_ledger`
+
+User-facing assets backend actions/routes now available:
+- gateway actions: `assets.summary`, `assets.wallets`, `assets.history`, `assets.transfer`, `assets.convert`, `assets.convert.quote`, `assets.withdraw.config`, `assets.withdraw.submit`, `assets.withdrawals`, `assets.transfers`, `assets.conversions`
+- REST routes:
+  - `GET /api/assets/summary`
+  - `GET /api/assets/wallets`
+  - `GET /api/assets/history`
+  - `POST /api/assets/transfer`
+  - `POST /api/assets/convert`
+  - `GET /api/assets/withdraw/config`
+  - `POST /api/assets/withdraw`
+  - `GET /api/assets/withdrawals`
+  - `GET /api/assets/transfers`
+  - `GET /api/assets/conversions`
+
+Accounting consistency rules:
+- `user_wallet_balance_details` remains source of truth for `available_usd` and `locked_usd`.
+- `user_wallet_balances.total_usd` remains synchronized (`available + locked`) for legacy dashboard compatibility.
+- Every wallet-affecting assets action writes to `asset_wallet_ledger`.
+- Binary and LUM modules continue using `BINARY_USDT` and existing lock/unlock settlement behavior without schema breakage.
+
+## Admin Asset Management Impact (This Prompt)
+
+Admin assets control is now first-class and DB-driven.
+
+New admin-facing tables used directly:
+- `asset_admin_audit_logs`
+- `asset_module_settings`
+- `wallet_freeze_rules`
+
+Admin asset gateway actions:
+- `admin.assets.dashboard-summary`
+- `admin.assets.wallets`
+- `admin.assets.wallet.detail`
+- `admin.assets.wallet.adjust`
+- `admin.assets.wallet.freeze`
+- `admin.assets.withdrawals`
+- `admin.assets.withdrawals.review`
+- `admin.assets.withdrawals.complete`
+- `admin.assets.transfers`
+- `admin.assets.conversions`
+- `admin.assets.settings`
+- `admin.assets.settings.save`
+- `admin.assets.audit-logs`
+
+Admin asset REST routes:
+- `GET /api/admin/assets/dashboard-summary`
+- `GET /api/admin/assets/wallets`
+- `GET /api/admin/assets/wallets/:userId`
+- `POST /api/admin/assets/wallets/adjust`
+- `POST /api/admin/assets/wallets/freeze`
+- `GET /api/admin/assets/withdrawals`
+- `POST /api/admin/assets/withdrawals/review`
+- `POST /api/admin/assets/withdrawals/complete`
+- `GET /api/admin/assets/transfers`
+- `GET /api/admin/assets/conversions`
+- `GET /api/admin/assets/settings`
+- `POST /api/admin/assets/settings/save`
+- `GET /api/admin/assets/audit-logs`
+
+Withdrawal review accounting model:
+- User request creation locks amount from available balance (`withdraw_request` + `lock` ledger row).
+- Admin `rejected/cancelled` unlocks funds back to available (`unlock` ledger row).
+- Admin `completed` consumes locked funds (`debit` ledger row).
+- All review/complete actions create `asset_admin_audit_logs` records.
+
+Deposit approval wallet target:
+- Deposit approval credit target is now resolved from `asset_module_settings.deposits_credit_wallet_symbol` (default `SPOT_USDT`), not hardcoded.
+
+## Transaction Management Impact (User + Admin)
+
+Transaction center is fully DB-backed for both convert and spot flows.
+
+Transaction tables in active use:
+- `convert_pairs`
+- `convert_orders`
+- `convert_wallet_ledger`
+- `convert_admin_audit_logs`
+- `spot_pairs`
+- `spot_price_ticks`
+- `spot_orders`
+- `spot_trades`
+- `spot_wallet_ledger`
+- `spot_admin_audit_logs`
+- `transaction_engine_settings`
+
+Admin transaction gateway actions:
+- `admin.transaction.dashboard-summary`
+- `admin.transaction.engine-settings.get`
+- `admin.transaction.engine-settings.save`
+- `admin.transaction.convert.pairs.list`
+- `admin.transaction.convert.pairs.create`
+- `admin.transaction.convert.pairs.update`
+- `admin.transaction.convert.pairs.delete`
+- `admin.transaction.convert.pairs.toggle-status`
+- `admin.transaction.convert.orders.list`
+- `admin.transaction.convert.manual-rate.push`
+- `admin.transaction.spot.pairs.list`
+- `admin.transaction.spot.pairs.create`
+- `admin.transaction.spot.pairs.update`
+- `admin.transaction.spot.pairs.delete`
+- `admin.transaction.spot.pairs.toggle-status`
+- `admin.transaction.spot.orders.list`
+- `admin.transaction.spot.order.cancel`
+- `admin.transaction.spot.order.force-fill`
+- `admin.transaction.spot.manual-tick.push`
+- `admin.transaction.spot.feed.settings.save`
+- `admin.transaction.audit.list`
+
+Stability/accounting notes:
+- Transaction wallet snapshot now aggregates canonical wallet symbols before response (`SPOTUSDT` + `SPOT_USDT`) to prevent available-balance mismatch in UI.
+- Stale spot price feed now auto-refreshes the latest tick from current pair price at runtime, so convert/spot flows remain operational even without recent manual tick pushes.

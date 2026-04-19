@@ -405,6 +405,47 @@ function buildBinaryCenterModel(summaryPayload, pairsPayload, rulesPayload, trad
   };
 }
 
+function buildTransactionCenterModel(
+  summaryPayload,
+  settingsPayload,
+  convertPairsPayload,
+  convertOrdersPayload,
+  spotPairsPayload,
+  spotOrdersPayload,
+  auditPayload,
+) {
+  return {
+    summary: summaryPayload?.summary || {},
+    settings: settingsPayload?.settings || {},
+    convertPairs: Array.isArray(convertPairsPayload?.pairs) ? convertPairsPayload.pairs : [],
+    convertOrders: Array.isArray(convertOrdersPayload?.orders) ? convertOrdersPayload.orders : [],
+    spotPairs: Array.isArray(spotPairsPayload?.pairs) ? spotPairsPayload.pairs : [],
+    spotOrders: Array.isArray(spotOrdersPayload?.orders) ? spotOrdersPayload.orders : [],
+    auditLogs: Array.isArray(auditPayload?.logs) ? auditPayload.logs : [],
+  };
+}
+
+function buildAssetCenterModel(
+  dashboardPayload,
+  walletsPayload,
+  withdrawalsPayload,
+  transfersPayload,
+  conversionsPayload,
+  settingsPayload,
+  auditPayload,
+) {
+  return {
+    dashboardSummary: dashboardPayload || {},
+    walletDesk: walletsPayload || { rows: [], pagination: { page: 1, limit: 30, total: 0, hasMore: false } },
+    walletDetail: {},
+    withdrawals: withdrawalsPayload || { rows: [], pagination: { page: 1, limit: 40, total: 0, hasMore: false } },
+    transfers: transfersPayload || { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+    conversions: conversionsPayload || { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+    settings: settingsPayload?.settings || {},
+    auditLogs: auditPayload || { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+  };
+}
+
 const DEFAULT_DASHBOARD = {
   metrics: [
     { key: "users", label: "Total Users", value: 0, icon: "fa-users", growth: "No pending KYC", tone: "blue", format: "number" },
@@ -550,6 +591,47 @@ const DEFAULT_BINARY_CENTER = {
   },
 };
 
+const DEFAULT_TRANSACTION_CENTER = {
+  summary: {
+    totalConvertPairs: 0,
+    enabledConvertPairs: 0,
+    totalSpotPairs: 0,
+    enabledSpotPairs: 0,
+    totalConvertOrders: 0,
+    completedConvertOrders: 0,
+    failedConvertOrders: 0,
+    cancelledConvertOrders: 0,
+    totalConvertVolume: 0,
+    totalConvertFee: 0,
+    totalSpotOrders: 0,
+    openSpotOrders: 0,
+    filledSpotOrders: 0,
+    cancelledSpotOrders: 0,
+    failedSpotOrders: 0,
+    totalSpotVolume: 0,
+    totalSpotFee: 0,
+    topPairs: [],
+    topUsers: [],
+  },
+  settings: {},
+  convertPairs: [],
+  convertOrders: [],
+  spotPairs: [],
+  spotOrders: [],
+  auditLogs: [],
+};
+
+const DEFAULT_ASSET_CENTER = {
+  dashboardSummary: {},
+  walletDesk: { rows: [], pagination: { page: 1, limit: 30, total: 0, hasMore: false } },
+  walletDetail: {},
+  withdrawals: { rows: [], pagination: { page: 1, limit: 40, total: 0, hasMore: false } },
+  transfers: { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+  conversions: { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+  settings: {},
+  auditLogs: { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+};
+
 export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth }) {
   const [mode, setMode] = useState("login");
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -568,6 +650,8 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [depositCenter, setDepositCenter] = useState(DEFAULT_DEPOSIT_CENTER);
   const [lumCenter, setLumCenter] = useState(DEFAULT_LUM_CENTER);
   const [binaryCenter, setBinaryCenter] = useState(DEFAULT_BINARY_CENTER);
+  const [transactionCenter, setTransactionCenter] = useState(DEFAULT_TRANSACTION_CENTER);
+  const [assetCenter, setAssetCenter] = useState(DEFAULT_ASSET_CENTER);
 
   const clearAuthFeedback = () => {
     setAuthError("");
@@ -651,6 +735,132 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
         setBinaryCenter(buildBinaryCenterModel(binarySummaryPayload, binaryPairsPayload, binaryRulesPayload, binaryTradesPayload, binarySettingsPayload));
       } catch {
         setBinaryCenter(DEFAULT_BINARY_CENTER);
+      }
+
+      try {
+        const [
+          transactionSummaryPayload,
+          transactionSettingsPayload,
+          transactionConvertPairsPayload,
+          transactionConvertOrdersPayload,
+          transactionSpotPairsPayload,
+          transactionSpotOrdersPayload,
+          transactionAuditPayload,
+        ] = await Promise.all([
+          authService.adminGetTransactionDashboardSummary({ sessionToken: snapshot.sessionToken }),
+          authService.adminGetTransactionEngineSettings({ sessionToken: snapshot.sessionToken }),
+          authService.adminListTransactionConvertPairs({ sessionToken: snapshot.sessionToken }),
+          authService.adminListTransactionConvertOrders({
+            sessionToken: snapshot.sessionToken,
+            status: "all",
+            pairCode: "",
+            userKeyword: "",
+            fromDate: "",
+            toDate: "",
+            page: 1,
+            limit: 500,
+          }),
+          authService.adminListTransactionSpotPairs({ sessionToken: snapshot.sessionToken }),
+          authService.adminListTransactionSpotOrders({
+            sessionToken: snapshot.sessionToken,
+            status: "all",
+            pairId: 0,
+            orderType: "all",
+            side: "all",
+            userKeyword: "",
+            fromDate: "",
+            toDate: "",
+            page: 1,
+            limit: 800,
+          }),
+          authService.adminListTransactionAuditLogs({ sessionToken: snapshot.sessionToken, page: 1, limit: 800 }),
+        ]);
+
+        setTransactionCenter(
+          buildTransactionCenterModel(
+            transactionSummaryPayload,
+            transactionSettingsPayload,
+            transactionConvertPairsPayload,
+            transactionConvertOrdersPayload,
+            transactionSpotPairsPayload,
+            transactionSpotOrdersPayload,
+            transactionAuditPayload,
+          ),
+        );
+      } catch {
+        setTransactionCenter(DEFAULT_TRANSACTION_CENTER);
+      }
+
+      try {
+        const [
+          assetDashboardPayload,
+          assetWalletsPayload,
+          assetWithdrawalsPayload,
+          assetTransfersPayload,
+          assetConversionsPayload,
+          assetSettingsPayload,
+          assetAuditPayload,
+        ] = await Promise.all([
+          authService.adminGetAssetsDashboardSummary({ sessionToken: snapshot.sessionToken }),
+          authService.adminListAssetsWallets({
+            sessionToken: snapshot.sessionToken,
+            wallet: "all",
+            userKeyword: "",
+            page: 1,
+            limit: 300,
+          }),
+          authService.adminListAssetsWithdrawals({
+            sessionToken: snapshot.sessionToken,
+            status: "all",
+            asset: "all",
+            network: "all",
+            wallet: "all",
+            userKeyword: "",
+            page: 1,
+            limit: 500,
+          }),
+          authService.adminListAssetsTransfers({
+            sessionToken: snapshot.sessionToken,
+            status: "all",
+            route: "all",
+            wallet: "all",
+            userKeyword: "",
+            page: 1,
+            limit: 500,
+          }),
+          authService.adminListAssetsConversions({
+            sessionToken: snapshot.sessionToken,
+            status: "all",
+            wallet: "all",
+            fromAsset: "all",
+            toAsset: "all",
+            userKeyword: "",
+            page: 1,
+            limit: 500,
+          }),
+          authService.adminGetAssetsSettings({ sessionToken: snapshot.sessionToken }),
+          authService.adminListAssetsAuditLogs({
+            sessionToken: snapshot.sessionToken,
+            actionType: "all",
+            keyword: "",
+            page: 1,
+            limit: 500,
+          }),
+        ]);
+
+        setAssetCenter(
+          buildAssetCenterModel(
+            assetDashboardPayload,
+            assetWalletsPayload,
+            assetWithdrawalsPayload,
+            assetTransfersPayload,
+            assetConversionsPayload,
+            assetSettingsPayload,
+            assetAuditPayload,
+          ),
+        );
+      } catch {
+        setAssetCenter(DEFAULT_ASSET_CENTER);
       }
     } catch (error) {
       setDashboardError(error.message || "Could not load admin dashboard data.");
@@ -944,6 +1154,287 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data?.data || data;
   }, [authService, loadAdminData]);
 
+  const saveTransactionEngineSettings = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveTransactionEngineSettings({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const createTransactionConvertPair = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCreateTransactionConvertPair({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateTransactionConvertPair = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateTransactionConvertPair({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const deleteTransactionConvertPair = useCallback(async ({ pairId, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminDeleteTransactionConvertPair({
+      sessionToken: snapshot.sessionToken,
+      pairId,
+      note,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const toggleTransactionConvertPairStatus = useCallback(async ({ pairId, isEnabled }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminToggleTransactionConvertPairStatus({
+      sessionToken: snapshot.sessionToken,
+      pairId,
+      isEnabled,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const pushTransactionConvertManualRate = useCallback(async ({ pairId, manualRate }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminPushTransactionConvertManualRate({
+      sessionToken: snapshot.sessionToken,
+      pairId,
+      manualRate,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const createTransactionSpotPair = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCreateTransactionSpotPair({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateTransactionSpotPair = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateTransactionSpotPair({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const deleteTransactionSpotPair = useCallback(async ({ pairId, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminDeleteTransactionSpotPair({
+      sessionToken: snapshot.sessionToken,
+      pairId,
+      note,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const toggleTransactionSpotPairStatus = useCallback(async ({ pairId, isEnabled }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminToggleTransactionSpotPairStatus({
+      sessionToken: snapshot.sessionToken,
+      pairId,
+      isEnabled,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const cancelTransactionSpotOrder = useCallback(async ({ orderId, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCancelTransactionSpotOrder({
+      sessionToken: snapshot.sessionToken,
+      orderId,
+      note,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const forceFillTransactionSpotOrder = useCallback(async ({ orderId, executionPrice, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminForceFillTransactionSpotOrder({
+      sessionToken: snapshot.sessionToken,
+      orderId,
+      executionPrice,
+      note,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const pushTransactionSpotManualTick = useCallback(async ({ pairId, price }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminPushTransactionSpotManualTick({
+      sessionToken: snapshot.sessionToken,
+      pairId,
+      price,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const saveTransactionSpotFeedSettings = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveTransactionSpotFeedSettings({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const loadAssetWalletDetail = useCallback(async ({ userId, wallet = "all", type = "all", page = 1, limit = 40 }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminGetAssetsWalletDetail({
+      sessionToken: snapshot.sessionToken,
+      userId,
+      wallet,
+      type,
+      page,
+      limit,
+    });
+    setAssetCenter((prev) => ({
+      ...prev,
+      walletDetail: data || {},
+    }));
+    return data;
+  }, [authService]);
+
+  const adjustAssetWallet = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminAdjustAssetsWallet({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const freezeAssetWallet = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminFreezeAssetsWallet({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const reviewAssetWithdrawal = useCallback(async ({ withdrawalId, withdrawalRef, decision, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminReviewAssetsWithdrawal({
+      sessionToken: snapshot.sessionToken,
+      withdrawalId,
+      withdrawalRef,
+      decision,
+      note,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const completeAssetWithdrawal = useCallback(async ({ withdrawalId, withdrawalRef, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCompleteAssetsWithdrawal({
+      sessionToken: snapshot.sessionToken,
+      withdrawalId,
+      withdrawalRef,
+      note,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const saveAssetSettings = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveAssetsSettings({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
   useEffect(() => {
     refreshAdminSession();
   }, [refreshAdminSession]);
@@ -1003,6 +1494,8 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       setDepositCenter(DEFAULT_DEPOSIT_CENTER);
       setLumCenter(DEFAULT_LUM_CENTER);
       setBinaryCenter(DEFAULT_BINARY_CENTER);
+      setTransactionCenter(DEFAULT_TRANSACTION_CENTER);
+      setAssetCenter(DEFAULT_ASSET_CENTER);
       clearAuthFeedback();
     }
   };
@@ -1042,6 +1535,8 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       depositCenter={depositCenter}
       lumCenter={lumCenter}
       binaryCenter={binaryCenter}
+      transactionCenter={transactionCenter}
+      assetCenter={assetCenter}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
       onRefresh={loadAdminData}
@@ -1070,6 +1565,26 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onCancelBinaryTrade={cancelBinaryTrade}
       onSaveBinaryEngineSettings={saveBinaryEngineSettings}
       onPushBinaryManualTick={pushBinaryManualTick}
+      onSaveTransactionEngineSettings={saveTransactionEngineSettings}
+      onCreateTransactionConvertPair={createTransactionConvertPair}
+      onUpdateTransactionConvertPair={updateTransactionConvertPair}
+      onDeleteTransactionConvertPair={deleteTransactionConvertPair}
+      onToggleTransactionConvertPairStatus={toggleTransactionConvertPairStatus}
+      onPushTransactionConvertManualRate={pushTransactionConvertManualRate}
+      onCreateTransactionSpotPair={createTransactionSpotPair}
+      onUpdateTransactionSpotPair={updateTransactionSpotPair}
+      onDeleteTransactionSpotPair={deleteTransactionSpotPair}
+      onToggleTransactionSpotPairStatus={toggleTransactionSpotPairStatus}
+      onCancelTransactionSpotOrder={cancelTransactionSpotOrder}
+      onForceFillTransactionSpotOrder={forceFillTransactionSpotOrder}
+      onPushTransactionSpotManualTick={pushTransactionSpotManualTick}
+      onSaveTransactionSpotFeedSettings={saveTransactionSpotFeedSettings}
+      onLoadAssetWalletDetail={loadAssetWalletDetail}
+      onAdjustAssetWallet={adjustAssetWallet}
+      onFreezeAssetWallet={freezeAssetWallet}
+      onReviewAssetWithdrawal={reviewAssetWithdrawal}
+      onCompleteAssetWithdrawal={completeAssetWithdrawal}
+      onSaveAssetSettings={saveAssetSettings}
     />
   );
 }

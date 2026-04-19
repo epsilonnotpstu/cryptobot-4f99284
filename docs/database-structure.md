@@ -1,6 +1,6 @@
 # Project Database Structure
 
-_Last updated: 2026-04-10_
+_Last updated: 2026-04-19_
 
 ## Overview
 This file documents the full database structure used by CryptoBot (web/app auth, KYC, deposits, wallet, and admin panel).
@@ -234,6 +234,304 @@ Columns:
 - `note`
 - `created_at`
 
+## Assets Module Tables
+
+### `wallet_transfer_requests`
+Internal wallet reallocation requests (Spot/Main/Binary transfer flow).
+
+Columns:
+- `id` INTEGER PK
+- `transfer_ref` TEXT UNIQUE
+- `user_id` TEXT
+- `from_wallet_symbol` TEXT
+- `to_wallet_symbol` TEXT
+- `asset_symbol` TEXT (default `USDT`)
+- `amount_usd` REAL
+- `status` TEXT (`completed`, `cancelled`, `failed`)
+- `note` TEXT nullable
+- `created_at` TEXT
+- `updated_at` TEXT
+
+### `wallet_conversion_requests`
+In-wallet asset conversion records (e.g., BTC -> USDT within same wallet scope).
+
+Columns:
+- `id` INTEGER PK
+- `conversion_ref` TEXT UNIQUE
+- `user_id` TEXT
+- `wallet_symbol` TEXT
+- `from_asset_symbol` TEXT
+- `to_asset_symbol` TEXT
+- `source_amount` REAL
+- `rate_snapshot` REAL
+- `converted_amount` REAL
+- `fee_amount` REAL (default `0`)
+- `status` TEXT (`completed`, `cancelled`, `failed`)
+- `note` TEXT nullable
+- `created_at` TEXT
+- `updated_at` TEXT
+
+### `withdrawal_requests`
+User withdrawal request lifecycle table.
+
+Columns:
+- `id` INTEGER PK
+- `withdrawal_ref` TEXT UNIQUE
+- `user_id` TEXT
+- `wallet_symbol` TEXT (default `SPOT_USDT`)
+- `asset_symbol` TEXT
+- `network_type` TEXT nullable
+- `destination_address` TEXT nullable
+- `destination_label` TEXT nullable
+- `amount_usd` REAL
+- `fee_amount_usd` REAL (default `0`)
+- `net_amount_usd` REAL
+- `status` TEXT (`pending`, `approved`, `rejected`, `processing`, `completed`, `cancelled`)
+- `note` TEXT nullable
+- `submitted_at` TEXT
+- `reviewed_at` TEXT nullable
+- `reviewed_by` TEXT nullable
+- `completed_at` TEXT nullable
+- `created_at` TEXT
+- `updated_at` TEXT
+
+### `asset_wallet_ledger`
+Unified wallet movement ledger for cross-module wallet visibility.
+
+Columns:
+- `id` INTEGER PK
+- `user_id` TEXT
+- `ledger_ref_type` TEXT (examples: `deposit_approval`, `withdraw_request`, `withdraw_approved`, `wallet_transfer`, `wallet_convert`, `binary_settlement`, `lum_lock`, `lum_unlock`)
+- `ledger_ref_id` TEXT nullable
+- `wallet_symbol` TEXT
+- `asset_symbol` TEXT (default `USDT`)
+- `movement_type` TEXT (`credit`, `debit`, `lock`, `unlock`)
+- `amount_usd` REAL
+- `balance_before_usd` REAL nullable
+- `balance_after_usd` REAL nullable
+- `note` TEXT nullable
+- `created_at` TEXT
+- `created_by` TEXT nullable
+
+### `asset_admin_audit_logs`
+Admin audit trail for sensitive asset management actions.
+
+Columns:
+- `id` INTEGER PK
+- `admin_user_id` TEXT
+- `action_type` TEXT
+- `target_type` TEXT
+- `target_id` TEXT
+- `note` TEXT nullable
+- `created_at` TEXT
+
+### `asset_module_settings`
+Single-row settings table for wallet controls, transfer permissions, conversion permissions, and withdraw constraints.
+
+Columns:
+- `id` INTEGER PK CHECK (`id = 1`)
+- `deposits_credit_wallet_symbol` TEXT (default `SPOT_USDT`)
+- `withdrawals_enabled` INTEGER (`0/1`)
+- `withdraw_allowed_from_spot` INTEGER (`0/1`)
+- `withdraw_allowed_from_main` INTEGER (`0/1`)
+- `withdraw_allowed_from_binary` INTEGER (`0/1`)
+- `min_withdraw_usd` REAL
+- `max_withdraw_usd` REAL nullable
+- `withdraw_fee_percent` REAL
+- `supported_withdraw_assets_json` TEXT (JSON array)
+- `withdraw_network_map_json` TEXT (JSON object)
+- `transfers_enabled` INTEGER (`0/1`)
+- `convert_enabled` INTEGER (`0/1`)
+- `convert_fee_percent` REAL
+- `conversion_pairs_json` TEXT (JSON array; empty means unrestricted)
+- `allow_spot_to_binary` INTEGER (`0/1`)
+- `allow_binary_to_spot` INTEGER (`0/1`)
+- `allow_spot_to_main` INTEGER (`0/1`)
+- `allow_main_to_spot` INTEGER (`0/1`)
+- `allow_main_to_binary` INTEGER (`0/1`)
+- `allow_binary_to_main` INTEGER (`0/1`)
+- `auto_create_wallet_details` INTEGER (`0/1`)
+- `wallet_freeze_enabled` INTEGER (`0/1`)
+- `created_at` TEXT
+- `updated_at` TEXT
+- `updated_by` TEXT nullable
+
+### `wallet_freeze_rules`
+Per-user per-wallet freeze policy table to block deposit/withdraw/transfer/convert at API level.
+
+Columns:
+- `id` INTEGER PK
+- `user_id` TEXT
+- `wallet_symbol` TEXT
+- `freeze_deposit` INTEGER (`0/1`)
+- `freeze_withdraw` INTEGER (`0/1`)
+- `freeze_transfer` INTEGER (`0/1`)
+- `freeze_convert` INTEGER (`0/1`)
+- `note` TEXT nullable
+- `created_at` TEXT
+- `updated_at` TEXT
+- `updated_by` TEXT nullable
+- UNIQUE(`user_id`, `wallet_symbol`)
+
+## Transaction Module Tables
+
+### `convert_pairs`
+User convert market pair configuration.
+
+Columns:
+- `id` INTEGER PK
+- `pair_code` TEXT UNIQUE
+- `display_name` TEXT
+- `from_asset`, `to_asset`
+- `rate_source_type` (`internal_feed`, `external_api`, `manual_admin_feed`)
+- `source_symbol`
+- `min_amount_usd`, `max_amount_usd`
+- `fee_percent`, `spread_percent`, `fixed_fee_usd`
+- `manual_rate` REAL nullable
+- `is_enabled`, `display_sort_order`
+- `created_at`, `updated_at`, `created_by`, `updated_by`
+
+### `convert_orders`
+Completed/failed/cancelled conversion history table.
+
+Columns:
+- `id` INTEGER PK
+- `convert_ref` TEXT UNIQUE
+- `user_id`
+- `convert_pair_id`
+- pair snapshots (`pair_code_snapshot`, `display_name_snapshot`, `from_asset_snapshot`, `to_asset_snapshot`)
+- `from_amount`
+- `raw_rate`, `applied_rate`
+- `fee_amount`, `receive_amount`
+- `status` (`pending`, `completed`, `failed`, `cancelled`)
+- `note`
+- `created_at`, `completed_at`, `updated_at`
+
+### `convert_wallet_ledger`
+Wallet movement entries created by convert actions.
+
+Columns:
+- `id` INTEGER PK
+- `user_id`
+- `convert_id`
+- `ledger_type`
+- `asset_symbol`
+- `amount`
+- `balance_before`, `balance_after`
+- `note`
+- `created_at`, `created_by`
+
+### `convert_admin_audit_logs`
+Admin audit logs for convert pair/rate/settings actions.
+
+Columns:
+- `id` INTEGER PK
+- `admin_user_id`
+- `action_type`
+- `target_type`
+- `target_id`
+- `note`
+- `created_at`
+
+### `spot_pairs`
+Spot trading pair configuration table.
+
+Columns:
+- `id` INTEGER PK
+- `pair_code` TEXT UNIQUE
+- `display_name`
+- `base_asset`, `quote_asset`
+- `price_source_type`, `source_symbol`
+- `current_price`, `previous_price`
+- `price_precision`, `quantity_precision`
+- `min_order_size`, `max_order_size`
+- `maker_fee_percent`, `taker_fee_percent`
+- `is_enabled`, `is_featured`, `display_sort_order`
+- `created_at`, `updated_at`, `created_by`, `updated_by`
+
+### `spot_price_ticks`
+Spot market tick history.
+
+Columns:
+- `id` INTEGER PK
+- `pair_id`
+- `price`
+- `tick_time`
+- `source_type`
+- `created_at`
+
+### `spot_orders`
+User spot order table.
+
+Columns:
+- `id` INTEGER PK
+- `order_ref` TEXT UNIQUE
+- `user_id`, `pair_id`
+- pair snapshots (`pair_code_snapshot`, `pair_display_name_snapshot`, `base_asset_snapshot`, `quote_asset_snapshot`)
+- `side` (`buy`, `sell`)
+- `order_type` (`market`, `limit`)
+- `price`, `quantity`
+- `filled_quantity`, `avg_fill_price`
+- `quote_amount`, `fee_amount`, `fee_asset`
+- `status` (`open`, `partially_filled`, `filled`, `cancelled`, `rejected`, `error`)
+- `locked_asset_symbol`, `locked_amount`
+- `note`
+- `created_at`, `updated_at`, `filled_at`, `cancelled_at`
+
+### `spot_trades`
+Execution records generated from filled spot orders.
+
+Columns:
+- `id` INTEGER PK
+- `trade_ref` TEXT UNIQUE
+- `order_id`, `user_id`, `pair_id`
+- `pair_code_snapshot`
+- `side`
+- `execution_price`, `execution_quantity`
+- `quote_total`
+- `fee_amount`, `fee_asset`
+- `created_at`
+
+### `spot_wallet_ledger`
+Wallet movement ledger for spot order lock/unlock/fill events.
+
+Columns:
+- `id` INTEGER PK
+- `user_id`
+- `order_id` nullable
+- `trade_id` nullable
+- `ledger_type`
+- `asset_symbol`
+- `amount`
+- `balance_before`, `balance_after`
+- `note`
+- `created_at`, `created_by`
+
+### `spot_admin_audit_logs`
+Admin audit logs for spot pair/order/feed actions.
+
+Columns:
+- `id` INTEGER PK
+- `admin_user_id`
+- `action_type`
+- `target_type`
+- `target_id`
+- `note`
+- `created_at`
+
+### `transaction_engine_settings`
+Singleton (`id = 1`) transaction runtime control table.
+
+Columns:
+- `transaction_module_enabled`, `convert_enabled`, `spot_enabled`
+- `maintenance_mode_enabled`, `maintenance_message`
+- `emergency_freeze_enabled`
+- default fee/size config (`default_convert_fee_percent`, `default_convert_spread_percent`, `default_fixed_convert_fee_usd`, `default_maker_fee_percent`, `default_taker_fee_percent`, `default_min_order_size`, `default_max_order_size`)
+- `manual_rate_mode_enabled`, `manual_price_mode_enabled`
+- account guard flags (`require_active_account_only`, `block_suspended_users`, `block_banned_users`)
+- `kyc_required_above_amount_usd` nullable
+- `updated_at`, `updated_by`
+
 ## Binary Options Tables
 
 ### `binary_pairs`
@@ -377,9 +675,39 @@ The project now supports three logical wallet symbols for app trading flows:
 
 `user_wallet_balance_details` holds precise `available_usd` and `locked_usd`.
 `user_wallet_balances.total_usd` is kept synchronized as `available + locked` for dashboard compatibility.
-- `kycSubmissionCount`
-- `latestKycSubmissionStatus`
-- `kycStage` (`not_submitted`, `submitted_pending`, `authenticated`)
+- Assets transfer/convert/withdraw operations are executed in DB transactions and append corresponding rows in `asset_wallet_ledger`.
+- Approved deposits continue to credit `SPOT_USDT` and are reflected in assets summary distribution.
+- Transaction wallet snapshots aggregate alias symbols before response (`SPOTUSDT` + `SPOT_USDT`) to avoid inconsistent available balance display.
+- Spot/convert pricing now auto-refreshes stale tick timestamps from the latest known pair price to keep user transaction flow operational.
+
+### Assets user routes
+Assets module exposes:
+- `GET /api/assets/summary`
+- `GET /api/assets/wallets`
+- `GET /api/assets/history`
+- `POST /api/assets/transfer`
+- `POST /api/assets/convert`
+- `GET /api/assets/withdraw/config`
+- `POST /api/assets/withdraw`
+- `GET /api/assets/withdrawals`
+- `GET /api/assets/transfers`
+- `GET /api/assets/conversions`
+
+### Transaction user routes
+Transaction module exposes:
+- `GET /api/transaction/convert/pairs`
+- `POST /api/transaction/convert/quote`
+- `POST /api/transaction/convert/submit`
+- `GET /api/transaction/convert/history`
+- `GET /api/transaction/spot/pairs`
+- `GET /api/transaction/spot/market-summary`
+- `GET /api/transaction/spot/ticks`
+- `GET /api/transaction/spot/recent-trades`
+- `POST /api/transaction/spot/order/place`
+- `GET /api/transaction/spot/orders/open`
+- `GET /api/transaction/spot/orders/history`
+- `POST /api/transaction/spot/order/cancel`
+- `GET /api/transaction/spot/orderbook`
 
 ### KYC queue (admin)
 `admin.kyc.list` returns:
@@ -446,4 +774,13 @@ Binary admin integration changes:
 - Binary engine runtime update (no schema change):
   - `internal_tick`: server generates continuous random-walk ticks.
   - `external_price_sync`: server attempts Binance live price sync per pair (`source_symbol`/`pair_code`) and falls back safely when a symbol is unavailable.
-  - `manual_admin_tick`: server keeps last chart state and only updates when admin pushes manual ticks.
+- `manual_admin_tick`: server keeps last chart state and only updates when admin pushes manual ticks.
+
+Assets integration changes:
+- Added assets backend module: `server/assets-module.js`.
+- Added new DB tables:
+  - `wallet_transfer_requests`
+  - `wallet_conversion_requests`
+  - `withdrawal_requests`
+  - `asset_wallet_ledger`
+- Added user-level assets API endpoints under `/api/assets/*`.
