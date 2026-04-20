@@ -9,6 +9,7 @@ import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { OAuth2Client } from "google-auth-library";
+import { list as listBlobFiles, put as putBlobFile } from "@vercel/blob";
 import { createLumModule } from "./lum-module.js";
 import { createBinaryModule } from "./binary-module.js";
 import { createTransactionModule } from "./transaction-module.js";
@@ -32,16 +33,93 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const isVercelRuntime = process.env.VERCEL === "1";
+const blobReadWriteToken = process.env.BLOB_READ_WRITE_TOKEN || "";
+const shouldUseBlobDbSync = isVercelRuntime && Boolean(blobReadWriteToken);
+const blobDbPathname = "state/auth.sqlite";
+const bundledDataDir = path.join(rootDir, "server", "data");
 const dataDir = process.env.AUTH_DATA_DIR
   ? path.resolve(process.env.AUTH_DATA_DIR)
   : isVercelRuntime
     ? path.join("/tmp", "cryptobot2-auth-data")
-    : path.join(rootDir, "server", "data");
+    : bundledDataDir;
 
 fs.mkdirSync(dataDir, { recursive: true });
 
-const db = new Database(path.join(dataDir, "auth.sqlite"));
-db.pragma("journal_mode = WAL");
+const dbPath = path.join(dataDir, "auth.sqlite");
+let restoredFromBlob = false;
+
+function bootstrapVercelDataSnapshotIfNeeded() {
+  if (!isVercelRuntime || process.env.AUTH_DATA_DIR) {
+    return;
+  }
+
+  if (fs.existsSync(dbPath)) {
+    return;
+  }
+
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const sourcePath = path.join(bundledDataDir, `auth.sqlite${suffix}`);
+    const targetPath = path.join(dataDir, `auth.sqlite${suffix}`);
+    if (!fs.existsSync(sourcePath)) {
+      continue;
+    }
+    try {
+      fs.copyFileSync(sourcePath, targetPath);
+    } catch {
+      // Ignore snapshot copy issues; schema bootstrap below can still initialize a new DB.
+    }
+  }
+}
+
+async function restoreDbFromBlobIfAvailable() {
+  if (!shouldUseBlobDbSync) {
+    return;
+  }
+
+  try {
+    const { blobs } = await listBlobFiles({
+      token: blobReadWriteToken,
+      prefix: blobDbPathname,
+      limit: 5,
+    });
+    const latestBlob = (blobs || []).find((item) => item.pathname === blobDbPathname) || null;
+    if (!latestBlob?.url) {
+      return;
+    }
+
+    const response = await fetch(latestBlob.url);
+    if (!response.ok) {
+      return;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    fs.writeFileSync(dbPath, Buffer.from(arrayBuffer));
+    restoredFromBlob = true;
+  } catch {
+    // Ignore blob restore errors and continue with local snapshot fallback.
+  }
+}
+
+async function persistDbToBlob() {
+  if (!shouldUseBlobDbSync || !fs.existsSync(dbPath)) {
+    return;
+  }
+
+  const dbBuffer = fs.readFileSync(dbPath);
+  await putBlobFile(blobDbPathname, dbBuffer, {
+    token: blobReadWriteToken,
+    access: "private",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "application/octet-stream",
+  });
+}
+
+bootstrapVercelDataSnapshotIfNeeded();
+await restoreDbFromBlobIfAvailable();
+
+const db = new Database(dbPath);
+db.pragma(shouldUseBlobDbSync ? "journal_mode = DELETE" : "journal_mode = WAL");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -868,6 +946,43 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "20mb" }));
 
+function getDbTotalChanges() {
+  try {
+    return Number(db.prepare("SELECT total_changes() AS total").get()?.total || 0);
+  } catch {
+    return 0;
+  }
+}
+
+if (shouldUseBlobDbSync) {
+  app.use((req, res, next) => {
+    const totalChangesBefore = getDbTotalChanges();
+    const originalSend = res.send.bind(res);
+    let persisted = false;
+
+    res.send = function patchedSend(...args) {
+      if (persisted) {
+        return originalSend(...args);
+      }
+
+      const totalChangesAfter = getDbTotalChanges();
+      if (totalChangesAfter > totalChangesBefore) {
+        persisted = true;
+        return persistDbToBlob()
+          .catch(() => {
+            // Continue response even if blob persistence fails.
+          })
+          .then(() => originalSend(...args));
+      }
+
+      persisted = true;
+      return originalSend(...args);
+    };
+
+    next();
+  });
+}
+
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
 const APP_NAME = process.env.APP_NAME || "CryptoBot Prime";
@@ -974,6 +1089,88 @@ function generateOtp() {
 
 function generateOpaqueToken() {
   return crypto.randomBytes(32).toString("hex");
+}
+
+function encodeBase64Url(value = "") {
+  return Buffer.from(String(value), "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodeBase64Url(value = "") {
+  if (!value) {
+    return "";
+  }
+  const normalized = String(value).replace(/-/g, "+").replace(/_/g, "/");
+  const paddingLength = normalized.length % 4 === 0 ? 0 : 4 - (normalized.length % 4);
+  const padded = normalized + "=".repeat(paddingLength);
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function createSessionFingerprint(user = {}) {
+  const seed = `${user.user_id || ""}:${user.password_hash || ""}:${user.account_role || ""}:${user.account_status || ""}`;
+  return createHash(seed).slice(0, 24);
+}
+
+function signSessionPayload(encodedPayload = "") {
+  return crypto.createHmac("sha256", HASH_SECRET).update(encodedPayload).digest("hex");
+}
+
+function createStatelessSessionToken({ user, expiresAt }) {
+  const payload = {
+    v: 1,
+    uid: user.user_id || "",
+    exp: expiresAt,
+    fp: createSessionFingerprint(user),
+  };
+  const encodedPayload = encodeBase64Url(JSON.stringify(payload));
+  const signature = signSessionPayload(encodedPayload);
+  return `cbs.${encodedPayload}.${signature}`;
+}
+
+function parseStatelessSessionToken(sessionToken = "") {
+  const trimmed = String(sessionToken || "").trim();
+  if (!trimmed.startsWith("cbs.")) {
+    return null;
+  }
+
+  const parts = trimmed.split(".");
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [, encodedPayload, signature] = parts;
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  const expectedSignature = signSessionPayload(encodedPayload);
+  const expectedBuffer = Buffer.from(expectedSignature, "hex");
+  const receivedBuffer = Buffer.from(signature, "hex");
+  if (expectedBuffer.length !== receivedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(decodeBase64Url(encodedPayload));
+    if (
+      Number(payload?.v) !== 1 ||
+      !payload?.uid ||
+      !payload?.exp ||
+      typeof payload?.fp !== "string"
+    ) {
+      return null;
+    }
+    return {
+      userId: String(payload.uid),
+      expiresAt: String(payload.exp),
+      fingerprint: String(payload.fp),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function isExpired(isoDate) {
@@ -2090,14 +2287,25 @@ function createUniqueUserId() {
 }
 
 function createSessionForUser(userId) {
-  const sessionToken = generateOpaqueToken();
+  const user = findUserByUserIdStatement.get(userId);
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
   const createdAt = getNow();
-  insertSessionStatement.run({
-    userId,
-    sessionTokenHash: createHash(sessionToken),
-    expiresAt: toIso(addDays(createdAt, SESSION_TTL_DAYS)),
-    createdAt: toIso(createdAt),
-  });
+  const expiresAt = toIso(addDays(createdAt, SESSION_TTL_DAYS));
+  const sessionToken = createStatelessSessionToken({ user, expiresAt });
+
+  try {
+    insertSessionStatement.run({
+      userId,
+      sessionTokenHash: createHash(sessionToken),
+      expiresAt,
+      createdAt: toIso(createdAt),
+    });
+  } catch {
+    // Stateless token auth keeps working even if session-table writes are unavailable.
+  }
   return sessionToken;
 }
 
@@ -2127,14 +2335,40 @@ function requireSession(req, res, next) {
   }
 
   cleanupExpiredRecords();
+
   const session = findSessionStatement.get(createHash(sessionToken));
-  if (!session || isExpired(session.session_expires_at)) {
+  if (session && !isExpired(session.session_expires_at)) {
+    req.currentUser = {
+      ...buildUserPayload(session),
+    };
+    req.sessionToken = sessionToken;
+    next();
+    return;
+  }
+
+  const parsedToken = parseStatelessSessionToken(sessionToken);
+  if (!parsedToken || isExpired(parsedToken.expiresAt)) {
+    res.status(401).json({ error: "Session expired. Please login again." });
+    return;
+  }
+
+  const user = findUserByUserIdStatement.get(parsedToken.userId);
+  if (!user) {
+    res.status(401).json({ error: "Session expired. Please login again." });
+    return;
+  }
+
+  const expectedFingerprint = createSessionFingerprint(user);
+  if (expectedFingerprint !== parsedToken.fingerprint) {
     res.status(401).json({ error: "Session expired. Please login again." });
     return;
   }
 
   req.currentUser = {
-    ...buildUserPayload(session),
+    ...buildUserPayload({
+      ...user,
+      is_session_active: 1,
+    }),
   };
   req.sessionToken = sessionToken;
   next();
@@ -4133,6 +4367,14 @@ app.post("/api/admin/transaction/spot/order/force-fill", requireAdminSession, ha
 app.post("/api/admin/transaction/spot/manual-tick/push", requireAdminSession, handleAdminTransactionSpotManualTickPush);
 app.post("/api/admin/transaction/spot/feed-settings/save", requireAdminSession, handleAdminTransactionSpotFeedSettingsSave);
 app.get("/api/admin/transaction/audit", requireAdminSession, handleAdminTransactionAuditList);
+
+if (shouldUseBlobDbSync && !restoredFromBlob) {
+  try {
+    await persistDbToBlob();
+  } catch {
+    // Ignore initial persistence failures and keep runtime functional.
+  }
+}
 
 const isExecutedDirectly = (() => {
   if (!process.argv[1]) {
