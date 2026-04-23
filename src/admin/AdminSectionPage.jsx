@@ -1550,6 +1550,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       const data = await authService.adminSignup({ name, email, phone, password });
       storeAdminSession({ user: data?.user, sessionToken: data?.sessionToken });
       setAdminSnapshot(readAdminSnapshot());
+      setActiveSection("dashboard");
       setAuthNotice(data?.message || "Admin account created successfully.");
     } catch (error) {
       setAuthError(error.message || "Admin signup failed.");
@@ -1565,6 +1566,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       const data = await authService.adminLogin({ email, password });
       storeAdminSession({ user: data?.user, sessionToken: data?.sessionToken });
       setAdminSnapshot(readAdminSnapshot());
+      setActiveSection("dashboard");
       setAuthNotice(data?.message || "Admin login successful.");
     } catch (error) {
       setAuthError(error.message || "Admin login failed.");

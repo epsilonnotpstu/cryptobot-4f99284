@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
+import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function toNumber(value, fallback = 0) {
   const numeric = Number(value);
@@ -1017,6 +1020,17 @@ export default function AssetManagementPage({
 
   return (
     <section className="adminx-tx-root adminx-asset-root">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.assetCenter.icon}
+        title={ADMIN_SECTION_META.assetCenter.title}
+        description={ADMIN_SECTION_META.assetCenter.description}
+        stats={[
+          { label: "Wallet Rows", value: formatCompactNumber(walletDesk?.pagination?.total || 0) },
+          { label: "Withdrawals", value: formatCompactNumber(withdrawals?.pagination?.total || 0) },
+          { label: "Transfers", value: formatCompactNumber(transfers?.pagination?.total || 0) },
+        ]}
+      />
+
       <div className="adminx-tx-head">
         <div className="adminx-tab-row">
           {ASSET_TABS.map((item) => (

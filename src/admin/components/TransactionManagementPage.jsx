@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
+import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function toNumber(value, fallback = 0) {
   const numeric = Number(value);
@@ -547,6 +550,17 @@ export default function TransactionManagementPage({
 
   return (
     <section className="adminx-panel adminx-tx-root">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.transactionCenter.icon}
+        title={ADMIN_SECTION_META.transactionCenter.title}
+        description={ADMIN_SECTION_META.transactionCenter.description}
+        stats={[
+          { label: "Convert Orders", value: formatCompactNumber(summary?.totalConvertOrders || 0) },
+          { label: "Spot Orders", value: formatCompactNumber(summary?.totalSpotOrders || 0) },
+          { label: "Open Spot", value: formatCompactNumber(summary?.openSpotOrders || 0) },
+        ]}
+      />
+
       <div className="adminx-panel-head adminx-tx-head">
         <h2>Transaction Management</h2>
         <div className="adminx-profile-actions">

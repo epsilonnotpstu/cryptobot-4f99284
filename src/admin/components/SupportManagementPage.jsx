@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
+import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function toNumber(value, fallback = 0) {
   const numeric = Number(value);
@@ -565,6 +568,17 @@ export default function SupportManagementPage({
 
   return (
     <section className="adminx-panel adminx-support-root">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.supportCenter.icon}
+        title={ADMIN_SECTION_META.supportCenter.title}
+        description={ADMIN_SECTION_META.supportCenter.description}
+        stats={[
+          { label: "Tickets", value: formatCompactNumber(summary?.totalTickets || 0) },
+          { label: "Pending Admin", value: formatCompactNumber(summary?.pendingAdminTickets || 0) },
+          { label: "Unread", value: formatCompactNumber(summary?.unreadForAdmin || 0) },
+        ]}
+      />
+
       <div className="adminx-panel-head adminx-tx-head">
         <h2>Support Management</h2>
         <div className="adminx-profile-actions">

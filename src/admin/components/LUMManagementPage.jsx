@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
 import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function normalizeText(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -395,6 +397,17 @@ export default function LUMManagementPage({
 
   return (
     <section className="adminx-users-shell">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.lumCenter.icon}
+        title={ADMIN_SECTION_META.lumCenter.title}
+        description={ADMIN_SECTION_META.lumCenter.description}
+        stats={[
+          { label: "Plans", value: formatCompactNumber(summary?.totalPlans || 0) },
+          { label: "Investments", value: formatCompactNumber(summary?.totalInvestments || 0) },
+          { label: "Pending", value: formatCompactNumber(summary?.pendingCount || 0) },
+        ]}
+      />
+
       <section className="adminx-kpi-grid adminx-lum-kpi-grid">
         <article className="adminx-kpi-card">
           <div className="adminx-kpi-top">

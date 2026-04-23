@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { GoogleLogin } from "@react-oauth/google";
+import { Component, useEffect, useRef, useState } from "react";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import PremiumDashboardPage from "./features/dashboard/PremiumDashboardPage";
@@ -17,6 +17,29 @@ const ROUTES = {
   admin: "/admin",
   app: "/app",
 };
+
+class GoogleAuthRenderBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    // eslint-disable-next-line no-console
+    console.error("[auth-ui] Google auth render failed:", error?.message || error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || null;
+    }
+    return this.props.children;
+  }
+}
 
 function sanitizeEnvValue(value = "") {
   return String(value)
@@ -48,6 +71,7 @@ const AUTH_STORAGE_KEYS = {
 
 const AUTH_REQUEST_TIMEOUT_MS = 5000;
 const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
+const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
 const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
   import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "cryptobotprime://auth-callback",
 );
@@ -2183,15 +2207,46 @@ function AuthForms({ flow, classes }) {
   const isForgotOtp = flow.view === "forgotOtp";
   const isForgotReset = flow.view === "forgotReset";
   const isNativeRuntime = isNativeAppRuntime();
+  const [runtimeGoogleClientId, setRuntimeGoogleClientId] = useState("");
   const hashState = parseHashRouteState();
   const query = hashState.query;
   const hasNativeGoogleUrl = hasValidHttpsPublicAuthBase();
+  const effectiveGoogleClientId = runtimeGoogleClientId || GOOGLE_WEB_CLIENT_ID;
+  const canRenderGoogleWebButton = Boolean(effectiveGoogleClientId);
   const nativeBridgeCallback = query.get("native_callback") || "";
   const nativeBridgeState = query.get("state") || "";
   const isNativeBridgeRequest =
     !isNativeRuntime && query.get("provider") === "google" && query.get("native") === "1" && Boolean(nativeBridgeCallback);
   const googleButtonText = isSignup ? "Sign up with Google" : "Continue with Google";
   const googleErrorText = isSignup ? "Google signup failed." : "Google login failed.";
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    if (isNativeRuntime || GOOGLE_WEB_CLIENT_ID) {
+      return () => {
+        isDisposed = true;
+      };
+    }
+
+    (async () => {
+      try {
+        const data = await requestAuth("/api/auth/public-config");
+        const runtimeClientId = sanitizeEnvValue(data?.googleClientId || "");
+        if (!isDisposed) {
+          setRuntimeGoogleClientId(runtimeClientId);
+        }
+      } catch {
+        if (!isDisposed) {
+          setRuntimeGoogleClientId("");
+        }
+      }
+    })();
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [isNativeRuntime]);
 
   const returnNativeGoogleResult = (payload) => {
     if (!isNativeBridgeRequest) {
@@ -2242,31 +2297,52 @@ function AuthForms({ flow, classes }) {
           </button>
         ) : (
           <div className="auth-google-button">
-            <GoogleLogin
-              theme="outline"
-              size="large"
-              shape="pill"
-              text={isSignup ? "signup_with" : "continue_with"}
-              width="320"
-              logo_alignment="left"
-              onSuccess={(credentialResponse) => {
-                const token = credentialResponse?.credential;
-                if (!token) {
-                  flow.setError(`${googleErrorText} Missing token from Google response.`);
-                  return;
+            {canRenderGoogleWebButton ? (
+              <GoogleAuthRenderBoundary
+                fallback={
+                  <p className="mobile-auth-notice">
+                    Google sign-in temporarily unavailable. Email/Password login use করো, অথবা page refresh করে আবার try করো।
+                  </p>
                 }
-                if (returnNativeGoogleResult({ provider: "google", token })) {
-                  return;
-                }
-                flow.handleGoogleAuth(token);
-              }}
-              onError={() => {
-                if (returnNativeGoogleResult({ provider: "google", error: "Google authentication failed." })) {
-                  return;
-                }
-                flow.setError(`${googleErrorText} Check Google client origin setup and try again.`);
-              }}
-            />
+              >
+                <GoogleOAuthProvider clientId={effectiveGoogleClientId}>
+                  <GoogleLogin
+                    theme="outline"
+                    size="large"
+                    shape="pill"
+                    text={isSignup ? "signup_with" : "continue_with"}
+                    width="320"
+                    logo_alignment="left"
+                    onSuccess={(credentialResponse) => {
+                      const token = credentialResponse?.credential;
+                      if (!token) {
+                        flow.setError(`${googleErrorText} Missing token from Google response.`);
+                        return;
+                      }
+                      if (returnNativeGoogleResult({ provider: "google", token })) {
+                        return;
+                      }
+                      flow.handleGoogleAuth(token);
+                    }}
+                    onError={() => {
+                      if (
+                        returnNativeGoogleResult({
+                          provider: "google",
+                          error: "Google authentication failed.",
+                        })
+                      ) {
+                        return;
+                      }
+                      flow.setError(`${googleErrorText} Check Google client origin setup and try again.`);
+                    }}
+                  />
+                </GoogleOAuthProvider>
+              </GoogleAuthRenderBoundary>
+            ) : (
+              <p className="mobile-auth-notice">
+                Google sign-in is বর্তমানে disabled. `VITE_GOOGLE_CLIENT_ID` সেট করে redeploy করলে button show করবে।
+              </p>
+            )}
           </div>
         )}
       </div>

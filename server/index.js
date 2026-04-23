@@ -19,6 +19,9 @@ import { createSupportModule } from "./support-module.js";
 dotenv.config();
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "";
+const PUBLIC_AUTH_BASE_URL = String(process.env.VITE_PUBLIC_AUTH_BASE_URL || "")
+  .trim()
+  .replace(/\/+$/, "");
 const GOOGLE_CLIENT_IDS = [GOOGLE_CLIENT_ID]
   .concat(
     (process.env.GOOGLE_CLIENT_IDS || "")
@@ -46,13 +49,46 @@ const blobDbPathname = "state/auth.sqlite";
 const blobSyncMinIntervalMs = Math.max(500, Number(process.env.BLOB_SYNC_MIN_INTERVAL_MS || 1500));
 const bundledDataDir = path.join(rootDir, "server", "data");
 const staticDistDir = path.join(rootDir, "dist");
-const dataDir = process.env.AUTH_DATA_DIR
+const requestedDataDir = process.env.AUTH_DATA_DIR
   ? path.resolve(process.env.AUTH_DATA_DIR)
   : isVercelRuntime
     ? path.join("/tmp", "cryptobot2-auth-data")
     : bundledDataDir;
+const fallbackDataDir = path.resolve(process.env.AUTH_DATA_DIR_FALLBACK || "/tmp/cryptobot2-auth-data");
 
-fs.mkdirSync(dataDir, { recursive: true });
+function canUseDataDirectory(directoryPath) {
+  if (!directoryPath) {
+    return false;
+  }
+
+  try {
+    fs.mkdirSync(directoryPath, { recursive: true });
+    fs.accessSync(directoryPath, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveWritableDataDirectory() {
+  if (canUseDataDirectory(requestedDataDir)) {
+    return requestedDataDir;
+  }
+
+  if (canUseDataDirectory(fallbackDataDir)) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[auth-api] AUTH_DATA_DIR is not writable (${requestedDataDir}). Using fallback: ${fallbackDataDir}`,
+    );
+    return fallbackDataDir;
+  }
+
+  throw new Error(
+    `No writable data directory available. Tried AUTH_DATA_DIR=${requestedDataDir} and fallback=${fallbackDataDir}.`,
+  );
+}
+
+const dataDir = resolveWritableDataDirectory();
 
 const dbPath = path.join(dataDir, "auth.sqlite");
 let restoredFromBlob = false;
@@ -2741,6 +2777,13 @@ function requireAdminSession(req, res, next) {
 app.get("/api/health", (_req, res) => {
   cleanupExpiredRecords();
   res.json({ ok: true, app: APP_NAME });
+});
+
+app.get("/api/auth/public-config", (_req, res) => {
+  res.json({
+    googleClientId: GOOGLE_CLIENT_ID,
+    publicAuthBaseUrl: PUBLIC_AUTH_BASE_URL,
+  });
 });
 
 async function handleSignupSendOtp(req, res) {

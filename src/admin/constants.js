@@ -23,6 +23,54 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "settings", label: "Security & Settings", icon: "fa-shield-halved" },
 ];
 
+export const ADMIN_SECTION_META = {
+  dashboard: {
+    icon: "fa-chart-line",
+    title: "Dashboard Overview",
+    description: "Core platform health, user growth, approval queue and live operations at a glance.",
+  },
+  users: {
+    icon: "fa-users",
+    title: "User Management",
+    description: "Review user status, activity, KYC stage, and account-level details from a single workspace.",
+  },
+  kycReview: {
+    icon: "fa-id-card",
+    title: "KYC Review & Approvals",
+    description: "Verify submitted identity documents and complete approval or rejection actions quickly.",
+  },
+  depositCenter: {
+    icon: "fa-coins",
+    title: "Deposit Management",
+    description: "Configure deposit assets and process user deposit requests with full audit visibility.",
+  },
+  lumCenter: {
+    icon: "fa-layer-group",
+    title: "LUM Management",
+    description: "Control plan lifecycle, investment review, and content publishing for LUM products.",
+  },
+  binaryCenter: {
+    icon: "fa-chart-simple",
+    title: "Binary Management",
+    description: "Operate binary engine settings, pairs, period rules, and trade resolution desk.",
+  },
+  transactionCenter: {
+    icon: "fa-right-left",
+    title: "Transaction Management",
+    description: "Manage convert and spot modules, market controls, and order operations in one desk.",
+  },
+  assetCenter: {
+    icon: "fa-wallet",
+    title: "Asset Management",
+    description: "Oversee wallet balances, withdrawals, transfers, conversions, and asset controls.",
+  },
+  supportCenter: {
+    icon: "fa-headset",
+    title: "Support Management",
+    description: "Handle support queues, ticket threads, assignment flow, and audit actions.",
+  },
+};
+
 export const STATIC_BOT_PERFORMANCE = [
   { bot: "BTC-001", profit: 18200, loss: 2900 },
   { bot: "ETH-002", profit: 13800, loss: 2600 },

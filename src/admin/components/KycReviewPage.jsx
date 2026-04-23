@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { KYC_REVIEW_TABS } from "../constants";
+import { ADMIN_SECTION_META, KYC_REVIEW_TABS } from "../constants";
 import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function normalizeText(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -237,6 +238,17 @@ export default function KycReviewPage({
 
   return (
     <section className="adminx-users-shell">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.kycReview.icon}
+        title={ADMIN_SECTION_META.kycReview.title}
+        description={ADMIN_SECTION_META.kycReview.description}
+        stats={[
+          { label: "Pending", value: formatCompactNumber(stats?.pendingKycRequests || 0) },
+          { label: "Approved", value: formatCompactNumber(stats?.authenticatedKycRequests || 0) },
+          { label: "Rejected", value: formatCompactNumber(stats?.rejectedKycRequests || 0) },
+        ]}
+      />
+
       <div className="adminx-user-tabs" role="tablist" aria-label="KYC request filters">
         {KYC_REVIEW_TABS.map((tab) => (
           <button

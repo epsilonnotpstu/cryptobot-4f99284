@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
 import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function normalizeText(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -471,6 +473,17 @@ export default function BinaryManagementPage({
 
   return (
     <section className="adminx-users-shell">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.binaryCenter.icon}
+        title={ADMIN_SECTION_META.binaryCenter.title}
+        description={ADMIN_SECTION_META.binaryCenter.description}
+        stats={[
+          { label: "Active", value: formatCompactNumber(summary?.activeTradesCount || 0) },
+          { label: "Today", value: formatCompactNumber(summary?.todayTradesCount || 0) },
+          { label: "Total Trades", value: formatCompactNumber(summary?.totalTrades || 0) },
+        ]}
+      />
+
       <section className="adminx-kpi-grid adminx-binary-kpi-grid">
         <article className="adminx-kpi-card">
           <div className="adminx-kpi-top">

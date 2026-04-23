@@ -27,6 +27,7 @@ APP_NAME=CryptoBot Prime
 
 SERVE_STATIC=true
 AUTH_DATA_DIR=/data
+AUTH_DATA_DIR_FALLBACK=/tmp/cryptobot2-auth-data
 
 # Keep Vercel Blob disabled on Railway
 BLOB_SYNC_DISABLED=true
@@ -38,24 +39,28 @@ RESET_TOKEN_TTL_MINUTES=15
 SESSION_TTL_DAYS=30
 
 # Same-origin API on Railway web
-VITE_API_BASE_URL=
+
 VITE_ALLOW_EXTERNAL_API_FALLBACK=false
 
 # Railway public domain (auto variable)
-VITE_PUBLIC_AUTH_BASE_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+
+VITE_PUBLIC_AUTH_BASE_URL="https://cryptobot-prime-production.up.railway.app/"
+
 VITE_NATIVE_AUTH_CALLBACK_URL=cryptobot://auth-callback
 
+VITE_API_BASE_URL="https://cryptobot-prime-production.up.railway.app"
+
 # Optional Google auth
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_IDS=
-VITE_GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_ID="532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com"
+
+VITE_GOOGLE_CLIENT_ID="532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com"
 
 # SMTP (required for OTP email in production)
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM=
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="epsilonnotpstu@gmail.com"
+SMTP_PASS="pjkhmlutcwhkdent"
+SMTP_FROM="cryptobot <epsilonnotpstu@gmail.com>"
 ```
 
 Important:

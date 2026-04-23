@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { USER_MANAGEMENT_TABS } from "../constants";
+import { ADMIN_SECTION_META, USER_MANAGEMENT_TABS } from "../constants";
 import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function normalizeText(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -236,6 +237,17 @@ export default function UserManagementPage({
 
   return (
     <section className="adminx-users-shell">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.users.icon}
+        title={ADMIN_SECTION_META.users.title}
+        description={ADMIN_SECTION_META.users.description}
+        stats={[
+          { label: "Total", value: formatCompactNumber(userStats?.totalUsers || 0) },
+          { label: "Active", value: formatCompactNumber(userStats?.activeUsers || 0) },
+          { label: "Pending KYC", value: formatCompactNumber(userStats?.pendingVerifications || 0) },
+        ]}
+      />
+
       <div className="adminx-user-tabs" role="tablist" aria-label="User filters">
         {USER_MANAGEMENT_TABS.map((tab) => (
           <button

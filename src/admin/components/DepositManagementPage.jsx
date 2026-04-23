@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
 import { formatCompactNumber } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 function normalizeText(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -314,6 +316,17 @@ export default function DepositManagementPage({
 
   return (
     <section className="adminx-users-shell">
+      <AdminSectionIntro
+        icon={ADMIN_SECTION_META.depositCenter.icon}
+        title={ADMIN_SECTION_META.depositCenter.title}
+        description={ADMIN_SECTION_META.depositCenter.description}
+        stats={[
+          { label: "Assets", value: formatCompactNumber(stats?.totalAssets || 0) },
+          { label: "Pending", value: formatCompactNumber(stats?.pendingRequests || 0) },
+          { label: "Approved", value: formatCompactNumber(stats?.approvedRequests || 0) },
+        ]}
+      />
+
       <div className="adminx-user-tabs" role="tablist" aria-label="Deposit management tabs">
         <button
           type="button"

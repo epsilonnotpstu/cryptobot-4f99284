@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import {
+  ADMIN_SECTION_META,
   ADMIN_SIDEBAR_ITEMS,
   DEFAULT_ACTIVITY_FEED,
   STATIC_BOT_PERFORMANCE,
   STATIC_STRATEGY_DISTRIBUTION,
 } from "../constants";
 import { formatCompactNumber, formatDateHeading, formatRelativeTime } from "../utils/format";
+import AdminSectionIntro from "./AdminSectionIntro";
 import UserManagementPage from "./UserManagementPage";
 import KycReviewPage from "./KycReviewPage";
 import DepositManagementPage from "./DepositManagementPage";
@@ -138,6 +140,7 @@ export default function AdminDashboardPage({
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const profitSeries = dashboard.profitSeries?.length
     ? dashboard.profitSeries
@@ -170,26 +173,143 @@ export default function AdminDashboardPage({
     return `${item.color} ${previous}% ${next}%`;
   }).join(", ");
 
-  const pageTitle =
-    activeSection === "users"
-      ? "User Management"
-      : activeSection === "kycReview"
-        ? "KYC Review & Approvals"
-      : activeSection === "depositCenter"
-        ? "Deposit Management"
-      : activeSection === "lumCenter"
-        ? "LUM Management"
-      : activeSection === "binaryCenter"
-        ? "Binary Management"
-      : activeSection === "transactionCenter"
-        ? "Transaction Management"
-      : activeSection === "assetCenter"
-        ? "Asset Management"
-      : activeSection === "supportCenter"
-        ? "Support Management"
-      : activeSection === "dashboard"
-        ? "Dashboard Overview"
-        : "Admin Workspace";
+  const sectionMeta = ADMIN_SECTION_META[activeSection] || {
+    icon: "fa-compass",
+    title: "Admin Workspace",
+    description: "Selected admin section is ready for operation.",
+  };
+  const pageTitle = sectionMeta.title;
+  const searchableSections = useMemo(
+    () =>
+      new Set([
+        "users",
+        "kycReview",
+        "depositCenter",
+        "lumCenter",
+        "binaryCenter",
+        "transactionCenter",
+        "assetCenter",
+        "supportCenter",
+      ]),
+    [],
+  );
+  const isSearchEnabled = searchableSections.has(activeSection);
+
+  const navBadges = useMemo(
+    () => ({
+      users: formatCompactNumber(userDirectory?.stats?.totalUsers || 0),
+      kycReview: formatCompactNumber(kycQueue?.stats?.pendingKycRequests || 0),
+      depositCenter: formatCompactNumber(depositCenter?.stats?.pendingRequests || 0),
+      lumCenter: formatCompactNumber(lumCenter?.summary?.pendingCount || 0),
+      binaryCenter: formatCompactNumber(binaryCenter?.summary?.activeTradesCount || 0),
+      transactionCenter: formatCompactNumber(transactionCenter?.summary?.openSpotOrders || 0),
+      assetCenter: formatCompactNumber(assetCenter?.withdrawals?.pagination?.total || 0),
+      supportCenter: formatCompactNumber(supportCenter?.summary?.pendingAdminTickets || 0),
+    }),
+    [
+      assetCenter?.withdrawals?.pagination?.total,
+      binaryCenter?.summary?.activeTradesCount,
+      depositCenter?.stats?.pendingRequests,
+      kycQueue?.stats?.pendingKycRequests,
+      lumCenter?.summary?.pendingCount,
+      supportCenter?.summary?.pendingAdminTickets,
+      transactionCenter?.summary?.openSpotOrders,
+      userDirectory?.stats?.totalUsers,
+    ],
+  );
+
+  const sectionStats = useMemo(() => {
+    if (activeSection === "dashboard") {
+      return [
+        { label: "Total Users", value: formatCompactNumber(userDirectory?.stats?.totalUsers || 0) },
+        { label: "Pending KYC", value: formatCompactNumber(kycQueue?.stats?.pendingKycRequests || 0) },
+        { label: "Pending Deposits", value: formatCompactNumber(depositCenter?.stats?.pendingRequests || 0) },
+      ];
+    }
+    if (activeSection === "users") {
+      return [
+        { label: "Total", value: formatCompactNumber(userDirectory?.stats?.totalUsers || 0) },
+        { label: "Active", value: formatCompactNumber(userDirectory?.stats?.activeUsers || 0) },
+        { label: "Pending KYC", value: formatCompactNumber(userDirectory?.stats?.pendingVerifications || 0) },
+      ];
+    }
+    if (activeSection === "kycReview") {
+      return [
+        { label: "Pending", value: formatCompactNumber(kycQueue?.stats?.pendingKycRequests || 0) },
+        { label: "Approved", value: formatCompactNumber(kycQueue?.stats?.authenticatedKycRequests || 0) },
+        { label: "Rejected", value: formatCompactNumber(kycQueue?.stats?.rejectedKycRequests || 0) },
+      ];
+    }
+    if (activeSection === "depositCenter") {
+      return [
+        { label: "Assets", value: formatCompactNumber(depositCenter?.stats?.totalAssets || 0) },
+        { label: "Pending", value: formatCompactNumber(depositCenter?.stats?.pendingRequests || 0) },
+        { label: "Approved", value: formatCompactNumber(depositCenter?.stats?.approvedRequests || 0) },
+      ];
+    }
+    if (activeSection === "lumCenter") {
+      return [
+        { label: "Plans", value: formatCompactNumber(lumCenter?.summary?.totalPlans || 0) },
+        { label: "Active", value: formatCompactNumber(lumCenter?.summary?.activeInvestments || 0) },
+        { label: "Pending", value: formatCompactNumber(lumCenter?.summary?.pendingInvestments || 0) },
+      ];
+    }
+    if (activeSection === "binaryCenter") {
+      return [
+        { label: "Active Trades", value: formatCompactNumber(binaryCenter?.summary?.activeTradesCount || 0) },
+        { label: "Today", value: formatCompactNumber(binaryCenter?.summary?.todayTradesCount || 0) },
+        { label: "Total", value: formatCompactNumber(binaryCenter?.summary?.totalTrades || 0) },
+      ];
+    }
+    if (activeSection === "transactionCenter") {
+      return [
+        { label: "Convert Orders", value: formatCompactNumber(transactionCenter?.summary?.totalConvertOrders || 0) },
+        { label: "Spot Orders", value: formatCompactNumber(transactionCenter?.summary?.totalSpotOrders || 0) },
+        { label: "Open Spot", value: formatCompactNumber(transactionCenter?.summary?.openSpotOrders || 0) },
+      ];
+    }
+    if (activeSection === "assetCenter") {
+      return [
+        { label: "Wallet Rows", value: formatCompactNumber(assetCenter?.walletDesk?.pagination?.total || 0) },
+        { label: "Withdrawals", value: formatCompactNumber(assetCenter?.withdrawals?.pagination?.total || 0) },
+        { label: "Transfers", value: formatCompactNumber(assetCenter?.transfers?.pagination?.total || 0) },
+      ];
+    }
+    if (activeSection === "supportCenter") {
+      return [
+        { label: "Tickets", value: formatCompactNumber(supportCenter?.summary?.totalTickets || 0) },
+        { label: "Pending Admin", value: formatCompactNumber(supportCenter?.summary?.pendingAdminTickets || 0) },
+        { label: "Unread", value: formatCompactNumber(supportCenter?.summary?.unreadForAdmin || 0) },
+      ];
+    }
+    return [];
+  }, [
+    activeSection,
+    assetCenter?.transfers?.pagination?.total,
+    assetCenter?.walletDesk?.pagination?.total,
+    assetCenter?.withdrawals?.pagination?.total,
+    binaryCenter?.summary?.activeTradesCount,
+    binaryCenter?.summary?.todayTradesCount,
+    binaryCenter?.summary?.totalTrades,
+    depositCenter?.stats?.approvedRequests,
+    depositCenter?.stats?.pendingRequests,
+    depositCenter?.stats?.totalAssets,
+    kycQueue?.stats?.authenticatedKycRequests,
+    kycQueue?.stats?.pendingKycRequests,
+    kycQueue?.stats?.rejectedKycRequests,
+    lumCenter?.summary?.activeInvestments,
+    lumCenter?.summary?.pendingInvestments,
+    lumCenter?.summary?.totalPlans,
+    supportCenter?.summary?.pendingAdminTickets,
+    supportCenter?.summary?.totalTickets,
+    supportCenter?.summary?.unreadForAdmin,
+    transactionCenter?.summary?.openSpotOrders,
+    transactionCenter?.summary?.totalConvertOrders,
+    transactionCenter?.summary?.totalSpotOrders,
+    userDirectory?.stats?.activeUsers,
+    userDirectory?.stats?.pendingVerifications,
+    userDirectory?.stats?.totalUsers,
+  ]);
 
   const renderDashboard = () => (
     <>
@@ -313,7 +433,7 @@ export default function AdminDashboardPage({
 
   return (
     <main className="adminx-dashboard-shell">
-      <aside className="adminx-sidebar">
+      <aside className={`adminx-sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <div className="adminx-logo">
           <span className="adminx-logo-icon">
             <i className="fas fa-bolt" />
@@ -330,10 +450,14 @@ export default function AdminDashboardPage({
               type="button"
               key={item.key}
               className={activeSection === item.key ? "active" : ""}
-              onClick={() => onSectionChange(item.key)}
+              onClick={() => {
+                onSectionChange(item.key);
+                setSidebarOpen(false);
+              }}
             >
               <i className={`fas ${item.icon}`} />
               <span>{item.label}</span>
+              {navBadges[item.key] ? <small className="adminx-nav-badge">{navBadges[item.key]}</small> : null}
             </button>
           ))}
         </nav>
@@ -346,6 +470,9 @@ export default function AdminDashboardPage({
       <section className="adminx-main">
         <header className="adminx-header">
           <div>
+            <button type="button" className="adminx-mobile-nav-btn" onClick={() => setSidebarOpen((prev) => !prev)}>
+              <i className={`fas ${sidebarOpen ? "fa-xmark" : "fa-bars"}`} /> Menu
+            </button>
             <h1>{pageTitle}</h1>
             <p>{formatDateHeading()}</p>
           </div>
@@ -357,7 +484,8 @@ export default function AdminDashboardPage({
                 type="text"
                 aria-label={`${pageTitle} search`}
                 placeholder={
-                  activeSection === "users"
+                  isSearchEnabled
+                    ? activeSection === "users"
                     ? "Search users..."
                     : activeSection === "kycReview"
                       ? "Search KYC requests..."
@@ -373,44 +501,16 @@ export default function AdminDashboardPage({
                         ? "Search wallets, withdrawals, transfers..."
                       : activeSection === "supportCenter"
                         ? "Search support tickets, user, subjects..."
-                      : "Search users, bots, trades..."
+                        : "Search records..."
+                    : "Search is available in data sections"
                 }
-                value={
-                  activeSection === "users" ||
-                  activeSection === "kycReview" ||
-                  activeSection === "depositCenter" ||
-                  activeSection === "lumCenter" ||
-                  activeSection === "binaryCenter" ||
-                  activeSection === "transactionCenter" ||
-                  activeSection === "assetCenter" ||
-                  activeSection === "supportCenter"
-                    ? adminSearch
-                    : ""
-                }
+                value={isSearchEnabled ? adminSearch : ""}
                 onChange={(event) => {
-                  if (
-                    activeSection === "users" ||
-                    activeSection === "kycReview" ||
-                    activeSection === "depositCenter" ||
-                    activeSection === "lumCenter" ||
-                    activeSection === "binaryCenter" ||
-                    activeSection === "transactionCenter" ||
-                    activeSection === "assetCenter" ||
-                    activeSection === "supportCenter"
-                  ) {
+                  if (isSearchEnabled) {
                     setAdminSearch(event.target.value);
                   }
                 }}
-                readOnly={
-                  activeSection !== "users" &&
-                  activeSection !== "kycReview" &&
-                  activeSection !== "depositCenter" &&
-                  activeSection !== "lumCenter" &&
-                  activeSection !== "binaryCenter" &&
-                  activeSection !== "transactionCenter" &&
-                  activeSection !== "assetCenter" &&
-                  activeSection !== "supportCenter"
-                }
+                readOnly={!isSearchEnabled}
               />
             </label>
 
@@ -435,6 +535,12 @@ export default function AdminDashboardPage({
         </header>
 
         {error ? <p className="adminx-error">{error}</p> : null}
+        <AdminSectionIntro
+          icon={sectionMeta.icon}
+          title={sectionMeta.title}
+          description={sectionMeta.description}
+          stats={sectionStats}
+        />
 
         {activeSection === "dashboard" ? renderDashboard() : null}
         {activeSection === "users" ? (

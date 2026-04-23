@@ -1,5 +1,13 @@
 import { ADMIN_STORAGE_KEYS } from "../constants";
 
+function safeParseJson(rawValue, fallback = null) {
+  try {
+    return rawValue ? JSON.parse(rawValue) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function readAdminSnapshot() {
   if (typeof window === "undefined") {
     return {
@@ -9,15 +17,14 @@ export function readAdminSnapshot() {
     };
   }
 
-  let user = null;
-  try {
-    const raw = window.localStorage.getItem(ADMIN_STORAGE_KEYS.user);
-    user = raw ? JSON.parse(raw) : null;
-  } catch {
-    user = null;
-  }
+  const raw = window.localStorage.getItem(ADMIN_STORAGE_KEYS.user);
+  const user = safeParseJson(raw, null);
 
   const sessionToken = window.localStorage.getItem(ADMIN_STORAGE_KEYS.session) || "";
+  if (!sessionToken && raw) {
+    window.localStorage.removeItem(ADMIN_STORAGE_KEYS.user);
+  }
+
   return {
     isLoggedIn: Boolean(sessionToken),
     sessionToken,

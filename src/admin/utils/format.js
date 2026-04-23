@@ -55,3 +55,22 @@ export function formatRelativeTime(isoValue) {
   const days = Math.max(1, Math.floor(diffMs / day));
   return `${days}d ago`;
 }
+
+export function formatPercent(value = 0, digits = 2) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) {
+    return "0%";
+  }
+  return `${numeric.toFixed(Math.max(0, digits))}%`;
+}
+
+export function formatDateTime(value = "") {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleString();
+}

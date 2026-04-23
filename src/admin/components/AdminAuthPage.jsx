@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { ADMIN_SECTION_META } from "../constants";
+import AdminSectionIntro from "./AdminSectionIntro";
 
 export default function AdminAuthPage({
   mode,
@@ -18,6 +20,8 @@ export default function AdminAuthPage({
     phone: "",
     password: "",
   });
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   const heading = useMemo(() => {
     if (mode === "signup") {
@@ -69,6 +73,17 @@ export default function AdminAuthPage({
       </header>
 
       <section className="adminx-auth-card">
+        <AdminSectionIntro
+          icon={ADMIN_SECTION_META.dashboard.icon}
+          title="Secure Admin Access"
+          description="Only authorized admins can access this control plane. Session actions are recorded and auditable."
+          stats={[
+            { label: "Role", value: "Admin / Super Admin" },
+            { label: "Security", value: "Session Protected" },
+            { label: "Scope", value: "Full Platform Control" },
+          ]}
+        />
+
         <div className="adminx-auth-tab-row">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => onModeChange("login")}>
             Login
@@ -96,13 +111,23 @@ export default function AdminAuthPage({
 
             <label>
               Password
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))}
-                placeholder="Enter password"
-                required
-              />
+              <div className="adminx-password-field">
+                <input
+                  type={showLoginPassword ? "text" : "password"}
+                  value={loginForm.password}
+                  onChange={(event) => setLoginForm((prev) => ({ ...prev, password: event.target.value }))}
+                  placeholder="Enter password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="adminx-password-toggle"
+                  onClick={() => setShowLoginPassword((prev) => !prev)}
+                  aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                >
+                  <i className={`fas ${showLoginPassword ? "fa-eye-slash" : "fa-eye"}`} />
+                </button>
+              </div>
             </label>
 
             <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -146,13 +171,23 @@ export default function AdminAuthPage({
 
             <label>
               Password
-              <input
-                type="password"
-                value={signupForm.password}
-                onChange={(event) => setSignupForm((prev) => ({ ...prev, password: event.target.value }))}
-                placeholder="Create password"
-                required
-              />
+              <div className="adminx-password-field">
+                <input
+                  type={showSignupPassword ? "text" : "password"}
+                  value={signupForm.password}
+                  onChange={(event) => setSignupForm((prev) => ({ ...prev, password: event.target.value }))}
+                  placeholder="Create password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="adminx-password-toggle"
+                  onClick={() => setShowSignupPassword((prev) => !prev)}
+                  aria-label={showSignupPassword ? "Hide password" : "Show password"}
+                >
+                  <i className={`fas ${showSignupPassword ? "fa-eye-slash" : "fa-eye"}`} />
+                </button>
+              </div>
             </label>
 
             <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -163,6 +198,17 @@ export default function AdminAuthPage({
 
         {notice ? <p className="adminx-auth-notice">{notice}</p> : null}
         {error ? <p className="adminx-auth-error">{error}</p> : null}
+        <ul className="adminx-auth-highlights">
+          <li>
+            <i className="fas fa-shield-halved" /> All admin actions stay within secure session scope.
+          </li>
+          <li>
+            <i className="fas fa-clock-rotate-left" /> Review and moderation changes are traceable in audit logs.
+          </li>
+          <li>
+            <i className="fas fa-circle-check" /> Use strong passwords and unique admin emails for safety.
+          </li>
+        </ul>
       </section>
     </main>
   );
