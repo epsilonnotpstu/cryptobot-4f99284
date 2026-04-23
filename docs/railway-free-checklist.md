@@ -22,7 +22,6 @@ Railway service -> `Variables` -> paste this block, then replace placeholders:
 
 ```env
 NODE_ENV=production
-PORT=4000
 HOST=0.0.0.0
 APP_NAME=CryptoBot Prime
 
@@ -58,6 +57,10 @@ SMTP_USER=
 SMTP_PASS=
 SMTP_FROM=
 ```
+
+Important:
+1. `PORT` manually set করো না on Railway. Railway runtime dynamic `PORT` inject করে।
+2. আগে যদি `PORT=4000` set করা থাকে, remove করে redeploy দাও।
 
 Generate a strong `AUTH_HASH_SECRET` quickly:
 
