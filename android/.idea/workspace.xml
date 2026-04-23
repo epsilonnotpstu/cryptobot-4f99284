@@ -5,68 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1c8580f8-118d-462c-8a76-26acb8e1bc60" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/checksums/checksums.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/checksums/checksums.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/checksums/md5-checksums.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/checksums/md5-checksums.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/checksums/sha1-checksums.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/checksums/sha1-checksums.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/executionHistory/executionHistory.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/fileHashes/fileHashes.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.0.0/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.0.0/fileHashes/fileHashes.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/apk/debug/app-debug.apk" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/intermediates/apk/debug/app-debug.apk" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/assets/debug/mergeDebugAssets/public/assets/index-CD8smScP.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/assets/debug/mergeDebugAssets/public/assets/index-DHeU-_ws.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/assets/debug/mergeDebugAssets/public/assets/web-CBx_Z2rG.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/assets/debug/mergeDebugAssets/public/assets/web-D1Ri5Ob8.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/assets/debug/mergeDebugAssets/public/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/intermediates/assets/debug/mergeDebugAssets/public/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/public/assets/index-CD8smScP.css.jar" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/public/assets/index-DHeU-_ws.js.jar" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/public/assets/web-CBx_Z2rG.js.jar" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/public/assets/web-D1Ri5Ob8.js.jar" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/public/index.html.jar" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/intermediates/compressed_assets/debug/compressDebugAssets/out/assets/public/index.html.jar" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/incremental/mergeDebugAssets/merger.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/intermediates/incremental/mergeDebugAssets/merger.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build/intermediates/incremental/packageDebug/tmp/debug/dex-renamer-state.txt" beforeDir="false" afterPath="$PROJECT_DIR$/app/build/intermediates/incremental/packageDebug/tmp/debug/dex-renamer-state.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/assets/index-CD8smScP.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/assets/index-DHeU-_ws.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/assets/web-CBx_Z2rG.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/assets/web-D1Ri5Ob8.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build/reports/problems/problems-report.html" beforeDir="false" afterPath="$PROJECT_DIR$/build/reports/problems/problems-report.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/capacitor-cordova-android-plugins/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties" beforeDir="false" afterPath="$PROJECT_DIR$/capacitor-cordova-android-plugins/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradle.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/admin-database-structure.md" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/admin-database-structure.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/database-structure.md" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/database-structure.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/project-structure-map.md" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/project-structure-map.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../ios/App/App/public/assets/index-CD8smScP.css" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../ios/App/App/public/assets/index-DHeU-_ws.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../ios/App/App/public/assets/web-CBx_Z2rG.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../ios/App/App/public/assets/web-D1Ri5Ob8.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../ios/App/App/public/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../ios/App/App/public/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../package.json" beforeDir="false" afterPath="$PROJECT_DIR$/../package.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../server/data/auth.sqlite" beforeDir="false" afterPath="$PROJECT_DIR$/../server/data/auth.sqlite" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../server/data/auth.sqlite-shm" beforeDir="false" afterPath="$PROJECT_DIR$/../server/data/auth.sqlite-shm" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../server/data/auth.sqlite-wal" beforeDir="false" afterPath="$PROJECT_DIR$/../server/data/auth.sqlite-wal" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../server/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/../server/index.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/App.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/App.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/admin/AdminSectionPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/admin/AdminSectionPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/admin/admin-section.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/admin/admin-section.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/admin/components/AdminDashboardPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/admin/components/AdminDashboardPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/admin/constants.js" beforeDir="false" afterPath="$PROJECT_DIR$/../src/admin/constants.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/assets/AssetsPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/assets/AssetsPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/assets/assets.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/assets/assets.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/binary/BinaryPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/binary/BinaryPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/binary/binary.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/binary/binary.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/dashboard/PremiumDashboardPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/dashboard/PremiumDashboardPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/dashboard/premium-dashboard.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/dashboard/premium-dashboard.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/lum/LUMPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/lum/LUMPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/lum/lum.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/lum/lum.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/transaction/TransactionPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/transaction/TransactionPage.jsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/features/transaction/transaction.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/features/transaction/transaction.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../src/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/../src/styles.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../vite.config.js" beforeDir="false" afterPath="$PROJECT_DIR$/../vite.config.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,7 +37,7 @@
   <component name="EmbeddingIndexingInfo">
     <option name="cachedIndexableFilesCount" value="121" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=100f95367bfd]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[LocalEmulator::path=/home/afridi/.android/avd/Pixel_6.avd]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />

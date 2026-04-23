@@ -9,6 +9,7 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `package.json` / `package-lock.json`: scripts, dependencies
 - `vite.config.js`: Vite config (frontend + dev server config)
 - `vercel.json`: deployment routing/runtime config
+- `Dockerfile` / `.dockerignore`: containerized full-stack deploy (frontend + API + SQLite volume mount)
 - `capacitor.config.json`: mobile bridge config
 - `index.html`: SPA root
 
@@ -140,6 +141,7 @@ This file gives a high-level map of the CryptoBot codebase so future prompts can
 - `database-structure.md`: full DB schema + API-data notes
 - `admin-database-structure.md`: admin/user separation + admin-focused DB notes
 - `project-structure-map.md`: this project structure guide
+- `deployment-hosting-guide.md`: free + paid hosting guide and env setup
 
 ## Mobile Projects
 

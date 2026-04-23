@@ -3860,6 +3860,7 @@ function App() {
         authService={getAuthService()}
         onBackHome={() => goToRoute(ROUTES.home)}
         onOpenUserAuth={() => goToRoute(ROUTES.login)}
+        requireFreshLogin={import.meta.env.DEV || isLocalBrowserHost()}
       />
     );
   }

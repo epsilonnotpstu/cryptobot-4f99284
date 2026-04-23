@@ -34,9 +34,18 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
 const isVercelRuntime = process.env.VERCEL === "1";
 const blobReadWriteToken = process.env.BLOB_READ_WRITE_TOKEN || "";
-const shouldUseBlobDbSync = isVercelRuntime && Boolean(blobReadWriteToken);
+const blobSyncExplicitlyDisabled = String(process.env.BLOB_SYNC_DISABLED || "")
+  .trim()
+  .toLowerCase() === "true";
+const shouldUseBlobDbSync = Boolean(blobReadWriteToken) && !blobSyncExplicitlyDisabled;
+const blobSyncDisableOnFailure = String(process.env.BLOB_SYNC_DISABLE_ON_FAILURE || "true")
+  .trim()
+  .toLowerCase() !== "false";
+const enforceBlobPersistence = process.env.BLOB_PERSISTENCE_REQUIRED === "true";
 const blobDbPathname = "state/auth.sqlite";
+const blobSyncMinIntervalMs = Math.max(500, Number(process.env.BLOB_SYNC_MIN_INTERVAL_MS || 1500));
 const bundledDataDir = path.join(rootDir, "server", "data");
+const staticDistDir = path.join(rootDir, "dist");
 const dataDir = process.env.AUTH_DATA_DIR
   ? path.resolve(process.env.AUTH_DATA_DIR)
   : isVercelRuntime
@@ -47,6 +56,51 @@ fs.mkdirSync(dataDir, { recursive: true });
 
 const dbPath = path.join(dataDir, "auth.sqlite");
 let restoredFromBlob = false;
+let lastBlobDepositSyncAt = 0;
+let blobDepositSyncInFlight = null;
+let blobSyncDisabledReason = "";
+
+function shouldDisableBlobSyncForError(reason = "") {
+  if (!blobSyncDisableOnFailure) {
+    return false;
+  }
+
+  const normalized = String(reason || "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    "suspended",
+    "quota",
+    "limit exceeded",
+    "advanced operation",
+    "rate limit",
+    "rate-limit",
+    "forbidden",
+    "unauthorized",
+    "invalid token",
+    "permission",
+    "denied",
+    "http 401",
+    "http 403",
+    "http 429",
+  ].some((keyword) => normalized.includes(keyword));
+}
+
+function disableBlobSyncIfNeeded(reason = "", source = "") {
+  if (blobSyncDisabledReason || !shouldDisableBlobSyncForError(reason)) {
+    return false;
+  }
+
+  blobSyncDisabledReason = String(reason || "Blob sync disabled due to repeated sync failures.");
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[auth-api] blob sync disabled${source ? ` (${source})` : ""}:`,
+    blobSyncDisabledReason,
+  );
+  return true;
+}
 
 function bootstrapVercelDataSnapshotIfNeeded() {
   if (!isVercelRuntime || process.env.AUTH_DATA_DIR) {
@@ -57,16 +111,36 @@ function bootstrapVercelDataSnapshotIfNeeded() {
     return;
   }
 
-  for (const suffix of ["", "-wal", "-shm"]) {
-    const sourcePath = path.join(bundledDataDir, `auth.sqlite${suffix}`);
-    const targetPath = path.join(dataDir, `auth.sqlite${suffix}`);
-    if (!fs.existsSync(sourcePath)) {
-      continue;
-    }
+  const sourcePath = path.join(bundledDataDir, "auth.sqlite");
+  const targetPath = path.join(dataDir, "auth.sqlite");
+  if (!fs.existsSync(sourcePath)) {
+    return;
+  }
+  try {
+    fs.copyFileSync(sourcePath, targetPath);
+  } catch {
+    // Ignore snapshot copy issues; schema bootstrap below can still initialize a new DB.
+  }
+}
+
+function isSqliteFileHealthy(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return false;
+  }
+
+  let tempDb = null;
+  try {
+    tempDb = new Database(filePath, { readonly: true, fileMustExist: true });
+    const resultRow = tempDb.prepare("PRAGMA quick_check(1)").get();
+    const resultValue = resultRow ? Object.values(resultRow)[0] : "";
+    return String(resultValue || "").toLowerCase() === "ok";
+  } catch {
+    return false;
+  } finally {
     try {
-      fs.copyFileSync(sourcePath, targetPath);
+      tempDb?.close();
     } catch {
-      // Ignore snapshot copy issues; schema bootstrap below can still initialize a new DB.
+      // no-op
     }
   }
 }
@@ -87,15 +161,37 @@ async function restoreDbFromBlobIfAvailable() {
       return;
     }
 
-    const response = await fetch(latestBlob.url);
+    const preferredBlobUrl = latestBlob.downloadUrl || latestBlob.url;
+    const separator = preferredBlobUrl.includes("?") ? "&" : "?";
+    const cacheBypassUrl = `${preferredBlobUrl}${separator}v=${Date.now()}`;
+
+    const response = await fetch(cacheBypassUrl, { cache: "no-store" });
     if (!response.ok) {
       return;
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    fs.writeFileSync(dbPath, Buffer.from(arrayBuffer));
+    const tempRestorePath = path.join(dataDir, `auth-restore-${Date.now()}.sqlite`);
+    fs.writeFileSync(tempRestorePath, Buffer.from(arrayBuffer));
+
+    if (!isSqliteFileHealthy(tempRestorePath)) {
+      try {
+        fs.unlinkSync(tempRestorePath);
+      } catch {
+        // no-op
+      }
+      return;
+    }
+
+    fs.copyFileSync(tempRestorePath, dbPath);
+    try {
+      fs.unlinkSync(tempRestorePath);
+    } catch {
+      // no-op
+    }
     restoredFromBlob = true;
-  } catch {
+  } catch (error) {
+    disableBlobSyncIfNeeded(error?.message || error, "restore");
     // Ignore blob restore errors and continue with local snapshot fallback.
   }
 }
@@ -105,14 +201,216 @@ async function persistDbToBlob() {
     return;
   }
 
+  await syncDepositStateFromBlobSafe({ force: true, context: "pre-upload" });
+
+  try {
+    db.pragma("wal_checkpoint(TRUNCATE)");
+  } catch {
+    // If checkpoint fails, continue with best-effort snapshot upload.
+  }
+
+  if (!isSqliteFileHealthy(dbPath)) {
+    const integrityError = new Error("Local SQLite state failed integrity check.");
+    integrityError.statusCode = 500;
+    throw integrityError;
+  }
+
   const dbBuffer = fs.readFileSync(dbPath);
   await putBlobFile(blobDbPathname, dbBuffer, {
     token: blobReadWriteToken,
-    access: "private",
+    access: "public",
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/octet-stream",
   });
+}
+
+async function persistDbToBlobSafe(context = "") {
+  if (!shouldUseBlobDbSync || blobSyncDisabledReason) {
+    return;
+  }
+
+  try {
+    await persistDbToBlob();
+  } catch (error) {
+    const reason = String(error?.message || error || "");
+    disableBlobSyncIfNeeded(reason, `persist${context ? `:${context}` : ""}`);
+
+    // eslint-disable-next-line no-console
+    console.error(
+      `[auth-api] blob persistence failed${context ? ` (${context})` : ""}:`,
+      reason,
+    );
+
+    if (enforceBlobPersistence) {
+      throw error;
+    }
+  }
+}
+
+function toSqlitePathLiteral(filePath = "") {
+  return String(filePath || "").replace(/'/g, "''");
+}
+
+function mergeDepositStateFromSnapshot(snapshotPath) {
+  if (!snapshotPath || !fs.existsSync(snapshotPath)) {
+    return;
+  }
+
+  const escapedPath = toSqlitePathLiteral(snapshotPath);
+  db.exec(`
+    ATTACH DATABASE '${escapedPath}' AS blob_sync;
+
+    INSERT OR IGNORE INTO main.users (
+      user_id,
+      name,
+      first_name,
+      last_name,
+      mobile,
+      avatar_url,
+      account_role,
+      account_status,
+      kyc_status,
+      auth_tag,
+      kyc_updated_at,
+      email,
+      password_hash,
+      created_at
+    )
+    SELECT
+      user_id,
+      name,
+      first_name,
+      last_name,
+      mobile,
+      avatar_url,
+      account_role,
+      account_status,
+      kyc_status,
+      auth_tag,
+      kyc_updated_at,
+      email,
+      password_hash,
+      created_at
+    FROM blob_sync.users;
+
+    INSERT OR IGNORE INTO main.deposit_assets
+    SELECT * FROM blob_sync.deposit_assets;
+
+    INSERT OR IGNORE INTO main.deposit_requests
+    SELECT * FROM blob_sync.deposit_requests;
+
+    UPDATE main.deposit_assets
+    SET symbol = b.symbol,
+        name = b.name,
+        chain_name = b.chain_name,
+        recharge_address = b.recharge_address,
+        qr_code_data = b.qr_code_data,
+        min_amount_usd = b.min_amount_usd,
+        max_amount_usd = b.max_amount_usd,
+        sort_order = b.sort_order,
+        is_enabled = b.is_enabled,
+        created_at = b.created_at,
+        updated_at = b.updated_at
+    FROM blob_sync.deposit_assets b
+    WHERE main.deposit_assets.id = b.id
+      AND COALESCE(b.updated_at, '') > COALESCE(main.deposit_assets.updated_at, '');
+
+    UPDATE main.deposit_requests
+    SET status = b.status,
+        note = b.note,
+        reviewed_at = b.reviewed_at,
+        reviewed_by = b.reviewed_by
+    FROM blob_sync.deposit_requests b
+    WHERE main.deposit_requests.id = b.id
+      AND (
+        COALESCE(b.reviewed_at, '') > COALESCE(main.deposit_requests.reviewed_at, '')
+        OR (
+          COALESCE(main.deposit_requests.reviewed_at, '') = ''
+          AND COALESCE(b.status, '') <> COALESCE(main.deposit_requests.status, '')
+        )
+      );
+
+    DETACH DATABASE blob_sync;
+  `);
+}
+
+async function syncDepositStateFromBlobSafe({ force = false, context = "" } = {}) {
+  if (!shouldUseBlobDbSync || blobSyncDisabledReason) {
+    return;
+  }
+
+  const now = Date.now();
+  if (!force && now - lastBlobDepositSyncAt < blobSyncMinIntervalMs) {
+    return;
+  }
+
+  if (blobDepositSyncInFlight) {
+    await blobDepositSyncInFlight;
+    return;
+  }
+
+  blobDepositSyncInFlight = (async () => {
+    let tempRestorePath = "";
+    try {
+      const { blobs } = await listBlobFiles({
+        token: blobReadWriteToken,
+        prefix: blobDbPathname,
+        limit: 5,
+      });
+
+      const latestBlob = (blobs || []).find((item) => item.pathname === blobDbPathname) || null;
+      if (!latestBlob?.url) {
+        lastBlobDepositSyncAt = Date.now();
+        return;
+      }
+
+      const preferredBlobUrl = latestBlob.downloadUrl || latestBlob.url;
+      const separator = preferredBlobUrl.includes("?") ? "&" : "?";
+      const cacheBypassUrl = `${preferredBlobUrl}${separator}sync=${Date.now()}`;
+
+      const response = await fetch(cacheBypassUrl, { cache: "no-store" });
+      if (!response.ok) {
+        disableBlobSyncIfNeeded(
+          `HTTP ${response.status} while syncing blob snapshot`,
+          `sync${context ? `:${context}` : ""}`,
+        );
+        return;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      tempRestorePath = path.join(dataDir, `auth-sync-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.sqlite`);
+      fs.writeFileSync(tempRestorePath, Buffer.from(arrayBuffer));
+
+      if (!isSqliteFileHealthy(tempRestorePath)) {
+        return;
+      }
+
+      mergeDepositStateFromSnapshot(tempRestorePath);
+      lastBlobDepositSyncAt = Date.now();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[auth-api] deposit blob sync failed${context ? ` (${context})` : ""}:`,
+        error?.message || error,
+      );
+      disableBlobSyncIfNeeded(error?.message || error, `sync${context ? `:${context}` : ""}`);
+    } finally {
+      if (tempRestorePath) {
+        try {
+          fs.unlinkSync(tempRestorePath);
+        } catch {
+          // no-op
+        }
+      }
+    }
+  })();
+
+  try {
+    await blobDepositSyncInFlight;
+  } finally {
+    blobDepositSyncInFlight = null;
+  }
 }
 
 bootstrapVercelDataSnapshotIfNeeded();
@@ -651,6 +949,7 @@ const countDepositRequestsByAssetIdStatement = db.prepare(`
 `);
 const insertDepositRequestStatement = db.prepare(`
   INSERT INTO deposit_requests (
+    id,
     user_id,
     asset_id,
     asset_symbol,
@@ -667,6 +966,7 @@ const insertDepositRequestStatement = db.prepare(`
     reviewed_by
   )
   VALUES (
+    @requestId,
     @userId,
     @assetId,
     @assetSymbol,
@@ -946,46 +1246,28 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "20mb" }));
 
-function getDbTotalChanges() {
-  try {
-    return Number(db.prepare("SELECT total_changes() AS total").get()?.total || 0);
-  } catch {
-    return 0;
-  }
-}
-
-if (shouldUseBlobDbSync) {
-  app.use((req, res, next) => {
-    const totalChangesBefore = getDbTotalChanges();
-    const originalSend = res.send.bind(res);
-    let persisted = false;
-
-    res.send = function patchedSend(...args) {
-      if (persisted) {
-        return originalSend(...args);
-      }
-
-      const totalChangesAfter = getDbTotalChanges();
-      if (totalChangesAfter > totalChangesBefore) {
-        persisted = true;
-        return persistDbToBlob()
-          .catch(() => {
-            // Continue response even if blob persistence fails.
-          })
-          .then(() => originalSend(...args));
-      }
-
-      persisted = true;
-      return originalSend(...args);
-    };
-
-    next();
-  });
-}
-
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
 const APP_NAME = process.env.APP_NAME || "CryptoBot Prime";
+const shouldServeStaticAssets =
+  (
+    String(process.env.SERVE_STATIC || "")
+      .trim()
+      .toLowerCase() === "true" ||
+    process.env.NODE_ENV === "production"
+  ) &&
+  fs.existsSync(staticDistDir);
+
+if (shouldServeStaticAssets) {
+  app.use(
+    express.static(staticDistDir, {
+      index: false,
+      maxAge: "1h",
+      etag: true,
+    }),
+  );
+}
+
 const OTP_TTL_MINUTES = Number(process.env.OTP_TTL_MINUTES || 10);
 const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 15);
 const SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS || 30);
@@ -1110,7 +1392,7 @@ function decodeBase64Url(value = "") {
 }
 
 function createSessionFingerprint(user = {}) {
-  const seed = `${user.user_id || ""}:${user.password_hash || ""}:${user.account_role || ""}:${user.account_status || ""}`;
+  const seed = `${user.user_id || ""}:${user.password_hash || ""}`;
   return createHash(seed).slice(0, 24);
 }
 
@@ -1118,12 +1400,42 @@ function signSessionPayload(encodedPayload = "") {
   return crypto.createHmac("sha256", HASH_SECRET).update(encodedPayload).digest("hex");
 }
 
+function buildSessionTokenSnapshot(user = {}) {
+  return {
+    name: String(user.name || "").trim().slice(0, 120),
+    firstName: String(user.first_name || "").trim().slice(0, 80),
+    lastName: String(user.last_name || "").trim().slice(0, 80),
+    mobile: String(user.mobile || "").trim().slice(0, 40),
+    avatarUrl: String(user.avatar_url || "").trim().slice(0, 4000),
+    accountRole: String(user.account_role || "trader").trim().toLowerCase().replace(/\s+/g, "_").slice(0, 40),
+    accountStatus: String(user.account_status || "active").trim().toLowerCase().replace(/\s+/g, "_").slice(0, 40),
+    kycStatus: String(user.kyc_status || "pending").trim().toLowerCase().replace(/\s+/g, "_").slice(0, 40),
+    authTag: String(user.auth_tag || "kyc-pending").trim().slice(0, 80),
+    kycUpdatedAt: String(user.kyc_updated_at || "").trim().slice(0, 80),
+    email: String(user.email || "").trim().toLowerCase().slice(0, 180),
+    createdAt: String(user.created_at || "").trim().slice(0, 80),
+  };
+}
+
 function createStatelessSessionToken({ user, expiresAt }) {
+  const snapshot = buildSessionTokenSnapshot(user);
   const payload = {
     v: 1,
     uid: user.user_id || "",
     exp: expiresAt,
     fp: createSessionFingerprint(user),
+    nm: snapshot.name,
+    fn: snapshot.firstName,
+    ln: snapshot.lastName,
+    mb: snapshot.mobile,
+    av: snapshot.avatarUrl,
+    rl: snapshot.accountRole,
+    st: snapshot.accountStatus,
+    ks: snapshot.kycStatus,
+    at: snapshot.authTag,
+    ku: snapshot.kycUpdatedAt,
+    em: snapshot.email,
+    ca: snapshot.createdAt,
   };
   const encodedPayload = encodeBase64Url(JSON.stringify(payload));
   const signature = signSessionPayload(encodedPayload);
@@ -1167,6 +1479,21 @@ function parseStatelessSessionToken(sessionToken = "") {
       userId: String(payload.uid),
       expiresAt: String(payload.exp),
       fingerprint: String(payload.fp),
+      tokenUser: {
+        user_id: String(payload.uid),
+        name: String(payload.nm || ""),
+        first_name: String(payload.fn || ""),
+        last_name: String(payload.ln || ""),
+        mobile: String(payload.mb || ""),
+        avatar_url: String(payload.av || ""),
+        account_role: String(payload.rl || "trader"),
+        account_status: String(payload.st || "active"),
+        kyc_status: String(payload.ks || "pending"),
+        auth_tag: String(payload.at || "kyc-pending"),
+        kyc_updated_at: String(payload.ku || ""),
+        email: String(payload.em || ""),
+        created_at: String(payload.ca || ""),
+      },
     };
   } catch {
     return null;
@@ -2286,6 +2613,21 @@ function createUniqueUserId() {
   throw new Error("Unable to generate a unique user ID right now.");
 }
 
+function createUniqueDepositRequestId() {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const candidate = Number(`${Date.now()}${crypto.randomInt(10, 100)}`);
+    if (!findDepositRequestByIdStatement.get(candidate)) {
+      return candidate;
+    }
+  }
+
+  const fallback = Date.now();
+  if (!findDepositRequestByIdStatement.get(fallback)) {
+    return fallback;
+  }
+  throw new Error("Could not create a unique deposit request ID right now.");
+}
+
 function createSessionForUser(userId) {
   const user = findUserByUserIdStatement.get(userId);
   if (!user) {
@@ -2353,20 +2695,32 @@ function requireSession(req, res, next) {
   }
 
   const user = findUserByUserIdStatement.get(parsedToken.userId);
-  if (!user) {
-    res.status(401).json({ error: "Session expired. Please login again." });
+  if (user) {
+    const expectedFingerprint = createSessionFingerprint(user);
+    if (expectedFingerprint !== parsedToken.fingerprint) {
+      res.status(401).json({ error: "Session expired. Please login again." });
+      return;
+    }
+
+    req.currentUser = {
+      ...buildUserPayload({
+        ...user,
+        is_session_active: 1,
+      }),
+    };
+    req.sessionToken = sessionToken;
+    next();
     return;
   }
 
-  const expectedFingerprint = createSessionFingerprint(user);
-  if (expectedFingerprint !== parsedToken.fingerprint) {
+  if (!parsedToken.tokenUser?.user_id) {
     res.status(401).json({ error: "Session expired. Please login again." });
     return;
   }
 
   req.currentUser = {
     ...buildUserPayload({
-      ...user,
+      ...parsedToken.tokenUser,
       is_session_active: 1,
     }),
   };
@@ -2484,6 +2838,8 @@ async function handleSignupComplete(req, res) {
       createdAt,
     });
 
+    await persistDbToBlobSafe("signup.complete");
+
     const sessionToken = createSessionForUser(userId);
     const createdUser = findUserByUserIdStatement.get(userId);
     res.json({
@@ -2492,7 +2848,7 @@ async function handleSignupComplete(req, res) {
       user: buildUserPayload(createdUser || { user_id: userId, name, email }),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Signup failed." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Signup failed." });
   }
 }
 
@@ -2635,6 +2991,8 @@ async function handleAdminSignup(req, res) {
       createdAt,
     });
 
+    await persistDbToBlobSafe("admin.auth.signup");
+
     const createdAdmin = findUserByUserIdStatement.get(userId);
     const sessionToken = createSessionForUser(userId);
 
@@ -2644,7 +3002,7 @@ async function handleAdminSignup(req, res) {
       user: buildUserPayload(createdAdmin || { user_id: userId, name, email, account_role: "admin" }),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Admin signup failed." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Admin signup failed." });
   }
 }
 
@@ -2931,7 +3289,7 @@ function handleKycStatus(req, res) {
   }
 }
 
-function handleKycSubmit(req, res) {
+async function handleKycSubmit(req, res) {
   try {
     cleanupExpiredRecords();
 
@@ -2992,6 +3350,8 @@ function handleKycSubmit(req, res) {
       kycUpdatedAt: submittedAt,
     });
 
+    await persistDbToBlobSafe("kyc.submit");
+
     const updatedUser = findUserByUserIdStatement.get(req.currentUser.userId);
     const latestSubmission = findLatestKycSubmissionByUserStatement.get(req.currentUser.userId);
 
@@ -3001,7 +3361,7 @@ function handleKycSubmit(req, res) {
       kyc: buildKycSubmissionPayload(latestSubmission),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not submit KYC." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not submit KYC." });
   }
 }
 
@@ -3122,7 +3482,7 @@ function handleAdminUserDetail(req, res) {
   }
 }
 
-function handleAdminUserDelete(req, res) {
+async function handleAdminUserDelete(req, res) {
   try {
     cleanupExpiredRecords();
     const userId = sanitizeShortText(req.body?.userId || "", 24);
@@ -3156,6 +3516,7 @@ function handleAdminUserDelete(req, res) {
     });
 
     removeTransaction();
+    await persistDbToBlobSafe("admin.user.delete");
 
     res.json({
       message: "User deleted successfully.",
@@ -3170,7 +3531,7 @@ function handleAdminUserDelete(req, res) {
   }
 }
 
-function handleAdminUserUpdate(req, res) {
+async function handleAdminUserUpdate(req, res) {
   try {
     cleanupExpiredRecords();
     const userId = sanitizeShortText(req.body?.userId || "", 24);
@@ -3247,6 +3608,7 @@ function handleAdminUserUpdate(req, res) {
     });
 
     updateTransaction();
+    await persistDbToBlobSafe("admin.user.update");
 
     const updatedUser = findAdminUserByUserIdStatement.get({ userId, nowIso: toIso(getNow()) });
     const kycHistory = listUserKycHistoryForAdminStatement
@@ -3276,7 +3638,7 @@ function handleAdminUserUpdate(req, res) {
   }
 }
 
-function handleAdminKycReview(req, res) {
+async function handleAdminKycReview(req, res) {
   try {
     cleanupExpiredRecords();
     const requestId = Number(req.body.requestId);
@@ -3325,6 +3687,8 @@ function handleAdminKycReview(req, res) {
       kycUpdatedAt: reviewedAt,
     });
 
+    await persistDbToBlobSafe("admin.kyc.review");
+
     const updatedUser = findUserByUserIdStatement.get(submission.user_id);
     const reviewedRequest = findKycSubmissionWithUserByIdStatement.get(requestId);
 
@@ -3340,7 +3704,7 @@ function handleAdminKycReview(req, res) {
       request: buildKycAdminPayload(reviewedRequest),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not review KYC request." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not review KYC request." });
   }
 }
 
@@ -3368,8 +3732,9 @@ function handleDashboardSnapshot(req, res) {
   }
 }
 
-function handleDepositCreate(req, res) {
+async function handleDepositCreate(req, res) {
   try {
+    await syncDepositStateFromBlobSafe({ context: "deposit.create.pre" });
     cleanupExpiredRecords();
 
     const assetId = Number(req.body.assetId);
@@ -3398,7 +3763,9 @@ function handleDepositCreate(req, res) {
     }
 
     const submittedAt = toIso(getNow());
-    const insertResult = insertDepositRequestStatement.run({
+    const requestId = createUniqueDepositRequestId();
+    insertDepositRequestStatement.run({
+      requestId,
       userId: req.currentUser.userId,
       assetId,
       assetSymbol: normalizeAssetSymbol(asset.symbol || ""),
@@ -3415,18 +3782,21 @@ function handleDepositCreate(req, res) {
       reviewedBy: null,
     });
 
-    const createdRequest = findDepositRequestByIdStatement.get(insertResult.lastInsertRowid);
+    await persistDbToBlobSafe("deposit.create");
+
+    const createdRequest = findDepositRequestByIdStatement.get(requestId);
     res.json({
       message: "Deposit request submitted successfully. Admin review pending.",
       request: buildDepositRequestPayload(createdRequest),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not submit deposit request." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not submit deposit request." });
   }
 }
 
-function handleDepositRecords(req, res) {
+async function handleDepositRecords(req, res) {
   try {
+    await syncDepositStateFromBlobSafe({ context: "deposit.records.pre" });
     cleanupExpiredRecords();
     const rows = listDepositRequestsByUserStatement.all(req.currentUser.userId);
     res.json({
@@ -3448,7 +3818,7 @@ function handleAdminNoticeGet(_req, res) {
   }
 }
 
-function handleAdminNoticeUpdate(req, res) {
+async function handleAdminNoticeUpdate(req, res) {
   try {
     cleanupExpiredRecords();
     const message = sanitizeShortText(req.body.message || "", 700);
@@ -3468,13 +3838,14 @@ function handleAdminNoticeUpdate(req, res) {
     });
 
     updateNoticeTransaction();
+    await persistDbToBlobSafe("admin.notice.update");
     const latestNotice = getLatestActiveNoticeStatement.get();
     res.json({
       message: "Notice published successfully.",
       notice: buildNoticePayload(latestNotice),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not update notice." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not update notice." });
   }
 }
 
@@ -3496,7 +3867,7 @@ function handleAdminDepositAssetsList(_req, res) {
   }
 }
 
-function handleAdminDepositAssetUpsert(req, res) {
+async function handleAdminDepositAssetUpsert(req, res) {
   try {
     cleanupExpiredRecords();
     const assetId = Number(req.body.assetId);
@@ -3557,6 +3928,8 @@ function handleAdminDepositAssetUpsert(req, res) {
         updatedAt: nowIso,
       });
 
+      await persistDbToBlobSafe("admin.deposit.asset.upsert");
+
       const updatedAsset = findDepositAssetByIdStatement.get(assetId);
       res.json({
         message: "Deposit asset updated.",
@@ -3579,17 +3952,19 @@ function handleAdminDepositAssetUpsert(req, res) {
       updatedAt: nowIso,
     });
 
+    await persistDbToBlobSafe("admin.deposit.asset.upsert");
+
     const createdAsset = findDepositAssetByIdStatement.get(insertResult.lastInsertRowid);
     res.json({
       message: "Deposit asset created.",
       asset: buildDepositAssetPayload(createdAsset),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not save deposit asset." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not save deposit asset." });
   }
 }
 
-function handleAdminDepositAssetDelete(req, res) {
+async function handleAdminDepositAssetDelete(req, res) {
   try {
     cleanupExpiredRecords();
     const assetId = Number(req.body.assetId || req.query.assetId || 0);
@@ -3605,6 +3980,7 @@ function handleAdminDepositAssetDelete(req, res) {
 
     const linkedRequests = Number(countDepositRequestsByAssetIdStatement.get(assetId)?.total || 0);
     deleteDepositAssetByIdStatement.run(assetId);
+    await persistDbToBlobSafe("admin.deposit.asset.delete");
 
     res.json({
       message:
@@ -3615,12 +3991,13 @@ function handleAdminDepositAssetDelete(req, res) {
       linkedRequests,
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not delete deposit asset." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not delete deposit asset." });
   }
 }
 
-function handleAdminDepositRequestsList(_req, res) {
+async function handleAdminDepositRequestsList(_req, res) {
   try {
+    await syncDepositStateFromBlobSafe({ context: "admin.deposit.requests.list.pre" });
     cleanupExpiredRecords();
     const rows = listAdminDepositRequestsStatement.all();
     res.json({
@@ -3639,8 +4016,9 @@ function handleAdminDepositRequestsList(_req, res) {
   }
 }
 
-function handleAdminDepositRequestReview(req, res) {
+async function handleAdminDepositRequestReview(req, res) {
   try {
+    await syncDepositStateFromBlobSafe({ force: true, context: "admin.deposit.request.review.pre" });
     cleanupExpiredRecords();
     const requestId = Number(req.body.requestId);
     const decision = normalizeDepositStatus(req.body.decision || "");
@@ -3753,6 +4131,7 @@ function handleAdminDepositRequestReview(req, res) {
     });
 
     reviewTransaction();
+    await persistDbToBlobSafe("admin.deposit.request.review");
 
     const reviewedRequest = findAdminDepositRequestByIdStatement.get(requestId);
     const responseMessageByDecision = {
@@ -3770,7 +4149,7 @@ function handleAdminDepositRequestReview(req, res) {
       wallet: readDashboardWallet(request.user_id),
     });
   } catch (error) {
-    res.status(400).json({ error: error.message || "Could not review deposit request." });
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not review deposit request." });
   }
 }
 
@@ -4368,11 +4747,27 @@ app.post("/api/admin/transaction/spot/manual-tick/push", requireAdminSession, ha
 app.post("/api/admin/transaction/spot/feed-settings/save", requireAdminSession, handleAdminTransactionSpotFeedSettingsSave);
 app.get("/api/admin/transaction/audit", requireAdminSession, handleAdminTransactionAuditList);
 
+if (shouldServeStaticAssets) {
+  app.get("/", (_req, res) => {
+    res.sendFile(path.join(staticDistDir, "index.html"));
+  });
+
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api/")) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(staticDistDir, "index.html"));
+  });
+}
+
 if (shouldUseBlobDbSync && !restoredFromBlob) {
   try {
     await persistDbToBlob();
-  } catch {
+  } catch (error) {
     // Ignore initial persistence failures and keep runtime functional.
+    // eslint-disable-next-line no-console
+    console.error("[auth-api] initial blob persistence failed:", error?.message || error);
   }
 }
 

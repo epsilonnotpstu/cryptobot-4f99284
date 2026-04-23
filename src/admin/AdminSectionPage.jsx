@@ -648,7 +648,7 @@ const DEFAULT_SUPPORT_CENTER = {
   auditLogs: { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
 };
 
-export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth }) {
+export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth, requireFreshLogin = false }) {
   const [mode, setMode] = useState("login");
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -674,6 +674,18 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     setAuthError("");
     setAuthNotice("");
   };
+
+  useEffect(() => {
+    if (!requireFreshLogin) {
+      return;
+    }
+
+    clearAdminSession();
+    setAdminSnapshot(readAdminSnapshot());
+    setAuthReady(true);
+    setMode("login");
+    setActiveSection("dashboard");
+  }, [requireFreshLogin]);
 
   const refreshAdminSession = useCallback(async () => {
     const snapshot = readAdminSnapshot();

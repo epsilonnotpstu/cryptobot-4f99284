@@ -10,6 +10,8 @@ This checklist is focused on the user section only: auth, dashboard, deposit, lu
    - `VITE_PUBLIC_AUTH_BASE_URL` (public HTTPS URL only)
    - `VITE_NATIVE_AUTH_CALLBACK_URL=cryptobotprime://auth-callback`
    - `VITE_GOOGLE_CLIENT_ID` (if Google sign-in is enabled)
+   - `BLOB_SYNC_DISABLE_ON_FAILURE=true`
+   - If Blob quota is already exhausted: `BLOB_SYNC_DISABLED=true`
 2. Deploy with `npm run build` (or default Vercel build command).
 3. Confirm these routes respond after deploy:
    - `/#/login`
@@ -56,3 +58,5 @@ Expected result:
 1. Native app cannot use `localhost` from physical devices.
 2. If web deploy cannot reach `/api`, ensure Vercel includes `api/auth/*` files and `api/health.js`.
 3. If OTP mail fails, check SMTP sender credentials and provider restrictions.
+4. For non-Vercel hosting with persistent disk, set `AUTH_DATA_DIR` (example: `/data`) and `SERVE_STATIC=true`.
+5. See full free + paid hosting playbook: `docs/deployment-hosting-guide.md`.

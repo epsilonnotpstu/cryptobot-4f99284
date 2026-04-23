@@ -324,7 +324,7 @@ export default function AdminDashboardPage({
           </div>
         </div>
 
-        <nav className="adminx-nav">
+        <nav className="adminx-nav" aria-label="Admin sections">
           {ADMIN_SIDEBAR_ITEMS.map((item) => (
             <button
               type="button"
@@ -355,6 +355,7 @@ export default function AdminDashboardPage({
               <i className="fas fa-search" />
               <input
                 type="text"
+                aria-label={`${pageTitle} search`}
                 placeholder={
                   activeSection === "users"
                     ? "Search users..."
@@ -413,13 +414,13 @@ export default function AdminDashboardPage({
               />
             </label>
 
-            <button type="button" className="adminx-icon-btn" onClick={onRefresh} title="Refresh page data">
+            <button type="button" className="adminx-icon-btn" onClick={onRefresh} title="Refresh page data" aria-label="Refresh page data">
               <i className={`fas ${loading ? "fa-spinner fa-spin" : "fa-arrows-rotate"}`} />
             </button>
-            <button type="button" className="adminx-icon-btn" onClick={() => setShowProfile(true)} title="Admin profile">
+            <button type="button" className="adminx-icon-btn" onClick={() => setShowProfile(true)} title="Admin profile" aria-label="Open admin profile">
               <i className="fas fa-user" />
             </button>
-            <button type="button" className="adminx-icon-btn" onClick={onLogout} title="Logout">
+            <button type="button" className="adminx-icon-btn" onClick={onLogout} title="Logout" aria-label="Logout">
               <i className="fas fa-right-from-bracket" />
             </button>
 

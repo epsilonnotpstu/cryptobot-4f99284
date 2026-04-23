@@ -1,5 +1,4 @@
-import app from "../../server/index.js";
-import { createExpressRouteHandler } from "../_shared/handleExpressRoute.js";
+import { createLazyExpressRouteHandler } from "../_shared/handleExpressRoute.js";
+import { loadFreshServerApp } from "../_shared/loadServerApp.js";
 
-export default createExpressRouteHandler(app, "/api/auth/session");
-// hello
+export default createLazyExpressRouteHandler(loadFreshServerApp, "/api/auth/session");

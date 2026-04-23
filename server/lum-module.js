@@ -445,6 +445,75 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
     return Number(numeric.toFixed(8));
   }
 
+  function normalizeWalletAssetSymbol(value = "", fallback = "SPOT_USDT") {
+    const raw = String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]/g, "");
+    const fallbackRaw =
+      String(fallback || "SPOT_USDT")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9_]/g, "") || "SPOT_USDT";
+    const normalized = raw || fallbackRaw;
+
+    const aliases = {
+      SPOTUSDT: "SPOT_USDT",
+      MAINUSDT: "MAIN_USDT",
+      BINARYUSDT: "BINARY_USDT",
+    };
+    if (aliases[normalized]) {
+      return aliases[normalized];
+    }
+
+    const scopedMatch = normalized.match(/^(SPOT|MAIN|BINARY)_?([A-Z0-9]+)$/);
+    if (scopedMatch) {
+      return `${scopedMatch[1]}_${scopedMatch[2]}`;
+    }
+
+    const plain = normalizeAssetSymbol(normalized);
+    if (plain) {
+      return `SPOT_${plain}`;
+    }
+    return "SPOT_USDT";
+  }
+
+  function buildWalletSymbolCandidates(assetSymbol = "") {
+    const canonical = normalizeWalletAssetSymbol(assetSymbol || "SPOT_USDT", "SPOT_USDT");
+    const candidates = [canonical];
+    const compact = canonical.replace(/_/g, "");
+    if (!candidates.includes(compact)) {
+      candidates.push(compact);
+    }
+    const assetOnly = canonical.includes("_") ? canonical.split("_").slice(1).join("_") : "";
+    if (assetOnly && !candidates.includes(assetOnly)) {
+      candidates.push(assetOnly);
+    }
+    return candidates;
+  }
+
+  function findWalletDetailByAnySymbol(userId, assetSymbol) {
+    const candidates = buildWalletSymbolCandidates(assetSymbol);
+    for (const symbol of candidates) {
+      const row = findWalletDetailStatement.get(userId, symbol);
+      if (row) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  function findWalletSummaryByAnySymbol(userId, assetSymbol) {
+    const candidates = buildWalletSymbolCandidates(assetSymbol);
+    for (const symbol of candidates) {
+      const row = findWalletSummaryByAssetStatement.get(userId, symbol);
+      if (row) {
+        return row;
+      }
+    }
+    return null;
+  }
+
   function createInvestmentRef() {
     const stamp = Date.now().toString(36).toUpperCase();
     const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -642,13 +711,13 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
   }
 
   function ensureWalletDetailRow(userId, assetSymbol, nowIso) {
-    const symbol = normalizeAssetSymbol(assetSymbol || "USDT") || "USDT";
-    const existing = findWalletDetailStatement.get(userId, symbol);
+    const symbol = normalizeWalletAssetSymbol(assetSymbol || "SPOT_USDT", "SPOT_USDT");
+    const existing = findWalletDetailByAnySymbol(userId, symbol);
     if (existing) {
       return existing;
     }
 
-    const summary = findWalletSummaryByAssetStatement.get(userId, symbol);
+    const summary = findWalletSummaryByAnySymbol(userId, symbol);
     const availableUsd = Number(summary?.total_usd || 0);
     const insertPayload = {
       userId,
@@ -729,7 +798,10 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
     const additionalProfit = Math.max(0, toFixedMoney(projection.expectedProfitUsd - existingSettledProfit));
     const principal = Number(investmentRow.locked_principal_usd || investmentRow.invested_amount_usd || 0);
     const userId = investmentRow.user_id;
-    const assetSymbol = normalizeAssetSymbol(investmentRow.wallet_asset_symbol || "USDT") || "USDT";
+    const assetSymbol = normalizeWalletAssetSymbol(
+      investmentRow.wallet_asset_symbol || "SPOT_USDT",
+      "SPOT_USDT",
+    );
 
     const settleTx = db.transaction(() => {
       let detail = ensureWalletDetailRow(userId, assetSymbol, nowIso);
@@ -1090,7 +1162,7 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
     const title = sanitizeShortText(raw.title || "", 120);
     const shortDescription = sanitizeShortText(raw.shortDescription || raw.short_description || "", 240);
     const detailsHtml = String(raw.detailsHtml || raw.details_html || "").trim();
-    const currency = normalizeAssetSymbol(raw.currency || "USDT") || "USDT";
+    const currency = normalizeWalletAssetSymbol(raw.currency || "SPOT_USDT", "SPOT_USDT");
     const minimumAmountUsd = normalizeUsdAmount(raw.minimumAmountUsd ?? raw.minimum_amount_usd ?? 0.01);
     const maximumAmountRaw = raw.maximumAmountUsd ?? raw.maximum_amount_usd;
     const maximumAmountUsd =
@@ -1245,7 +1317,7 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
       cycleDays: Number(plan.cycle_days || 1),
     });
 
-    const walletSymbol = normalizeAssetSymbol(plan.currency || "USDT") || "USDT";
+    const walletSymbol = normalizeWalletAssetSymbol(plan.currency || "SPOT_USDT", "SPOT_USDT");
     const investmentRef = createInvestmentRef();
     const requiresReview = Number(plan.requires_admin_review || 0) === 1;
 
@@ -1383,7 +1455,10 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
       }
 
       if (normalizedDecision === "rejected") {
-        const walletSymbol = normalizeAssetSymbol(target.wallet_asset_symbol || "USDT") || "USDT";
+        const walletSymbol = normalizeWalletAssetSymbol(
+          target.wallet_asset_symbol || "SPOT_USDT",
+          "SPOT_USDT",
+        );
         const detail = ensureWalletDetailRow(target.user_id, walletSymbol, nowIso);
         const beforeAvailable = Number(detail.available_usd || 0);
         const beforeLocked = Number(detail.locked_usd || 0);
