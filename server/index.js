@@ -2205,6 +2205,32 @@ function buildWalletBalancePayload(row) {
   };
 }
 
+const DEPOSIT_APPROVAL_AMOUNT_META_PATTERN = /\[approved_amount_usd=([0-9]+(?:\.[0-9]+)?)\]/i;
+
+function stripDepositApprovalMeta(note = "") {
+  return String(note || "").replace(DEPOSIT_APPROVAL_AMOUNT_META_PATTERN, "").trim();
+}
+
+function extractDepositApprovedAmountFromNote(note = "", fallbackAmountUsd = 0) {
+  const match = String(note || "").match(DEPOSIT_APPROVAL_AMOUNT_META_PATTERN);
+  if (match?.[1]) {
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  const fallback = Number(fallbackAmountUsd || 0);
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+}
+
+function withDepositApprovalMeta(note = "", approvedAmountUsd = 0) {
+  const amount = Number(approvedAmountUsd || 0);
+  const normalizedAmount = Number.isFinite(amount) ? amount : 0;
+  const cleanNote = sanitizeShortText(stripDepositApprovalMeta(note), 300);
+  const meta = `[approved_amount_usd=${normalizedAmount.toFixed(2)}]`;
+  return cleanNote ? `${meta} ${cleanNote}` : meta;
+}
+
 function buildDepositRequestPayload(row, options = {}) {
   if (!row) {
     return null;
@@ -2212,6 +2238,13 @@ function buildDepositRequestPayload(row, options = {}) {
 
   const includeAdminFields = Boolean(options.includeAdminFields);
   const includeSensitiveMedia = Boolean(options.includeSensitiveMedia);
+  const normalizedStatus = normalizeDepositStatus(row.status || "pending");
+  const submittedAmountUsd = Number(row.amount_usd || 0);
+  const creditedAmountUsd =
+    normalizedStatus === "approved"
+      ? extractDepositApprovedAmountFromNote(row.note || "", submittedAmountUsd)
+      : 0;
+
   const payload = {
     requestId: row.id,
     userId: row.user_id,
@@ -2220,10 +2253,12 @@ function buildDepositRequestPayload(row, options = {}) {
     assetName: sanitizeShortText(row.asset_name || "", 80),
     chainName: sanitizeShortText(row.chain_name || "", 80),
     rechargeAddress: sanitizeShortText(row.recharge_address_snapshot || "", 180),
-    amountUsd: Number(row.amount_usd || 0),
+    amountUsd: submittedAmountUsd,
+    submittedAmountUsd,
+    creditedAmountUsd,
     screenshotFileName: sanitizeShortText(row.screenshot_file_name || "", 180),
-    status: normalizeDepositStatus(row.status || "pending"),
-    note: row.note || "",
+    status: normalizedStatus,
+    note: stripDepositApprovalMeta(row.note || ""),
     submittedAt: row.submitted_at || "",
     reviewedAt: row.reviewed_at || "",
     reviewedBy: row.reviewed_by || "",
@@ -4065,7 +4100,7 @@ async function handleAdminDepositRequestReview(req, res) {
     cleanupExpiredRecords();
     const requestId = Number(req.body.requestId);
     const decision = normalizeDepositStatus(req.body.decision || "");
-    const note = sanitizeShortText(req.body.note || "", 300);
+    const noteInput = sanitizeShortText(req.body.note || "", 300);
 
     if (!Number.isInteger(requestId) || requestId <= 0) {
       throw new Error("Valid requestId is required.");
@@ -4073,7 +4108,7 @@ async function handleAdminDepositRequestReview(req, res) {
     if (decision !== "approved" && decision !== "rejected" && decision !== "pending") {
       throw new Error("Decision must be approved, rejected, or pending.");
     }
-    if (decision === "rejected" && !note) {
+    if (decision === "rejected" && !noteInput) {
       throw new Error("Reject reason is required.");
     }
 
@@ -4083,6 +4118,28 @@ async function handleAdminDepositRequestReview(req, res) {
       return;
     }
     const previousStatus = normalizeDepositStatus(request.status || "pending");
+    const submittedAmountUsd = Number(request.amount_usd || 0);
+    const previousApprovedAmountUsd = extractDepositApprovedAmountFromNote(
+      request.note || "",
+      submittedAmountUsd,
+    );
+    const requestedApprovedAmountInput = req.body.approvedAmountUsd;
+    const hasApprovedAmountInput =
+      requestedApprovedAmountInput !== undefined &&
+      requestedApprovedAmountInput !== null &&
+      String(requestedApprovedAmountInput).trim() !== "";
+    const approvedAmountUsd = decision === "approved"
+      ? hasApprovedAmountInput
+        ? normalizeUsdAmount(requestedApprovedAmountInput)
+        : submittedAmountUsd
+      : 0;
+    const note = decision === "approved"
+      ? withDepositApprovalMeta(noteInput, approvedAmountUsd)
+      : noteInput;
+
+    if (decision === "approved" && (!Number.isFinite(approvedAmountUsd) || approvedAmountUsd <= 0)) {
+      throw new Error("Approved amount must be greater than 0.");
+    }
     const depositCreditWalletSymbol = normalizeDashboardWalletSymbol(getDepositCreditWalletSymbol() || "SPOT_USDT") || "SPOT_USDT";
     const depositCreditWalletName = buildWalletSymbolLabel(depositCreditWalletSymbol);
 
@@ -4099,8 +4156,6 @@ async function handleAdminDepositRequestReview(req, res) {
       });
 
       if (previousStatus !== "approved" && decision === "approved") {
-        const approvedAmountUsd = Number(request.amount_usd || 0);
-
         ensureWalletDetailMirroredFromSummary({
           userId: request.user_id,
           assetSymbol: depositCreditWalletSymbol,
@@ -4136,8 +4191,6 @@ async function handleAdminDepositRequestReview(req, res) {
       }
 
       if (previousStatus === "approved" && decision !== "approved") {
-        const approvedAmountUsd = Number(request.amount_usd || 0);
-
         ensureWalletDetailMirroredFromSummary({
           userId: request.user_id,
           assetSymbol: depositCreditWalletSymbol,
@@ -4148,7 +4201,7 @@ async function handleAdminDepositRequestReview(req, res) {
         applyWalletDetailDeltaIfExists({
           userId: request.user_id,
           assetSymbol: depositCreditWalletSymbol,
-          deltaUsd: -approvedAmountUsd,
+          deltaUsd: -previousApprovedAmountUsd,
           updatedAt: reviewedAt,
         });
         syncWalletSummaryFromDetailIfExists({
@@ -4165,11 +4218,53 @@ async function handleAdminDepositRequestReview(req, res) {
           walletSymbol: depositCreditWalletSymbol,
           assetSymbol: request.asset_symbol || "USDT",
           movementType: "debit",
-          amountUsd: approvedAmountUsd,
+          amountUsd: previousApprovedAmountUsd,
           note: `Deposit approval reverted (${request.asset_symbol || "USDT"}).`,
           createdAt: reviewedAt,
           createdBy: "admin",
         });
+      }
+
+      if (previousStatus === "approved" && decision === "approved") {
+        const deltaUsd = approvedAmountUsd - previousApprovedAmountUsd;
+
+        if (Math.abs(deltaUsd) >= 0.000001) {
+          ensureWalletDetailMirroredFromSummary({
+            userId: request.user_id,
+            assetSymbol: depositCreditWalletSymbol,
+            assetName: depositCreditWalletName,
+            nowIso: reviewedAt,
+          });
+
+          applyWalletDetailDeltaIfExists({
+            userId: request.user_id,
+            assetSymbol: depositCreditWalletSymbol,
+            deltaUsd,
+            updatedAt: reviewedAt,
+          });
+          syncWalletSummaryFromDetailIfExists({
+            userId: request.user_id,
+            assetSymbol: depositCreditWalletSymbol,
+            assetName: depositCreditWalletName,
+            updatedAt: reviewedAt,
+          });
+
+          insertAssetWalletLedgerEntry({
+            userId: request.user_id,
+            ledgerRefType: "deposit_approval_adjustment",
+            ledgerRefId: String(request.id || requestId),
+            walletSymbol: depositCreditWalletSymbol,
+            assetSymbol: request.asset_symbol || "USDT",
+            movementType: deltaUsd >= 0 ? "credit" : "debit",
+            amountUsd: Math.abs(deltaUsd),
+            note:
+              deltaUsd >= 0
+                ? `Deposit approved amount increased (${request.asset_symbol || "USDT"}).`
+                : `Deposit approved amount reduced (${request.asset_symbol || "USDT"}).`,
+            createdAt: reviewedAt,
+            createdBy: "admin",
+          });
+        }
       }
     });
 
@@ -4178,7 +4273,10 @@ async function handleAdminDepositRequestReview(req, res) {
 
     const reviewedRequest = findAdminDepositRequestByIdStatement.get(requestId);
     const responseMessageByDecision = {
-      approved: "Deposit approved and wallet adjusted.",
+      approved:
+        previousStatus === "approved"
+          ? `Deposit approval updated. Credited amount is $${approvedAmountUsd.toFixed(2)}.`
+          : `Deposit approved. Credited amount is $${approvedAmountUsd.toFixed(2)}.`,
       rejected: "Deposit rejected and wallet adjusted.",
       pending: "Deposit moved back to pending.",
     };

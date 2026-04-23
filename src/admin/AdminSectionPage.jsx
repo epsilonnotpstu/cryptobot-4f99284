@@ -11,12 +11,16 @@ function toNumber(value, fallback = 0) {
 
 function buildActivityFeed(depositRequests, kycRequests) {
   const depositEvents = (Array.isArray(depositRequests) ? depositRequests : []).map((item) => {
-    const amountUsd = toNumber(item.amountUsd, 0).toLocaleString("en-US", {
+    const status = String(item.status || "pending").toLowerCase();
+    const amountSource =
+      status === "approved"
+        ? item.creditedAmountUsd ?? item.submittedAmountUsd ?? item.amountUsd
+        : item.submittedAmountUsd ?? item.amountUsd;
+    const amountUsd = toNumber(amountSource, 0).toLocaleString("en-US", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
 
-    const status = String(item.status || "pending").toLowerCase();
     const summary =
       status === "approved"
         ? `Deposit approved for ${item.accountEmail || item.userId} • ${item.assetSymbol} $${amountUsd}`
@@ -52,7 +56,66 @@ function buildActivityFeed(depositRequests, kycRequests) {
     .slice(0, 10);
 }
 
-function buildDashboardModel(usersPayload, depositPayload, kycPayload) {
+function buildApprovalSpotlight(depositPayload, kycPayload, supportSummary = {}) {
+  const depositRows = Array.isArray(depositPayload?.requests) ? depositPayload.requests : [];
+  const kycRows = Array.isArray(kycPayload?.requests) ? kycPayload.requests : [];
+
+  const pendingDepositRows = depositRows
+    .filter((item) => String(item?.status || "").toLowerCase() === "pending")
+    .slice(0, 4)
+    .map((item) => ({
+      id: `deposit-${item.requestId}`,
+      type: "Deposit Approval",
+      title: `${item.accountEmail || item.userId} • ${item.assetSymbol}`,
+      subtitle: `$${toNumber(item.submittedAmountUsd ?? item.amountUsd, 0).toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      })} pending review`,
+      route: "depositCenter",
+    }));
+
+  const pendingKycRows = kycRows
+    .filter((item) => String(item?.status || "").toLowerCase() === "pending")
+    .slice(0, 4)
+    .map((item) => ({
+      id: `kyc-${item.requestId}`,
+      type: "KYC Review",
+      title: `${item.accountEmail || item.userId}`,
+      subtitle: `${item.certification || "ID"} document submitted`,
+      route: "kycReview",
+    }));
+
+  const pendingSupportTickets = toNumber(supportSummary?.pendingAdminTickets, 0);
+  const unreadSupport = toNumber(supportSummary?.unreadForAdmin, 0);
+  const supportItems =
+    pendingSupportTickets > 0 || unreadSupport > 0
+      ? [
+          {
+            id: "support-backlog",
+            type: "Support Inbox",
+            title: `${pendingSupportTickets} pending admin tickets`,
+            subtitle: `${unreadSupport} unread messages need response`,
+            route: "supportCenter",
+          },
+        ]
+      : [];
+
+  const items = [...pendingDepositRows, ...pendingKycRows, ...supportItems].slice(0, 8);
+
+  return {
+    pendingDepositRequests: toNumber(depositPayload?.stats?.pendingRequests, pendingDepositRows.length),
+    pendingKycRequests: toNumber(kycPayload?.stats?.pendingKycRequests, pendingKycRows.length),
+    pendingSupportTickets,
+    unreadSupport,
+    totalPendingApprovals:
+      toNumber(depositPayload?.stats?.pendingRequests, pendingDepositRows.length) +
+      toNumber(kycPayload?.stats?.pendingKycRequests, pendingKycRows.length) +
+      pendingSupportTickets,
+    items,
+  };
+}
+
+function buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSummary = {}) {
   const userStats = usersPayload?.stats || {};
   const depositStats = depositPayload?.stats || {};
   const kycStats = kycPayload?.stats || {};
@@ -129,6 +192,7 @@ function buildDashboardModel(usersPayload, depositPayload, kycPayload) {
     metrics,
     profitSeries: baseProfit.map((value) => Number((value * trendScale).toFixed(2))),
     costSeries: baseCost.map((value) => Number((value * Math.max(0.7, trendScale * 0.68)).toFixed(2))),
+    approvals: buildApprovalSpotlight(depositPayload, kycPayload, supportSummary),
     health: {
       uptime: totalUsers > 0 ? "99.97" : "99.90",
       apiSuccessRate,
@@ -247,6 +311,8 @@ function buildDepositCenterModel(assetsPayload, depositPayload) {
       chainName: String(request.chainName || ""),
       rechargeAddress: String(request.rechargeAddress || ""),
       amountUsd: toNumber(request.amountUsd, 0),
+      submittedAmountUsd: toNumber(request.submittedAmountUsd ?? request.amountUsd, 0),
+      creditedAmountUsd: toNumber(request.creditedAmountUsd, 0),
       screenshotFileName: String(request.screenshotFileName || ""),
       screenshotFileData: String(request.screenshotFileData || ""),
       status: String(request.status || "pending"),
@@ -497,6 +563,14 @@ const DEFAULT_DASHBOARD = {
   ],
   profitSeries: [],
   costSeries: [],
+  approvals: {
+    pendingDepositRequests: 0,
+    pendingKycRequests: 0,
+    pendingSupportTickets: 0,
+    unreadSupport: 0,
+    totalPendingApprovals: 0,
+    items: [],
+  },
   health: {
     uptime: "99.90",
     apiSuccessRate: "100.0",
@@ -913,6 +987,9 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
         ]);
 
         setSupportCenter(buildSupportCenterModel(supportSummaryPayload, supportTicketsPayload, supportAuditPayload));
+        setDashboard(
+          buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSummaryPayload?.summary || supportSummaryPayload || {}),
+        );
       } catch {
         setSupportCenter(DEFAULT_SUPPORT_CENTER);
       }
@@ -980,7 +1057,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
-  const reviewDepositRequest = useCallback(async ({ requestId, decision, note }) => {
+  const reviewDepositRequest = useCallback(async ({ requestId, decision, note, approvedAmountUsd }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       throw new Error("Admin session expired. Please login again.");
@@ -990,6 +1067,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       requestId,
       decision,
       note,
+      approvedAmountUsd,
     });
     await loadAdminData();
     return data;
@@ -1542,6 +1620,20 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       loadAdminData();
     }
   }, [adminSnapshot.isLoggedIn, adminSnapshot.sessionToken, loadAdminData]);
+
+  useEffect(() => {
+    if (!authReady || !adminSnapshot.isLoggedIn || !adminSnapshot.sessionToken) {
+      return undefined;
+    }
+
+    const refreshInterval = window.setInterval(() => {
+      loadAdminData();
+    }, 30000);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+    };
+  }, [adminSnapshot.isLoggedIn, adminSnapshot.sessionToken, authReady, loadAdminData]);
 
   const handleSignup = async ({ name, email, phone, password }) => {
     clearAuthFeedback();

@@ -313,6 +313,69 @@ export default function AdminDashboardPage({
 
   const renderDashboard = () => (
     <>
+      <section className="adminx-approval-board">
+        <article className="adminx-approval-hero">
+          <div>
+            <p className="adminx-approval-kicker">Approval Command Center</p>
+            <h2>{formatCompactNumber(dashboard.approvals?.totalPendingApprovals || 0)} pending actions</h2>
+            <span>Live queue for deposits, KYC reviews, and support approvals.</span>
+          </div>
+          <div className="adminx-approval-hero-actions">
+            <button type="button" className="btn btn-primary" onClick={() => onSectionChange("depositCenter")}>
+              Review Deposits
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => onSectionChange("kycReview")}>
+              Open KYC Desk
+            </button>
+          </div>
+        </article>
+
+        <div className="adminx-approval-summary-grid">
+          <article className="adminx-approval-summary-card">
+            <small>Pending Deposit Approvals</small>
+            <strong>{formatCompactNumber(dashboard.approvals?.pendingDepositRequests || 0)}</strong>
+            <button type="button" onClick={() => onSectionChange("depositCenter")}>Go to Deposit Desk</button>
+          </article>
+          <article className="adminx-approval-summary-card">
+            <small>Pending KYC Reviews</small>
+            <strong>{formatCompactNumber(dashboard.approvals?.pendingKycRequests || 0)}</strong>
+            <button type="button" onClick={() => onSectionChange("kycReview")}>Open KYC Queue</button>
+          </article>
+          <article className="adminx-approval-summary-card">
+            <small>Support Pending / Unread</small>
+            <strong>
+              {formatCompactNumber(dashboard.approvals?.pendingSupportTickets || 0)} / {formatCompactNumber(dashboard.approvals?.unreadSupport || 0)}
+            </strong>
+            <button type="button" onClick={() => onSectionChange("supportCenter")}>Support Inbox</button>
+          </article>
+        </div>
+
+        <div className="adminx-approval-feed">
+          {(Array.isArray(dashboard.approvals?.items) ? dashboard.approvals.items : []).length ? (
+            (dashboard.approvals.items || []).map((item) => (
+              <article key={item.id} className="adminx-approval-item">
+                <div>
+                  <small>{item.type}</small>
+                  <strong>{item.title}</strong>
+                  <p>{item.subtitle}</p>
+                </div>
+                <button type="button" className="adminx-filter-btn" onClick={() => onSectionChange(item.route)}>
+                  Open
+                </button>
+              </article>
+            ))
+          ) : (
+            <article className="adminx-approval-item adminx-approval-item-empty">
+              <div>
+                <small>All Clear</small>
+                <strong>No pending approvals right now.</strong>
+                <p>Incoming approval queues will appear here automatically.</p>
+              </div>
+            </article>
+          )}
+        </div>
+      </section>
+
       <section className="adminx-kpi-grid">
         {dashboard.metrics.map((metric) => (
           <article key={metric.key} className="adminx-kpi-card">
@@ -535,12 +598,14 @@ export default function AdminDashboardPage({
         </header>
 
         {error ? <p className="adminx-error">{error}</p> : null}
-        <AdminSectionIntro
-          icon={sectionMeta.icon}
-          title={sectionMeta.title}
-          description={sectionMeta.description}
-          stats={sectionStats}
-        />
+        {activeSection === "dashboard" ? (
+          <AdminSectionIntro
+            icon={sectionMeta.icon}
+            title={sectionMeta.title}
+            description={sectionMeta.description}
+            stats={sectionStats}
+          />
+        ) : null}
 
         {activeSection === "dashboard" ? renderDashboard() : null}
         {activeSection === "users" ? (

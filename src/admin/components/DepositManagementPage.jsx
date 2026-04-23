@@ -105,6 +105,7 @@ export default function DepositManagementPage({
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [reviewDecision, setReviewDecision] = useState("approved");
+  const [reviewApprovedAmountUsd, setReviewApprovedAmountUsd] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
@@ -265,6 +266,10 @@ export default function DepositManagementPage({
     setActionNotice("");
     setReviewTarget(request || null);
     setReviewDecision(decision);
+    const requestAmount = Number(request?.submittedAmountUsd ?? request?.amountUsd ?? 0);
+    const creditedAmount = Number(request?.creditedAmountUsd ?? 0);
+    const defaultApprovedAmount = creditedAmount > 0 ? creditedAmount : requestAmount;
+    setReviewApprovedAmountUsd(defaultApprovedAmount > 0 ? String(defaultApprovedAmount) : "");
     setReviewNote("");
     setReviewModalOpen(true);
   };
@@ -278,6 +283,13 @@ export default function DepositManagementPage({
       setActionError("Reject reason is required.");
       return;
     }
+    if (reviewDecision === "approved") {
+      const approvedAmount = Number(reviewApprovedAmountUsd || 0);
+      if (!Number.isFinite(approvedAmount) || approvedAmount <= 0) {
+        setActionError("Approved amount must be greater than 0.");
+        return;
+      }
+    }
 
     setReviewSubmitting(true);
     setActionError("");
@@ -288,24 +300,14 @@ export default function DepositManagementPage({
         requestId,
         decision: reviewDecision,
         note: reviewNote,
+        approvedAmountUsd: reviewDecision === "approved" ? Number(reviewApprovedAmountUsd || 0) : undefined,
       });
       setReviewModalOpen(false);
       setReviewTarget(null);
       setActionNotice(response?.message || "Deposit request updated.");
 
       if (detailRequest?.requestId === requestId) {
-        setDetailRequest((prev) => {
-          if (!prev) {
-            return prev;
-          }
-          return {
-            ...prev,
-            status: reviewDecision,
-            note: String(reviewNote || "").trim(),
-            reviewedAt: new Date().toISOString(),
-            reviewedBy: "admin",
-          };
-        });
+        setDetailRequest(response?.request || null);
       }
     } catch (error) {
       setActionError(error.message || "Could not update deposit request.");
@@ -585,7 +587,8 @@ export default function DepositManagementPage({
                   <th>Request</th>
                   <th>User</th>
                   <th>Asset</th>
-                  <th>Amount</th>
+                  <th>User Submitted</th>
+                  <th>Credit Amount</th>
                   <th>Status</th>
                   <th>Submitted</th>
                   <th>Reviewed</th>
@@ -609,7 +612,19 @@ export default function DepositManagementPage({
                       <strong>{request.assetSymbol}</strong>
                       <small className="adminx-table-subtext">{request.chainName}</small>
                     </td>
-                    <td>{formatUsd(request.amountUsd)}</td>
+                    <td>{formatUsd(request.submittedAmountUsd ?? request.amountUsd)}</td>
+                    <td>
+                      {Number(request.creditedAmountUsd || 0) > 0 ? (
+                        <>
+                          <strong>{formatUsd(request.creditedAmountUsd)}</strong>
+                          {Number(request.creditedAmountUsd || 0) !== Number(request.submittedAmountUsd ?? request.amountUsd ?? 0) ? (
+                            <small className="adminx-table-subtext">Adjusted by admin</small>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="adminx-muted">-</span>
+                      )}
+                    </td>
                     <td>
                       <span className={`adminx-tag adminx-tag-kyc-${getStatusClass(request.status)}`}>
                         {formatStatus(request.status)}
@@ -697,7 +712,8 @@ export default function DepositManagementPage({
               <p><span>Account Email</span><strong>{detailRequest.accountEmail || "-"}</strong></p>
               <p><span>Asset</span><strong>{detailRequest.assetSymbol}</strong></p>
               <p><span>Chain</span><strong>{detailRequest.chainName || "-"}</strong></p>
-              <p><span>Amount</span><strong>{formatUsd(detailRequest.amountUsd)}</strong></p>
+              <p><span>User Submitted</span><strong>{formatUsd(detailRequest.submittedAmountUsd ?? detailRequest.amountUsd)}</strong></p>
+              <p><span>Credited To Wallet</span><strong>{Number(detailRequest.creditedAmountUsd || 0) > 0 ? formatUsd(detailRequest.creditedAmountUsd) : "-"}</strong></p>
               <p><span>Status</span><strong>{formatStatus(detailRequest.status)}</strong></p>
               <p><span>Recharge Address</span><strong>{detailRequest.rechargeAddress || "-"}</strong></p>
               <p><span>Submitted At</span><strong>{formatTime(detailRequest.submittedAt)}</strong></p>
@@ -771,6 +787,31 @@ export default function DepositManagementPage({
             <p className="adminx-page-note">
               Request <strong>#{reviewTarget.requestId}</strong> for <strong>{reviewTarget.accountEmail || reviewTarget.userId}</strong>
             </p>
+
+            <div className="adminx-deposit-review-summary">
+              <p>
+                <span>User Submitted</span>
+                <strong>{formatUsd(reviewTarget.submittedAmountUsd ?? reviewTarget.amountUsd)}</strong>
+              </p>
+              <p>
+                <span>Current Credited</span>
+                <strong>{Number(reviewTarget.creditedAmountUsd || 0) > 0 ? formatUsd(reviewTarget.creditedAmountUsd) : "-"}</strong>
+              </p>
+            </div>
+
+            {reviewDecision === "approved" ? (
+              <label className="adminx-review-note-field">
+                <span>Credit Amount (USD)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={reviewApprovedAmountUsd}
+                  onChange={(event) => setReviewApprovedAmountUsd(event.target.value)}
+                  placeholder="Set amount to credit user wallet"
+                />
+              </label>
+            ) : null}
 
             <label className="adminx-review-note-field">
               <span>

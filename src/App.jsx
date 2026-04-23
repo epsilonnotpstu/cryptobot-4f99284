@@ -1307,11 +1307,11 @@ const remoteAuthService = {
       sessionToken,
     });
   },
-  async adminReviewDepositRequest({ sessionToken, requestId, decision, note }) {
+  async adminReviewDepositRequest({ sessionToken, requestId, decision, note, approvedAmountUsd }) {
     return this.requestGatewayAction({
       action: "admin.deposit.request.review",
       sessionToken,
-      payload: { requestId, decision, note },
+      payload: { requestId, decision, note, approvedAmountUsd },
     });
   },
   async adminListLumPlans({ sessionToken, category = "all", status = "all" }) {

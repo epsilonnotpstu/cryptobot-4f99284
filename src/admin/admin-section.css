@@ -521,6 +521,139 @@
   gap: 0.75rem;
 }
 
+.adminx-approval-board {
+  border-radius: 16px;
+  border: 1px solid rgba(56, 189, 248, 0.26);
+  background:
+    radial-gradient(circle at 88% 10%, rgba(59, 130, 246, 0.2), transparent 34%),
+    linear-gradient(155deg, rgba(9, 19, 37, 0.93), rgba(7, 14, 28, 0.9));
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.adminx-approval-hero {
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  background: rgba(3, 10, 20, 0.56);
+  padding: 0.72rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.adminx-approval-kicker {
+  margin: 0;
+  color: #7dd3fc;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.adminx-approval-hero h2 {
+  margin: 0.2rem 0 0;
+  color: #f8fbff;
+  font-size: 1.3rem;
+}
+
+.adminx-approval-hero span {
+  display: block;
+  margin-top: 0.2rem;
+  color: #9db8de;
+  font-size: 0.82rem;
+}
+
+.adminx-approval-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.adminx-approval-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.adminx-approval-summary-card {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(3, 10, 20, 0.54);
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.adminx-approval-summary-card small {
+  color: #9bb5d8;
+  font-size: 0.74rem;
+}
+
+.adminx-approval-summary-card strong {
+  color: #f3f8ff;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.adminx-approval-summary-card button {
+  margin-top: 0.24rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 9px;
+  background: rgba(7, 16, 31, 0.78);
+  color: #d8e9ff;
+  cursor: pointer;
+  padding: 0.36rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  justify-self: start;
+}
+
+.adminx-approval-summary-card button:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #ecf6ff;
+}
+
+.adminx-approval-feed {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.adminx-approval-item {
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(4, 10, 20, 0.52);
+  padding: 0.55rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.62rem;
+}
+
+.adminx-approval-item small {
+  display: block;
+  color: #7dd3fc;
+  font-size: 0.73rem;
+}
+
+.adminx-approval-item strong {
+  display: block;
+  color: #f4f9ff;
+  font-size: 0.88rem;
+  margin-top: 0.1rem;
+}
+
+.adminx-approval-item p {
+  margin: 0.2rem 0 0;
+  color: #9db7d9;
+  font-size: 0.78rem;
+}
+
+.adminx-approval-item-empty {
+  border-style: dashed;
+}
+
 .adminx-kpi-card,
 .adminx-panel {
   border-radius: 16px;
@@ -1373,10 +1506,51 @@
   resize: vertical;
 }
 
+.adminx-review-note-field input {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(2, 8, 20, 0.88);
+  color: #d8e8fb;
+  padding: 0.62rem 0.68rem;
+}
+
 .adminx-review-note-field textarea:focus {
   outline: none;
   border-color: rgba(59, 130, 246, 0.75);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.adminx-review-note-field input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.75);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.adminx-deposit-review-summary {
+  margin-bottom: 0.55rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.adminx-deposit-review-summary p {
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(4, 10, 20, 0.62);
+  padding: 0.55rem 0.62rem;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.adminx-deposit-review-summary span {
+  color: #93aed2;
+  font-size: 0.75rem;
+}
+
+.adminx-deposit-review-summary strong {
+  color: #edf6ff;
+  font-size: 0.95rem;
 }
 
 .btn.btn-success {
@@ -1585,6 +1759,10 @@
 }
 
 @media (max-width: 1320px) {
+  .adminx-approval-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .adminx-kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1595,6 +1773,15 @@
 }
 
 @media (max-width: 1080px) {
+  .adminx-approval-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .adminx-approval-hero-actions {
+    width: 100%;
+  }
+
   .adminx-dashboard-shell {
     grid-template-columns: 1fr;
   }
@@ -1670,6 +1857,19 @@
 }
 
 @media (max-width: 760px) {
+  .adminx-approval-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-approval-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .adminx-deposit-review-summary {
+    grid-template-columns: 1fr;
+  }
+
   .adminx-auth-topbar,
   .adminx-auth-topbar-actions {
     flex-direction: column;
