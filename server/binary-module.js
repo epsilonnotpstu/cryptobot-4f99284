@@ -301,6 +301,12 @@ export function createBinaryModule({
   `);
 
   const findEngineSettingsStatement = db.prepare(`SELECT * FROM binary_engine_settings WHERE id = 1 LIMIT 1`);
+  const findUserTradeOutcomeModeStatement = db.prepare(`
+    SELECT binary_trade_outcome_mode
+    FROM users
+    WHERE user_id = ?
+    LIMIT 1
+  `);
   const upsertEngineSettingsStatement = db.prepare(`
     INSERT INTO binary_engine_settings (
       id,
@@ -918,6 +924,15 @@ export function createBinaryModule({
       autoTransferFromSpot: normalizeBooleanNumber(raw.auto_transfer_from_spot, 1) === 1,
       updatedAt: raw.updated_at || "",
     };
+  }
+
+  function resolveTradeOutcomeModeForUser(userId, fallbackMode = "auto") {
+    const account = findUserTradeOutcomeModeStatement.get(String(userId || ""));
+    const userMode = normalizeOutcomeMode(account?.binary_trade_outcome_mode || "auto");
+    if (userMode !== "auto") {
+      return userMode;
+    }
+    return normalizeOutcomeMode(fallbackMode || "auto");
   }
 
   function mapPair(row) {
@@ -1562,12 +1577,13 @@ async function fetchExternalTickerMap(symbols = []) {
       throw new Error("Settlement tick is not available yet.");
     }
 
+    const effectiveOutcomeMode = resolveTradeOutcomeModeForUser(trade.user_id, settings.tradeOutcomeMode);
     let resultStatus = evaluateBinaryTradeResult(trade.direction, trade.entry_price, settlementPrice);
-    if (settings.tradeOutcomeMode === "force_win") {
+    if (effectiveOutcomeMode === "force_win") {
       resultStatus = "won";
       const epsilon = Math.pow(10, -Math.max(2, Math.min(10, toNumber(findPairByIdStatement.get(trade.pair_id)?.price_precision, 2))));
       settlementPrice = trade.direction === "long" ? toNumber(trade.entry_price, 0) + epsilon : toNumber(trade.entry_price, 0) - epsilon;
-    } else if (settings.tradeOutcomeMode === "force_loss") {
+    } else if (effectiveOutcomeMode === "force_loss") {
       resultStatus = "lost";
       const epsilon = Math.pow(10, -Math.max(2, Math.min(10, toNumber(findPairByIdStatement.get(trade.pair_id)?.price_precision, 2))));
       settlementPrice = trade.direction === "long" ? toNumber(trade.entry_price, 0) - epsilon : toNumber(trade.entry_price, 0) + epsilon;

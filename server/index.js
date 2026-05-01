@@ -579,6 +579,19 @@ db.exec(`
     reviewed_at TEXT,
     reviewed_by TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS admin_user_update_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_user_id TEXT NOT NULL,
+    admin_email TEXT NOT NULL DEFAULT '',
+    target_user_id TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    field_name TEXT NOT NULL DEFAULT '',
+    previous_value TEXT NOT NULL DEFAULT '',
+    next_value TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  );
 `);
 
 function ensureUserProfileColumns() {
@@ -611,9 +624,19 @@ function ensureUserProfileColumns() {
   if (!existingColumns.includes("kyc_updated_at")) {
     db.exec("ALTER TABLE users ADD COLUMN kyc_updated_at TEXT NOT NULL DEFAULT ''");
   }
+  if (!existingColumns.includes("binary_trade_outcome_mode")) {
+    db.exec("ALTER TABLE users ADD COLUMN binary_trade_outcome_mode TEXT NOT NULL DEFAULT 'auto'");
+  }
 }
 
 ensureUserProfileColumns();
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_admin_user_update_logs_target_created
+  ON admin_user_update_logs(target_user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_admin_user_update_logs_admin_created
+  ON admin_user_update_logs(admin_user_id, created_at DESC);
+`);
 
 function ensureUserRoleViews() {
   db.exec(`
@@ -719,6 +742,10 @@ const deleteUserWalletBalancesStatement = db.prepare(`
   DELETE FROM user_wallet_balances
   WHERE user_id = ?
 `);
+const deleteUserWalletDetailRowsStatement = db.prepare(`
+  DELETE FROM user_wallet_balance_details
+  WHERE user_id = ?
+`);
 const deleteUserKycSubmissionsStatement = db.prepare(`
   DELETE FROM kyc_submissions
   WHERE user_id = ?
@@ -734,6 +761,10 @@ const deleteOtpByEmailStatement = db.prepare(`
 const deleteUserByUserIdStatement = db.prepare(`
   DELETE FROM users
   WHERE user_id = ?
+`);
+const deleteUserAdminUserUpdateLogsStatement = db.prepare(`
+  DELETE FROM admin_user_update_logs
+  WHERE target_user_id = ?
 `);
 const insertPasswordResetTokenStatement = db.prepare(`
   INSERT INTO password_reset_tokens (email, reset_token_hash, expires_at, created_at)
@@ -785,7 +816,8 @@ const updateUserProfileByAdminStatement = db.prepare(`
       email = @email,
       kyc_status = @kycStatus,
       auth_tag = @authTag,
-      kyc_updated_at = @kycUpdatedAt
+      kyc_updated_at = @kycUpdatedAt,
+      binary_trade_outcome_mode = @binaryTradeOutcomeMode
   WHERE user_id = @userId
 `);
 const updateUserKycStatusStatement = db.prepare(`
@@ -1068,7 +1100,7 @@ const findAdminDepositRequestByIdStatement = db.prepare(`
 const listPlatformUsersStatement = db.prepare(`
   SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
          u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
-         u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
+         u.binary_trade_outcome_mode, u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
          COALESCE(ks.total_submissions, 0) AS kyc_submission_count,
          COALESCE(ks.latest_status, '') AS latest_kyc_submission_status,
          CASE WHEN EXISTS (
@@ -1097,7 +1129,7 @@ const listPlatformUsersStatement = db.prepare(`
 const listAllUsersForAdminStatement = db.prepare(`
   SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
          u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
-         u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
+         u.binary_trade_outcome_mode, u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
          COALESCE(ks.total_submissions, 0) AS kyc_submission_count,
          COALESCE(ks.latest_status, '') AS latest_kyc_submission_status,
          CASE WHEN EXISTS (
@@ -1126,7 +1158,7 @@ const listAllUsersForAdminStatement = db.prepare(`
 const findAdminUserByUserIdStatement = db.prepare(`
   SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
          u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
-         u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
+         u.binary_trade_outcome_mode, u.email, u.created_at, COALESCE(SUM(w.total_usd), 0) AS total_balance_usd,
          COALESCE(ks.total_submissions, 0) AS kyc_submission_count,
          COALESCE(ks.latest_status, '') AS latest_kyc_submission_status,
          CASE WHEN EXISTS (
@@ -1170,6 +1202,37 @@ const listUserDepositHistoryForAdminStatement = db.prepare(`
   WHERE user_id = ?
   ORDER BY submitted_at DESC, id DESC
   LIMIT 50
+`);
+const insertAdminUserUpdateLogStatement = db.prepare(`
+  INSERT INTO admin_user_update_logs (
+    admin_user_id,
+    admin_email,
+    target_user_id,
+    action_type,
+    field_name,
+    previous_value,
+    next_value,
+    note,
+    created_at
+  )
+  VALUES (
+    @adminUserId,
+    @adminEmail,
+    @targetUserId,
+    @actionType,
+    @fieldName,
+    @previousValue,
+    @nextValue,
+    @note,
+    @createdAt
+  )
+`);
+const listAdminUserUpdateLogsByTargetStatement = db.prepare(`
+  SELECT *
+  FROM admin_user_update_logs
+  WHERE target_user_id = ?
+  ORDER BY created_at DESC, id DESC
+  LIMIT 120
 `);
 const countDepositRequestsByStatusStatement = db.prepare(`
   SELECT COUNT(*) AS total
@@ -1755,6 +1818,22 @@ function normalizeAccountStatus(value = "") {
     return "suspended";
   }
   return "active";
+}
+
+function normalizeBinaryTradeOutcomeMode(value = "") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+  if (normalized === "win" || normalized === "force_win" || normalized === "always_win") {
+    return "force_win";
+  }
+  if (normalized === "loss" || normalized === "force_loss" || normalized === "always_loss") {
+    return "force_loss";
+  }
+  return "auto";
 }
 
 function deriveAuthTag(kycStatus) {
@@ -2661,6 +2740,7 @@ function buildUserPayload(user = {}) {
     email: user.email || "",
     createdAt: user.created_at || "",
     totalBalanceUsd: Number.isFinite(totalBalanceUsd) ? Number(totalBalanceUsd.toFixed(2)) : 0,
+    binaryTradeOutcomeMode: normalizeBinaryTradeOutcomeMode(user.binary_trade_outcome_mode || "auto"),
   };
 }
 
@@ -2671,6 +2751,21 @@ function buildAdminDirectoryUserPayload(row) {
 
   return {
     ...buildUserPayload(row),
+  };
+}
+
+function buildAdminUserUpdateLogPayload(row = {}) {
+  return {
+    logId: Number(row.id || 0),
+    adminUserId: String(row.admin_user_id || ""),
+    adminEmail: String(row.admin_email || ""),
+    targetUserId: String(row.target_user_id || ""),
+    actionType: String(row.action_type || ""),
+    fieldName: String(row.field_name || ""),
+    previousValue: String(row.previous_value || ""),
+    nextValue: String(row.next_value || ""),
+    note: String(row.note || ""),
+    createdAt: String(row.created_at || ""),
   };
 }
 
@@ -3542,6 +3637,10 @@ function handleAdminUserDetail(req, res) {
       .all(userId)
       .map((row) => buildDepositRequestPayload(row, { includeSensitiveMedia: true }))
       .filter(Boolean);
+    const adminUpdateHistory = listAdminUserUpdateLogsByTargetStatement
+      .all(userId)
+      .map((row) => buildAdminUserUpdateLogPayload(row))
+      .filter(Boolean);
 
     res.json({
       user: buildAdminDirectoryUserPayload(userRow),
@@ -3549,10 +3648,12 @@ function handleAdminUserDetail(req, res) {
       history: {
         kyc: kycHistory,
         deposit: depositHistory,
+        adminUpdates: adminUpdateHistory,
       },
       latest: {
         kyc: kycHistory[0] || null,
         deposit: depositHistory[0] || null,
+        adminUpdate: adminUpdateHistory[0] || null,
       },
     });
   } catch (error) {
@@ -3586,8 +3687,10 @@ async function handleAdminUserDelete(req, res) {
     const removeTransaction = db.transaction(() => {
       deleteUserSessionsStatement.run(userId);
       deleteUserWalletBalancesStatement.run(userId);
+      deleteUserWalletDetailRowsStatement.run(userId);
       deleteUserKycSubmissionsStatement.run(userId);
       deleteUserDepositRequestsStatement.run(userId);
+      deleteUserAdminUserUpdateLogsStatement.run(userId);
       deleteOtpByEmailStatement.run(userRow.email);
       clearPasswordResetTokenStatement.run(userRow.email);
       deleteUserByUserIdStatement.run(userId);
@@ -3633,6 +3736,9 @@ async function handleAdminUserUpdate(req, res) {
     const accountStatus = normalizeAccountStatus(req.body?.accountStatus || existingUser.account_status || "active");
     const email = normalizeEmail(req.body?.email || existingUser.email || "");
     const kycStatus = normalizeKycStatus(req.body?.kycStatus || existingUser.kyc_status || "pending");
+    const binaryTradeOutcomeMode = normalizeBinaryTradeOutcomeMode(
+      req.body?.binaryTradeOutcomeMode ?? req.body?.binary_trade_outcome_mode ?? existingUser.binary_trade_outcome_mode ?? "auto",
+    );
     const authTag = deriveAuthTag(kycStatus);
 
     assertValidName(name);
@@ -3644,6 +3750,82 @@ async function handleAdminUserUpdate(req, res) {
     }
 
     const nextWalletBalances = Array.isArray(req.body?.walletBalances) ? req.body.walletBalances : null;
+    const auditEntries = [];
+    const addAuditEntry = ({ actionType, fieldName, previousValue, nextValue, note = "" }) => {
+      const prev = String(previousValue ?? "");
+      const next = String(nextValue ?? "");
+      if (prev === next && !note) {
+        return;
+      }
+      auditEntries.push({
+        actionType: sanitizeShortText(actionType || "user_update", 60),
+        fieldName: sanitizeShortText(fieldName || "", 80),
+        previousValue: sanitizeShortText(prev, 300),
+        nextValue: sanitizeShortText(next, 300),
+        note: sanitizeShortText(note, 300),
+      });
+    };
+
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "name",
+      previousValue: existingUser.name || "",
+      nextValue: name,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "first_name",
+      previousValue: existingUser.first_name || "",
+      nextValue: firstName,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "last_name",
+      previousValue: existingUser.last_name || "",
+      nextValue: lastName,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "mobile",
+      previousValue: existingUser.mobile || "",
+      nextValue: mobile,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "avatar_url",
+      previousValue: existingUser.avatar_url || "",
+      nextValue: avatarUrl,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "account_role",
+      previousValue: normalizeAccountRole(existingUser.account_role || "trader"),
+      nextValue: accountRole,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "account_status",
+      previousValue: normalizeAccountStatus(existingUser.account_status || "active"),
+      nextValue: accountStatus,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "email",
+      previousValue: existingUser.email || "",
+      nextValue: email,
+    });
+    addAuditEntry({
+      actionType: "profile_update",
+      fieldName: "kyc_status",
+      previousValue: normalizeKycStatus(existingUser.kyc_status || "pending"),
+      nextValue: kycStatus,
+    });
+    addAuditEntry({
+      actionType: "binary_outcome_update",
+      fieldName: "binary_trade_outcome_mode",
+      previousValue: normalizeBinaryTradeOutcomeMode(existingUser.binary_trade_outcome_mode || "auto"),
+      nextValue: binaryTradeOutcomeMode,
+    });
 
     const updateTransaction = db.transaction(() => {
       updateUserProfileByAdminStatement.run({
@@ -3659,13 +3841,14 @@ async function handleAdminUserUpdate(req, res) {
         kycStatus,
         authTag,
         kycUpdatedAt: nowIso,
+        binaryTradeOutcomeMode,
       });
 
       if (nextWalletBalances) {
         for (const walletItem of nextWalletBalances) {
-          const symbol = normalizeWalletScopedSymbol(walletItem?.symbol || "");
-          const assetName = sanitizeShortText(walletItem?.name || symbol || "Asset", 80);
-          const totalUsd = Number(walletItem?.totalUsd || 0);
+          const symbol = normalizeDashboardWalletSymbol(walletItem?.symbol || "");
+          const assetName = sanitizeShortText(walletItem?.name || buildWalletSymbolLabel(symbol), 80);
+          const totalUsd = Number(Number(walletItem?.totalUsd || 0).toFixed(8));
 
           if (!symbol) {
             continue;
@@ -3674,14 +3857,79 @@ async function handleAdminUserUpdate(req, res) {
             throw new Error(`Wallet amount for ${symbol} must be a valid non-negative number.`);
           }
 
+          const matchedSummary = findDashboardWalletSummaryByAnySymbol(userId, symbol);
+          if (matchedSummary && matchedSummary.symbol !== symbol) {
+            migrateDashboardWalletSymbolForUser({
+              userId,
+              fromSymbol: matchedSummary.symbol,
+              toSymbol: symbol,
+              nowIso,
+            });
+          }
+          const matchedDetail = findDashboardWalletDetailByAnySymbol(userId, symbol);
+          if (matchedDetail && matchedDetail.symbol !== symbol) {
+            migrateDashboardWalletSymbolForUser({
+              userId,
+              fromSymbol: matchedDetail.symbol,
+              toSymbol: symbol,
+              nowIso,
+            });
+          }
+
+          ensureWalletDetailMirroredFromSummary({
+            userId,
+            assetSymbol: symbol,
+            assetName,
+            nowIso,
+          });
+
+          const detail = findWalletDetailByUserAssetStatement.get(userId, symbol);
+          const lockedUsd = Number(detail?.locked_usd || 0);
+          const rewardEarnedUsd = Number(detail?.reward_earned_usd || 0);
+          if (totalUsd < lockedUsd) {
+            throw new Error(`Wallet amount for ${symbol} cannot be less than locked balance (${lockedUsd.toFixed(2)}).`);
+          }
+          const availableUsd = Number((totalUsd - lockedUsd).toFixed(8));
+          updateWalletDetailStatement.run({
+            userId,
+            assetSymbol: symbol,
+            availableUsd,
+            lockedUsd: Number(lockedUsd.toFixed(8)),
+            rewardEarnedUsd: Number(rewardEarnedUsd.toFixed(8)),
+            updatedAt: nowIso,
+          });
+
+          const existingSummary = findWalletBalanceByUserAssetStatement.get(userId, symbol);
+          const previousTotalUsd = Number(existingSummary?.total_usd || 0);
           setWalletBalanceStatement.run({
             userId,
             assetSymbol: symbol,
             assetName,
-            totalUsd: Number(totalUsd.toFixed(8)),
+            totalUsd,
             updatedAt: nowIso,
           });
+
+          addAuditEntry({
+            actionType: "wallet_update",
+            fieldName: `wallet.${symbol}.total_usd`,
+            previousValue: previousTotalUsd.toFixed(8),
+            nextValue: totalUsd.toFixed(8),
+          });
         }
+      }
+
+      for (const entry of auditEntries) {
+        insertAdminUserUpdateLogStatement.run({
+          adminUserId: String(req.currentUser?.userId || ""),
+          adminEmail: String(req.currentUser?.email || ""),
+          targetUserId: userId,
+          actionType: entry.actionType,
+          fieldName: entry.fieldName,
+          previousValue: entry.previousValue,
+          nextValue: entry.nextValue,
+          note: entry.note,
+          createdAt: nowIso,
+        });
       }
     });
 
@@ -3697,6 +3945,10 @@ async function handleAdminUserUpdate(req, res) {
       .all(userId)
       .map((row) => buildDepositRequestPayload(row, { includeSensitiveMedia: true }))
       .filter(Boolean);
+    const adminUpdateHistory = listAdminUserUpdateLogsByTargetStatement
+      .all(userId)
+      .map((row) => buildAdminUserUpdateLogPayload(row))
+      .filter(Boolean);
 
     res.json({
       message: "User profile updated successfully.",
@@ -3705,10 +3957,12 @@ async function handleAdminUserUpdate(req, res) {
       history: {
         kyc: kycHistory,
         deposit: depositHistory,
+        adminUpdates: adminUpdateHistory,
       },
       latest: {
         kyc: kycHistory[0] || null,
         deposit: depositHistory[0] || null,
+        adminUpdate: adminUpdateHistory[0] || null,
       },
     });
   } catch (error) {

@@ -50,6 +50,28 @@ function formatStatusLabel(status = "") {
   return normalized[0].toUpperCase() + normalized.slice(1);
 }
 
+function normalizeBinaryOutcomeMode(mode = "") {
+  const normalized = normalizeText(mode).replace(/-/g, "_");
+  if (normalized === "force_win" || normalized === "win" || normalized === "always_win") {
+    return "force_win";
+  }
+  if (normalized === "force_loss" || normalized === "loss" || normalized === "always_loss") {
+    return "force_loss";
+  }
+  return "auto";
+}
+
+function formatBinaryOutcomeMode(mode = "") {
+  const normalized = normalizeBinaryOutcomeMode(mode);
+  if (normalized === "force_win") {
+    return "Win";
+  }
+  if (normalized === "force_loss") {
+    return "Loss";
+  }
+  return "Auto";
+}
+
 function getKycStageMeta(stage = "") {
   const normalized = normalizeText(stage);
   if (normalized === "authenticated") {
@@ -95,6 +117,30 @@ function formatTime(value = "") {
   return date.toLocaleString();
 }
 
+function buildDetailFormFromPayload(payload = null) {
+  const user = payload?.user || {};
+  const wallet = payload?.wallet || {};
+  const balances = Array.isArray(wallet?.balances) ? wallet.balances : [];
+
+  return {
+    name: String(user?.name || ""),
+    firstName: String(user?.firstName || ""),
+    lastName: String(user?.lastName || ""),
+    email: String(user?.email || ""),
+    mobile: String(user?.mobile || ""),
+    avatarUrl: String(user?.avatarUrl || ""),
+    accountRole: String(user?.accountRole || "trader"),
+    accountStatus: String(user?.accountStatus || "active"),
+    kycStatus: String(user?.kycStatus || "pending"),
+    binaryTradeOutcomeMode: normalizeBinaryOutcomeMode(user?.binaryTradeOutcomeMode || "auto"),
+    walletBalances: balances.map((item) => ({
+      symbol: String(item?.symbol || ""),
+      name: String(item?.name || item?.symbol || "Wallet"),
+      totalUsd: String(toNumber(item?.totalUsd, 0)),
+    })),
+  };
+}
+
 export default function UserManagementPage({
   users,
   userStats,
@@ -103,6 +149,7 @@ export default function UserManagementPage({
   onSearchChange,
   onRefresh,
   onFetchUserDetail,
+  onUpdateUser,
   onDeleteUser,
 }) {
   const [userTab, setUserTab] = useState("all");
@@ -115,10 +162,14 @@ export default function UserManagementPage({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [detailPayload, setDetailPayload] = useState(null);
+  const [detailForm, setDetailForm] = useState(buildDetailFormFromPayload(null));
+  const [detailEditMode, setDetailEditMode] = useState(false);
+  const [detailSaving, setDetailSaving] = useState(false);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [rowOutcomeSaving, setRowOutcomeSaving] = useState({});
   const [actionNotice, setActionNotice] = useState("");
   const [actionError, setActionError] = useState("");
 
@@ -188,10 +239,12 @@ export default function UserManagementPage({
     setDetailLoading(true);
     setDetailError("");
     setDetailPayload(null);
+    setDetailEditMode(false);
 
     try {
       const data = await onFetchUserDetail(userId);
       setDetailPayload(data || null);
+      setDetailForm(buildDetailFormFromPayload(data || null));
     } catch (error) {
       setDetailError(error.message || "Could not load user details.");
     } finally {
@@ -221,6 +274,7 @@ export default function UserManagementPage({
       if (detailPayload?.user?.userId === userId) {
         setDetailModalOpen(false);
         setDetailPayload(null);
+        setDetailEditMode(false);
       }
       setDeleteModalOpen(false);
       setDeleteTarget(null);
@@ -231,9 +285,89 @@ export default function UserManagementPage({
     }
   };
 
+  const changeUserBinaryMode = async (user, nextMode) => {
+    const userId = String(user?.userId || "").trim();
+    if (!userId || typeof onUpdateUser !== "function") {
+      return;
+    }
+
+    setActionError("");
+    setActionNotice("");
+    setRowOutcomeSaving((prev) => ({ ...prev, [userId]: true }));
+    try {
+      await onUpdateUser({
+        userId,
+        binaryTradeOutcomeMode: normalizeBinaryOutcomeMode(nextMode),
+      });
+      setActionNotice(`Binary mode updated for ${user?.email || userId}.`);
+      if (detailPayload?.user?.userId === userId) {
+        const refreshed = await onFetchUserDetail(userId);
+        setDetailPayload(refreshed || null);
+        setDetailForm(buildDetailFormFromPayload(refreshed || null));
+      }
+    } catch (error) {
+      setActionError(error.message || "Could not update binary mode.");
+    } finally {
+      setRowOutcomeSaving((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    }
+  };
+
+  const saveDetailChanges = async () => {
+    const userId = String(detailPayload?.user?.userId || "").trim();
+    if (!userId || typeof onUpdateUser !== "function") {
+      return;
+    }
+
+    const walletBalances = (detailForm.walletBalances || []).map((item) => ({
+      symbol: String(item?.symbol || ""),
+      name: String(item?.name || item?.symbol || "Wallet"),
+      totalUsd: toNumber(item?.totalUsd, 0),
+    }));
+
+    if (walletBalances.some((item) => !Number.isFinite(item.totalUsd) || item.totalUsd < 0)) {
+      setDetailError("Wallet amounts must be valid non-negative numbers.");
+      return;
+    }
+
+    setDetailSaving(true);
+    setDetailError("");
+    setActionError("");
+    setActionNotice("");
+
+    try {
+      const updated = await onUpdateUser({
+        userId,
+        name: detailForm.name,
+        firstName: detailForm.firstName,
+        lastName: detailForm.lastName,
+        email: detailForm.email,
+        mobile: detailForm.mobile,
+        avatarUrl: detailForm.avatarUrl,
+        accountRole: detailForm.accountRole,
+        accountStatus: detailForm.accountStatus,
+        kycStatus: detailForm.kycStatus,
+        binaryTradeOutcomeMode: detailForm.binaryTradeOutcomeMode,
+        walletBalances,
+      });
+
+      setDetailPayload(updated || null);
+      setDetailForm(buildDetailFormFromPayload(updated || null));
+      setDetailEditMode(false);
+      setActionNotice(`User ${detailForm.email || userId} updated successfully.`);
+    } catch (error) {
+      setDetailError(error.message || "Could not update user profile.");
+    } finally {
+      setDetailSaving(false);
+    }
+  };
+
   const detailUser = detailPayload?.user || null;
   const detailWallet = detailPayload?.wallet || { balances: [] };
-  const detailHistory = detailPayload?.history || { kyc: [], deposit: [] };
+  const detailHistory = detailPayload?.history || { kyc: [], deposit: [], adminUpdates: [] };
 
   return (
     <section className="adminx-users-shell">
@@ -337,6 +471,7 @@ export default function UserManagementPage({
                 <th>KYC</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Binary Result</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -344,6 +479,9 @@ export default function UserManagementPage({
               {filteredUsers.map((user, index) => {
                 const kycMeta = getKycStageMeta(user.kycStage);
                 const statusClass = normalizeText(user.accountStatus);
+                const userId = String(user?.userId || "").trim();
+                const outcomeMode = normalizeBinaryOutcomeMode(user?.binaryTradeOutcomeMode || "auto");
+                const isOutcomeSaving = Boolean(rowOutcomeSaving[userId]);
 
                 return (
                   <tr key={user.userId || `${user.email}-${index}`}>
@@ -368,6 +506,18 @@ export default function UserManagementPage({
                     <td>
                       <span className={`adminx-tag adminx-tag-status-${statusClass}`}>{formatStatusLabel(user.accountStatus)}</span>
                       {user.isActiveSession ? <span className="adminx-tag adminx-tag-session">Online</span> : null}
+                    </td>
+                    <td>
+                      <select
+                        className="adminx-inline-select"
+                        value={outcomeMode}
+                        disabled={isOutcomeSaving}
+                        onChange={(event) => changeUserBinaryMode(user, event.target.value)}
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="force_win">Win</option>
+                        <option value="force_loss">Loss</option>
+                      </select>
                     </td>
                     <td>
                       <div className="adminx-row-actions">
@@ -424,20 +574,184 @@ export default function UserManagementPage({
                   </div>
                 </div>
 
+                <div className="adminx-profile-actions">
+                  {!detailEditMode ? (
+                    <button type="button" className="btn btn-primary" onClick={() => setDetailEditMode(true)}>
+                      Edit User
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={detailSaving}
+                        onClick={() => {
+                          setDetailForm(buildDetailFormFromPayload(detailPayload));
+                          setDetailEditMode(false);
+                          setDetailError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button type="button" className="btn btn-primary" disabled={detailSaving} onClick={saveDetailChanges}>
+                        {detailSaving ? "Saving..." : "Save Changes"}
+                      </button>
+                    </>
+                  )}
+                </div>
+
                 <div className="adminx-profile-grid adminx-user-detail-grid">
                   <p><span>User ID</span><strong>{detailUser.userId || "-"}</strong></p>
-                  <p><span>First Name</span><strong>{detailUser.firstName || "-"}</strong></p>
-                  <p><span>Last Name</span><strong>{detailUser.lastName || "-"}</strong></p>
-                  <p><span>Phone</span><strong>{detailUser.mobile || "-"}</strong></p>
-                  <p><span>Role</span><strong>{formatRoleLabel(detailUser.accountRole)}</strong></p>
-                  <p><span>Status</span><strong>{formatStatusLabel(detailUser.accountStatus)}</strong></p>
+                  <p>
+                    <span>Name</span>
+                    {detailEditMode ? (
+                      <input
+                        className="adminx-field-input"
+                        type="text"
+                        value={detailForm.name}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, name: event.target.value }))}
+                      />
+                    ) : (
+                      <strong>{detailUser.name || "-"}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>First Name</span>
+                    {detailEditMode ? (
+                      <input
+                        className="adminx-field-input"
+                        type="text"
+                        value={detailForm.firstName}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, firstName: event.target.value }))}
+                      />
+                    ) : (
+                      <strong>{detailUser.firstName || "-"}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>Last Name</span>
+                    {detailEditMode ? (
+                      <input
+                        className="adminx-field-input"
+                        type="text"
+                        value={detailForm.lastName}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, lastName: event.target.value }))}
+                      />
+                    ) : (
+                      <strong>{detailUser.lastName || "-"}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>Email</span>
+                    {detailEditMode ? (
+                      <input
+                        className="adminx-field-input"
+                        type="email"
+                        value={detailForm.email}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, email: event.target.value }))}
+                      />
+                    ) : (
+                      <strong>{detailUser.email || "-"}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>Phone</span>
+                    {detailEditMode ? (
+                      <input
+                        className="adminx-field-input"
+                        type="text"
+                        value={detailForm.mobile}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, mobile: event.target.value }))}
+                      />
+                    ) : (
+                      <strong>{detailUser.mobile || "-"}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>Role</span>
+                    {detailEditMode ? (
+                      <select
+                        className="adminx-field-input"
+                        value={detailForm.accountRole}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, accountRole: event.target.value }))}
+                      >
+                        <option value="trader">Trader</option>
+                        <option value="pro_trader">Pro Trader</option>
+                        <option value="institutional">Institutional</option>
+                        <option value="admin">Admin</option>
+                        <option value="super_admin">Super Admin</option>
+                      </select>
+                    ) : (
+                      <strong>{formatRoleLabel(detailUser.accountRole)}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>Status</span>
+                    {detailEditMode ? (
+                      <select
+                        className="adminx-field-input"
+                        value={detailForm.accountStatus}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, accountStatus: event.target.value }))}
+                      >
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                        <option value="banned">Banned</option>
+                      </select>
+                    ) : (
+                      <strong>{formatStatusLabel(detailUser.accountStatus)}</strong>
+                    )}
+                  </p>
                   <p><span>KYC Stage</span><strong>{getKycStageMeta(detailUser.kycStage).label}</strong></p>
-                  <p><span>KYC Status</span><strong>{formatStatusLabel(detailUser.kycStatus)}</strong></p>
+                  <p>
+                    <span>KYC Status</span>
+                    {detailEditMode ? (
+                      <select
+                        className="adminx-field-input"
+                        value={detailForm.kycStatus}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, kycStatus: event.target.value }))}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="authenticated">Authenticated</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    ) : (
+                      <strong>{formatStatusLabel(detailUser.kycStatus)}</strong>
+                    )}
+                  </p>
+                  <p>
+                    <span>Binary Result</span>
+                    {detailEditMode ? (
+                      <select
+                        className="adminx-field-input"
+                        value={normalizeBinaryOutcomeMode(detailForm.binaryTradeOutcomeMode)}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, binaryTradeOutcomeMode: event.target.value }))}
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="force_win">Win</option>
+                        <option value="force_loss">Loss</option>
+                      </select>
+                    ) : (
+                      <strong>{formatBinaryOutcomeMode(detailUser.binaryTradeOutcomeMode)}</strong>
+                    )}
+                  </p>
                   <p><span>Auth Tag</span><strong>{detailUser.authTag || "-"}</strong></p>
                   <p><span>KYC Submissions</span><strong>{toNumber(detailUser.kycSubmissionCount, 0)}</strong></p>
                   <p><span>Session</span><strong>{detailUser.isActiveSession ? "Active" : "Offline"}</strong></p>
                   <p><span>Created</span><strong>{formatTime(detailUser.createdAt)}</strong></p>
                   <p><span>KYC Updated</span><strong>{formatTime(detailUser.kycUpdatedAt)}</strong></p>
+                  <p>
+                    <span>Avatar URL</span>
+                    {detailEditMode ? (
+                      <input
+                        className="adminx-field-input"
+                        type="text"
+                        value={detailForm.avatarUrl}
+                        onChange={(event) => setDetailForm((prev) => ({ ...prev, avatarUrl: event.target.value }))}
+                      />
+                    ) : (
+                      <strong>{detailUser.avatarUrl || "-"}</strong>
+                    )}
+                  </p>
                   <p><span>Total Balance</span><strong>{formatUsd(detailUser.totalBalanceUsd)}</strong></p>
                 </div>
 
@@ -455,17 +769,73 @@ export default function UserManagementPage({
                         </tr>
                       </thead>
                       <tbody>
-                        {(detailWallet?.balances || []).map((item) => (
+                        {(detailWallet?.balances || []).map((item, index) => (
                           <tr key={`${item.symbol}-${item.updatedAt}`}>
                             <td>{item.symbol}</td>
                             <td>{item.name}</td>
-                            <td>{formatUsd(item.totalUsd)}</td>
+                            <td>
+                              {detailEditMode ? (
+                                <input
+                                  className="adminx-table-input"
+                                  type="number"
+                                  min="0"
+                                  step="0.00000001"
+                                  value={detailForm.walletBalances?.[index]?.totalUsd ?? "0"}
+                                  onChange={(event) => {
+                                    const nextValue = event.target.value;
+                                    setDetailForm((prev) => {
+                                      const nextWallets = [...(prev.walletBalances || [])];
+                                      nextWallets[index] = {
+                                        ...(nextWallets[index] || {}),
+                                        symbol: String(item.symbol || ""),
+                                        name: String(item.name || item.symbol || "Wallet"),
+                                        totalUsd: nextValue,
+                                      };
+                                      return { ...prev, walletBalances: nextWallets };
+                                    });
+                                  }}
+                                />
+                              ) : (
+                                formatUsd(item.totalUsd)
+                              )}
+                            </td>
                             <td>{formatTime(item.updatedAt)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                     {!detailWallet?.balances?.length ? <p className="adminx-page-note">No wallet balances.</p> : null}
+                  </div>
+                </section>
+
+                <section className="adminx-detail-section">
+                  <h3>Admin Edit Log</h3>
+                  <div className="adminx-simple-table-wrap">
+                    <table className="adminx-simple-table">
+                      <thead>
+                        <tr>
+                          <th>When</th>
+                          <th>Admin</th>
+                          <th>Action</th>
+                          <th>Field</th>
+                          <th>Before</th>
+                          <th>After</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(detailHistory?.adminUpdates || []).map((item) => (
+                          <tr key={`${item.logId}-${item.createdAt}`}>
+                            <td>{formatTime(item.createdAt)}</td>
+                            <td>{item.adminEmail || item.adminUserId || "-"}</td>
+                            <td>{item.actionType || "-"}</td>
+                            <td>{item.fieldName || "-"}</td>
+                            <td>{item.previousValue || "-"}</td>
+                            <td>{item.nextValue || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {!detailHistory?.adminUpdates?.length ? <p className="adminx-page-note">No admin updates logged yet.</p> : null}
                   </div>
                 </section>
 

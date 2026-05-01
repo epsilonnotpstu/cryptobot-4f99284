@@ -93,6 +93,7 @@ export default function AdminDashboardPage({
   onBackHome,
   onOpenUserAuth,
   onFetchUserDetail,
+  onUpdateUser,
   onDeleteUser,
   onReviewKycRequest,
   onUpsertDepositAsset,
@@ -617,6 +618,7 @@ export default function AdminDashboardPage({
             onSearchChange={setAdminSearch}
             onRefresh={onRefresh}
             onFetchUserDetail={onFetchUserDetail}
+            onUpdateUser={onUpdateUser}
             onDeleteUser={onDeleteUser}
           />
         ) : null}

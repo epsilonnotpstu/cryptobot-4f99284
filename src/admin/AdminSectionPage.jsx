@@ -1018,6 +1018,19 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const updateUserById = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateUser({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
   const reviewKycRequest = useCallback(async ({ requestId, decision, note }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -1738,6 +1751,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onBackHome={onBackHome}
       onOpenUserAuth={onOpenUserAuth}
       onFetchUserDetail={fetchUserDetail}
+      onUpdateUser={updateUserById}
       onDeleteUser={deleteUserById}
       onReviewKycRequest={reviewKycRequest}
       onUpsertDepositAsset={upsertDepositAsset}

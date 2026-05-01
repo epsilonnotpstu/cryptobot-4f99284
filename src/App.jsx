@@ -1850,7 +1850,10 @@ const remoteAuthService = {
     email,
     mobile,
     avatarUrl,
+    accountRole,
+    accountStatus,
     kycStatus,
+    binaryTradeOutcomeMode,
     walletBalances,
   }) {
     return this.requestGatewayAction({
@@ -1864,7 +1867,10 @@ const remoteAuthService = {
         email,
         mobile,
         avatarUrl,
+        accountRole,
+        accountStatus,
         kycStatus,
+        binaryTradeOutcomeMode,
         walletBalances,
       },
     });
