@@ -1612,12 +1612,19 @@ function findUserByIdentifier(identifier) {
 }
 
 function getTransporter() {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const sanitizeEnv = (value = "") =>
+    String(value || "")
+      .trim()
+      .replace(/^['"]+|['"]+$/g, "");
 
-  if (!host || !user || !pass || !process.env.SMTP_FROM) {
+  const host = sanitizeEnv(process.env.SMTP_HOST);
+  const portRaw = sanitizeEnv(process.env.SMTP_PORT || "587");
+  const port = Number(portRaw || 587);
+  const user = sanitizeEnv(process.env.SMTP_USER);
+  const pass = sanitizeEnv(process.env.SMTP_PASS);
+  const from = sanitizeEnv(process.env.SMTP_FROM);
+
+  if (!host || !user || !pass || !from) {
     throw new Error(
       "SMTP is not configured. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM to .env.",
     );
@@ -1628,6 +1635,9 @@ function getTransporter() {
     port,
     secure: port === 465,
     auth: { user, pass },
+    connectionTimeout: 12000,
+    greetingTimeout: 12000,
+    socketTimeout: 15000,
   });
 }
 
@@ -1650,7 +1660,13 @@ function normalizeEmailServiceError(error) {
 }
 
 async function sendOtpEmail({ email, otp, purpose, name }) {
+  const sanitizeEnv = (value = "") =>
+    String(value || "")
+      .trim()
+      .replace(/^['"]+|['"]+$/g, "");
+
   const transporter = getTransporter();
+  const smtpFrom = sanitizeEnv(process.env.SMTP_FROM);
   const expiresInText = `${OTP_TTL_MINUTES} minute${OTP_TTL_MINUTES > 1 ? "s" : ""}`;
   const title = purpose === "signup" ? "Your signup verification code" : "Your password reset code";
   const intro =
@@ -1659,7 +1675,7 @@ async function sendOtpEmail({ email, otp, purpose, name }) {
       : "Use this code to continue your CryptoBot Prime password reset.";
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM,
+    from: smtpFrom,
     to: email,
     subject: `${APP_NAME}: ${title}`,
     text: `${intro}\n\nOTP: ${otp}\nExpires in: ${expiresInText}\n\nIf you did not request this, please ignore this email.`,

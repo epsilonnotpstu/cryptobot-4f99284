@@ -69,7 +69,8 @@ const AUTH_STORAGE_KEYS = {
   transientNotice: "cryptobot2_auth_transient_notice",
 };
 
-const AUTH_REQUEST_TIMEOUT_MS = 5000;
+const AUTH_REQUEST_TIMEOUT_MS = 12000;
+const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
 const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
 const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
 const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
@@ -656,12 +657,14 @@ function isRetryableFetchError(error) {
 }
 
 async function fetchWithTimeout(url, options) {
+  const timeoutMs = Math.max(1000, Number(options?.timeoutMs || AUTH_REQUEST_TIMEOUT_MS));
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const { timeoutMs: _ignoredTimeoutMs, ...restOptions } = options || {};
     return await fetch(url, {
-      ...options,
+      ...restOptions,
       signal: controller.signal,
     });
   } finally {
@@ -686,7 +689,7 @@ async function parseErrorPayload(response) {
     rawText: text,
   };
 }
-async function requestAuth(endpoint, { method = "GET", body, sessionToken } = {}) {
+async function requestAuth(endpoint, { method = "GET", body, sessionToken, timeoutMs = AUTH_REQUEST_TIMEOUT_MS } = {}) {
   const candidates = getApiBaseCandidates();
   let lastNetworkError = null;
   let lastMissingBackendError = "";
@@ -695,6 +698,7 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken } = {}
     try {
       const response = await fetchWithTimeout(buildAuthUrl(apiBase, endpoint), {
         method,
+        timeoutMs,
         headers: {
           "Content-Type": "application/json",
           ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
@@ -748,10 +752,11 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken } = {}
 }
 
 const remoteAuthService = {
-  async requestGatewayAction({ action, payload = {}, sessionToken }) {
+  async requestGatewayAction({ action, payload = {}, sessionToken, timeoutMs = AUTH_REQUEST_TIMEOUT_MS }) {
     return requestAuth("/api/auth/gateway", {
       method: "POST",
       sessionToken,
+      timeoutMs,
       body: { action, ...payload },
     });
   },
@@ -759,6 +764,7 @@ const remoteAuthService = {
     return this.requestGatewayAction({
       action: "signup.send-otp",
       payload: { name, email },
+      timeoutMs: AUTH_REQUEST_TIMEOUT_OTP_MS,
     });
   },
   async signup({ name, email, otp, password }) {
