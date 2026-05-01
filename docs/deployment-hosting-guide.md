@@ -33,7 +33,9 @@ Deploy:
    - `BLOB_SYNC_DISABLED=true`
    - Do not manually set `PORT` on Railway (Railway injects it dynamically)
    - `VITE_API_BASE_URL=` (empty, if same domain serves both frontend+api)
-   - SMTP + Google env vars as needed.
+   - OTP mail: prefer HTTPS API (`EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM`) on Free/Trial/Hobby.
+   - SMTP only on Railway Pro+.
+   - Google env vars as needed.
 4. For exact copy-paste steps and variable template, use:
    - `docs/railway-free-checklist.md`
 

@@ -55,12 +55,17 @@ GOOGLE_CLIENT_ID="532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleuserc
 
 VITE_GOOGLE_CLIENT_ID="532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com"
 
-# SMTP (required for OTP email in production)
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER="epsilonnotpstu@gmail.com"
-SMTP_PASS="pjkhmlutcwhkdent"
-SMTP_FROM="cryptobot <epsilonnotpstu@gmail.com>"
+# Email delivery (Railway Free/Trial/Hobby: use HTTPS API provider)
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=REPLACE_WITH_RESEND_API_KEY
+RESEND_FROM="CryptoBot Prime <onboarding@YOUR_VERIFIED_DOMAIN>"
+
+# Optional SMTP (works on Railway Pro and above)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=REPLACE_WITH_SMTP_USERNAME
+SMTP_PASS=REPLACE_WITH_SMTP_PASSWORD_OR_APP_KEY
+SMTP_FROM="CryptoBot Prime <REPLACE_WITH_SMTP_FROM_EMAIL>"
 ```
 
 Important:
@@ -108,7 +113,8 @@ Open these in browser:
    - Check volume mounted at `/data`.
    - Confirm `AUTH_DATA_DIR=/data`.
 2. If OTP fails:
-   - Verify SMTP credentials and sender.
+   - Railway Free/Trial/Hobby হলে SMTP blocked থাকতে পারে; `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` + `RESEND_FROM` set করো।
+   - Railway Pro হলে SMTP credentials/sender verify করে redeploy দাও।
 3. If web cannot call API:
    - Keep `VITE_API_BASE_URL` empty and redeploy.
 4. If old frontend config is cached:

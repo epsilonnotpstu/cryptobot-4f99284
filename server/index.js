@@ -1611,34 +1611,146 @@ function findUserByIdentifier(identifier) {
   return findUserByEmailStatement.get(normalizeEmail(cleanedIdentifier)) || null;
 }
 
-function getTransporter() {
-  const sanitizeEnv = (value = "") =>
-    String(value || "")
-      .trim()
-      .replace(/^['"]+|['"]+$/g, "");
+function sanitizeEnv(value = "") {
+  return String(value || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "");
+}
 
+function getSmtpConfig() {
   const host = sanitizeEnv(process.env.SMTP_HOST);
   const portRaw = sanitizeEnv(process.env.SMTP_PORT || "587");
-  const port = Number(portRaw || 587);
+  const parsedPort = Number(portRaw || 587);
+  const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 587;
   const user = sanitizeEnv(process.env.SMTP_USER);
   const pass = sanitizeEnv(process.env.SMTP_PASS);
   const from = sanitizeEnv(process.env.SMTP_FROM);
+  const familyRaw = sanitizeEnv(process.env.SMTP_IP_FAMILY || "");
+  const family = familyRaw === "4" ? 4 : familyRaw === "6" ? 6 : undefined;
+  const configuredPortsRaw = sanitizeEnv(process.env.SMTP_PORT_CANDIDATES || "");
+  const configuredPorts = configuredPortsRaw
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isFinite(value) && value > 0 && value <= 65535);
+  const ports = configuredPorts.length > 0 ? configuredPorts : [port];
+  const normalizedHost = host.toLowerCase();
+  if (normalizedHost === "smtp.gmail.com") {
+    if (ports.includes(587) && !ports.includes(465)) {
+      ports.push(465);
+    } else if (ports.includes(465) && !ports.includes(587)) {
+      ports.push(587);
+    }
+  }
 
+  return {
+    host,
+    user,
+    pass,
+    from,
+    family,
+    ports: Array.from(new Set(ports)),
+  };
+}
+
+function isSmtpConfigured() {
+  const { host, user, pass, from } = getSmtpConfig();
+  return Boolean(host && user && pass && from);
+}
+
+function getResendConfig() {
+  const apiKey = sanitizeEnv(process.env.RESEND_API_KEY);
+  const from = sanitizeEnv(process.env.RESEND_FROM || process.env.SMTP_FROM);
+  return {
+    apiKey,
+    from,
+  };
+}
+
+function isResendConfigured() {
+  const { apiKey, from } = getResendConfig();
+  return Boolean(apiKey && from);
+}
+
+function createSmtpTransporters() {
+  const { host, user, pass, from, family, ports } = getSmtpConfig();
   if (!host || !user || !pass || !from) {
     throw new Error(
       "SMTP is not configured. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM to .env.",
     );
   }
 
-  return nodemailer.createTransport({
-    host,
+  return ports.map((port) => ({
     port,
-    secure: port === 465,
-    auth: { user, pass },
-    connectionTimeout: 12000,
-    greetingTimeout: 12000,
-    socketTimeout: 15000,
+    transporter: nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+      connectionTimeout: 12000,
+      greetingTimeout: 12000,
+      socketTimeout: 15000,
+      requireTLS: port !== 465,
+      tls: {
+        servername: host,
+        minVersion: "TLSv1.2",
+      },
+      ...(family ? { family } : {}),
+    }),
+  }));
+}
+
+function getOtpEmailTemplate({ email, otp, purpose, name }) {
+  const expiresInText = `${OTP_TTL_MINUTES} minute${OTP_TTL_MINUTES > 1 ? "s" : ""}`;
+  const title = purpose === "signup" ? "Your signup verification code" : "Your password reset code";
+  const intro =
+    purpose === "signup"
+      ? "Use this code to complete your CryptoBot Prime signup."
+      : "Use this code to continue your CryptoBot Prime password reset.";
+
+  return {
+    to: email,
+    subject: `${APP_NAME}: ${title}`,
+    text: `${intro}\n\nOTP: ${otp}\nExpires in: ${expiresInText}\n\nIf you did not request this, please ignore this email.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #0f172a;">
+        <h2 style="margin-bottom: 12px;">${APP_NAME}</h2>
+        <p style="margin-bottom: 8px;">Hello ${name || "Trader"},</p>
+        <p style="margin-bottom: 16px;">${intro}</p>
+        <div style="font-size: 32px; letter-spacing: 8px; font-weight: 700; color: #2563eb; margin: 24px 0;">
+          ${otp}
+        </div>
+        <p style="margin-bottom: 8px;">This code will expire in ${expiresInText}.</p>
+        <p style="color: #64748b;">If you did not request this, you can ignore this email.</p>
+      </div>
+    `,
+  };
+}
+
+async function sendOtpViaResend({ to, subject, text, html }) {
+  const { apiKey, from } = getResendConfig();
+  if (!apiKey || !from) {
+    throw new Error("Resend is not configured. Add RESEND_API_KEY and RESEND_FROM.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      text,
+      html,
+    }),
   });
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => "");
+    throw new Error(`Resend API error (${response.status}): ${raw || response.statusText || "Request failed"}`);
+  }
 }
 
 function normalizeEmailServiceError(error) {
@@ -1656,42 +1768,76 @@ function normalizeEmailServiceError(error) {
     return message;
   }
 
+  if (/resend is not configured/i.test(message)) {
+    return message;
+  }
+
+  if (/timed out|timeout|etimedout|enetunreach|ehostunreach|econnrefused/i.test(message)) {
+    return "SMTP connection timed out. On Railway Free/Trial/Hobby plans, SMTP is blocked. Use RESEND_API_KEY + RESEND_FROM (HTTPS email API) or upgrade to Railway Pro and redeploy.";
+  }
+
   return message || "Failed to send OTP email.";
 }
 
 async function sendOtpEmail({ email, otp, purpose, name }) {
-  const sanitizeEnv = (value = "") =>
-    String(value || "")
-      .trim()
-      .replace(/^['"]+|['"]+$/g, "");
+  const emailProviderPreference = sanitizeEnv(process.env.EMAIL_PROVIDER || process.env.EMAIL_API_PROVIDER).toLowerCase();
+  const template = getOtpEmailTemplate({ email, otp, purpose, name });
+  const smtpReady = isSmtpConfigured();
+  const resendReady = isResendConfigured();
 
-  const transporter = getTransporter();
-  const smtpFrom = sanitizeEnv(process.env.SMTP_FROM);
-  const expiresInText = `${OTP_TTL_MINUTES} minute${OTP_TTL_MINUTES > 1 ? "s" : ""}`;
-  const title = purpose === "signup" ? "Your signup verification code" : "Your password reset code";
-  const intro =
-    purpose === "signup"
-      ? "Use this code to complete your CryptoBot Prime signup."
-      : "Use this code to continue your CryptoBot Prime password reset.";
+  if (!smtpReady && !resendReady) {
+    throw new Error(
+      "No email provider configured. Set SMTP_* credentials or RESEND_API_KEY + RESEND_FROM in environment variables.",
+    );
+  }
 
-  await transporter.sendMail({
-    from: smtpFrom,
-    to: email,
-    subject: `${APP_NAME}: ${title}`,
-    text: `${intro}\n\nOTP: ${otp}\nExpires in: ${expiresInText}\n\nIf you did not request this, please ignore this email.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #0f172a;">
-        <h2 style="margin-bottom: 12px;">${APP_NAME}</h2>
-        <p style="margin-bottom: 8px;">Hello ${name || "Trader"},</p>
-        <p style="margin-bottom: 16px;">${intro}</p>
-        <div style="font-size: 32px; letter-spacing: 8px; font-weight: 700; color: #2563eb; margin: 24px 0;">
-          ${otp}
-        </div>
-        <p style="margin-bottom: 8px;">This code will expire in ${expiresInText}.</p>
-        <p style="color: #64748b;">If you did not request this, you can ignore this email.</p>
-      </div>
-    `,
-  });
+  const attempts = [];
+  if (emailProviderPreference === "resend") {
+    attempts.push("resend");
+    if (smtpReady) {
+      attempts.push("smtp");
+    }
+  } else if (emailProviderPreference === "smtp") {
+    attempts.push("smtp");
+    if (resendReady) {
+      attempts.push("resend");
+    }
+  } else {
+    if (resendReady) {
+      attempts.push("resend");
+    }
+    if (smtpReady) {
+      attempts.push("smtp");
+    }
+  }
+
+  const errors = [];
+  for (const method of attempts) {
+    try {
+      if (method === "resend") {
+        await sendOtpViaResend(template);
+        return;
+      }
+
+      const smtpFrom = getSmtpConfig().from;
+      const transporters = createSmtpTransporters();
+      for (const { port, transporter } of transporters) {
+        try {
+          await transporter.sendMail({
+            from: smtpFrom,
+            ...template,
+          });
+          return;
+        } catch (smtpPortError) {
+          errors.push(`smtp:${port} ${smtpPortError?.message || smtpPortError}`);
+        }
+      }
+    } catch (providerError) {
+      errors.push(`${method}: ${providerError?.message || providerError}`);
+    }
+  }
+
+  throw new Error(errors.join(" | "));
 }
 
 function buildOtpDeliveryPayload({ emailError, otp, successMessage, fallbackMessage }) {
