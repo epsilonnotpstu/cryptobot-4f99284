@@ -115,6 +115,7 @@ Open these in browser:
 2. If OTP fails:
    - Railway Free/Trial/Hobby হলে SMTP blocked থাকতে পারে; `EMAIL_PROVIDER=resend` + `RESEND_API_KEY` + `RESEND_FROM` set করো।
    - Railway Pro হলে SMTP credentials/sender verify করে redeploy দাও।
+   - `onboarding@resend.dev` test sender দিয়ে only তোমার own Resend account email-এ mail যাবে; real user delivery-এর জন্য Resend-এ domain verify করে `RESEND_FROM` update করো।
 3. If web cannot call API:
    - Keep `VITE_API_BASE_URL` empty and redeploy.
 4. If old frontend config is cached:

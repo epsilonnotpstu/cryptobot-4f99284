@@ -1772,6 +1772,10 @@ function normalizeEmailServiceError(error) {
     return message;
   }
 
+  if (/resend api error \(403\)/i.test(message) && /onboarding@resend\.dev|resend\.dev/i.test(message)) {
+    return "Resend test sender (onboarding@resend.dev) can only send to your own Resend account email. For real users, verify your domain in Resend and set RESEND_FROM to that domain email.";
+  }
+
   if (/timed out|timeout|etimedout|enetunreach|ehostunreach|econnrefused/i.test(message)) {
     return "SMTP connection timed out. On Railway Free/Trial/Hobby plans, SMTP is blocked. Use RESEND_API_KEY + RESEND_FROM (HTTPS email API) or upgrade to Railway Pro and redeploy.";
   }
@@ -1794,14 +1798,8 @@ async function sendOtpEmail({ email, otp, purpose, name }) {
   const attempts = [];
   if (emailProviderPreference === "resend") {
     attempts.push("resend");
-    if (smtpReady) {
-      attempts.push("smtp");
-    }
   } else if (emailProviderPreference === "smtp") {
     attempts.push("smtp");
-    if (resendReady) {
-      attempts.push("resend");
-    }
   } else {
     if (resendReady) {
       attempts.push("resend");
