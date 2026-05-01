@@ -6,7 +6,7 @@ import WithdrawModal from "./WithdrawModal";
 import TransferModal from "./TransferModal";
 import ConvertModal from "./ConvertModal";
 import AssetsHistorySection from "./AssetsHistorySection";
-import { toNumber } from "./assets-utils";
+import { toNumber, walletAssetFromSymbol, tokenIconUrl } from "./assets-utils";
 import "./assets.css";
 
 const BOTTOM_NAV_ITEMS = [
@@ -51,6 +51,11 @@ function getScope(walletSymbol = "SPOT_USDT") {
   return "SPOT";
 }
 
+function toWalletScopeKey(walletSymbol = "SPOT_USDT") {
+  const scope = getScope(walletSymbol);
+  return `${scope}_USDT`;
+}
+
 export default function AssetsPage({
   user,
   onBack,
@@ -93,6 +98,41 @@ export default function AssetsPage({
   const [convertSubmitting, setConvertSubmitting] = useState(false);
 
   const walletDetailMap = useMemo(() => detailsToMap(summary.walletDetails || []), [summary.walletDetails]);
+  const walletCoinMap = useMemo(() => {
+    const groups = {};
+    const details = Array.isArray(summary.walletDetails) ? summary.walletDetails : [];
+
+    for (const row of details) {
+      const symbol = String(row?.symbol || "").toUpperCase();
+      if (!symbol || !symbol.includes("_")) {
+        continue;
+      }
+      const walletKey = toWalletScopeKey(symbol);
+      if (!groups[walletKey]) {
+        groups[walletKey] = [];
+      }
+
+      const availableUsd = toNumber(row?.availableUsd, 0);
+      const lockedUsd = toNumber(row?.lockedUsd, 0);
+      const totalUsd = toNumber(availableUsd + lockedUsd, 0);
+      const assetSymbol = walletAssetFromSymbol(symbol);
+
+      groups[walletKey].push({
+        symbol,
+        assetSymbol,
+        availableUsd,
+        lockedUsd,
+        totalUsd,
+        updatedAt: row?.updatedAt || "",
+        iconUrl: tokenIconUrl(assetSymbol),
+      });
+    }
+
+    for (const key of Object.keys(groups)) {
+      groups[key].sort((a, b) => Number(b.totalUsd || 0) - Number(a.totalUsd || 0));
+    }
+    return groups;
+  }, [summary.walletDetails]);
 
   const applyWalletSnapshot = useCallback((wallet) => {
     if (!wallet || typeof wallet !== "object") {
@@ -395,6 +435,7 @@ export default function AssetsPage({
                 <WalletRowCard
                   key={wallet.walletSymbol}
                   wallet={wallet}
+                  walletCoins={walletCoinMap?.[wallet.walletSymbol] || []}
                   restriction={withdrawConfig?.walletRestrictions?.[wallet.walletSymbol]}
                   expanded={Boolean(expandedWallets[wallet.walletSymbol])}
                   onToggle={() =>

@@ -3,6 +3,49 @@ export function toNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+const TOKEN_ICON_CODE_MAP = {
+  BTC: "btc",
+  ETH: "eth",
+  SOL: "sol",
+  BNB: "bnb",
+  XRP: "xrp",
+  DOGE: "doge",
+  ADA: "ada",
+  DOT: "dot",
+  LTC: "ltc",
+  AVAX: "avax",
+  MATIC: "matic",
+  USDT: "usdt",
+  USDC: "usdc",
+  DAI: "dai",
+  TRX: "trx",
+  TON: "ton",
+};
+
+export function getTokenIconUrl(assetCode = "") {
+  const normalized = String(assetCode || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  const iconCode = TOKEN_ICON_CODE_MAP[normalized];
+  if (!iconCode) {
+    return "";
+  }
+  return `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${iconCode}.png`;
+}
+
+export function parsePairAssets(pair = null) {
+  const pairCode = String(pair?.pairCode || pair?.displayName || "")
+    .trim()
+    .toUpperCase();
+  const display = pairCode.includes("/") ? pairCode : pairCode.replace("-", "/");
+  const [base = "", quote = "USDT"] = display.split("/").map((part) => part.trim()).filter(Boolean);
+  return {
+    base: base || "PAIR",
+    quote: quote || "USDT",
+  };
+}
+
 export function formatMoney(value = 0, currency = "USDT") {
   const numeric = toNumber(value, 0);
   return `${numeric.toLocaleString("en-US", {

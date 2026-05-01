@@ -121,6 +121,7 @@ const DEFAULT_ASSET_PRICE_USD = {
 const WITHDRAW_OPEN_STATUS_SET = new Set(["pending", "processing", "approved"]);
 const WITHDRAW_FINAL_STATUS_SET = new Set(["completed", "rejected", "cancelled"]);
 const WITHDRAW_REVIEW_ALLOWED_SET = new Set(["pending", "processing", "approved", "rejected", "cancelled"]);
+const DEPOSIT_APPROVAL_AMOUNT_META_PATTERN = /\[approved_amount_usd=([0-9]+(?:\.[0-9]+)?)\]/i;
 
 function normalizeAssetCode(value = "") {
   return normalizeUpper(value).replace(/[^A-Z0-9]/g, "").slice(0, 24);
@@ -223,6 +224,18 @@ function normalizeWithdrawalStatus(value = "") {
     return normalized;
   }
   return "pending";
+}
+
+function extractApprovedDepositAmountFromNote(note = "", fallbackAmountUsd = 0) {
+  const match = String(note || "").match(DEPOSIT_APPROVAL_AMOUNT_META_PATTERN);
+  if (match?.[1]) {
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  const fallback = Number(fallbackAmountUsd || 0);
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
 }
 
 function normalizeMovementType(value = "") {
@@ -2115,15 +2128,19 @@ export function createAssetsModule({
   function mapDepositHistoryRow(row) {
     const status = mapStatus(row.status || "pending");
     const depositWalletSymbol = getDepositCreditWalletSymbol();
+    const submittedAmount = toMoney(toNumber(row.amount_usd, 0));
+    const creditedAmount = status === "approved"
+      ? toMoney(extractApprovedDepositAmountFromNote(row.note || "", submittedAmount))
+      : submittedAmount;
     return {
       historyId: `deposit-${row.id}`,
       type: "deposit",
       walletSymbol: depositWalletSymbol,
       assetSymbol: normalizeAssetCode(row.asset_symbol || "USDT") || "USDT",
-      amountUsd: toMoney(toNumber(row.amount_usd, 0)),
-      signedAmountUsd: toMoney(toNumber(row.amount_usd, 0)),
+      amountUsd: creditedAmount,
+      signedAmountUsd: creditedAmount,
       feeAmountUsd: 0,
-      netAmountUsd: toMoney(toNumber(row.amount_usd, 0)),
+      netAmountUsd: creditedAmount,
       status,
       title: "Deposit Request",
       subtitle: `Deposit ${status}`,

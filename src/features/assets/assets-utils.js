@@ -3,6 +3,44 @@ export function toNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+const TOKEN_ICON_CODE_MAP = {
+  BTC: "btc",
+  ETH: "eth",
+  SOL: "sol",
+  BNB: "bnb",
+  XRP: "xrp",
+  DOGE: "doge",
+  ADA: "ada",
+  DOT: "dot",
+  LTC: "ltc",
+  AVAX: "avax",
+  MATIC: "matic",
+  TRX: "trx",
+  TON: "ton",
+  USDT: "usdt",
+  USDC: "usdc",
+  DAI: "dai",
+};
+
+export function walletAssetFromSymbol(walletSymbol = "") {
+  const normalized = String(walletSymbol || "").toUpperCase();
+  const asset = normalized.includes("_") ? normalized.split("_").slice(1).join("_") : normalized;
+  const clean = String(asset || "USDT").replace(/[^A-Z0-9]/g, "");
+  return clean || "USDT";
+}
+
+export function tokenIconUrl(assetCode = "") {
+  const normalized = String(assetCode || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  const iconCode = TOKEN_ICON_CODE_MAP[normalized];
+  if (!iconCode) {
+    return "";
+  }
+  return `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${iconCode}.png`;
+}
+
 export function toMoney(value = 0) {
   return Number(toNumber(value, 0).toFixed(8));
 }
