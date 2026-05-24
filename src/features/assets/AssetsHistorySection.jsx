@@ -1,4 +1,4 @@
-import { formatTime, historyTypeLabel, moneyLabel, statusTone } from "./assets-utils";
+import { formatActivityText, formatTime, historyTypeLabel, moneyLabel, statusTone } from "./assets-utils";
 
 const TYPE_FILTERS = ["all", "deposit", "withdraw", "transfer", "convert", "binary", "lum"];
 
@@ -54,8 +54,8 @@ export default function AssetsHistorySection({
             <article key={row.historyId} className="assetspage-history-item">
               <div>
                 <p>
-                  <strong>{row.title || historyTypeLabel(row.type)}</strong>
-                  <span>{row.subtitle || row.type}</span>
+                  <strong>{formatActivityText(row.title || historyTypeLabel(row.type))}</strong>
+                  <span>{formatActivityText(row.subtitle || row.type)}</span>
                 </p>
                 <small>{formatTime(row.createdAt)}</small>
               </div>
@@ -64,7 +64,7 @@ export default function AssetsHistorySection({
                 <strong className={Number(row.signedAmountUsd || 0) < 0 ? "is-negative" : "is-positive"}>
                   {Number(row.signedAmountUsd || 0) < 0 ? "-" : "+"}${moneyLabel(Math.abs(Number(row.amountUsd || 0)), 6)}
                 </strong>
-                <span className={`assetspage-status ${statusTone(row.status)}`}>{row.status}</span>
+                <span className={`assetspage-status ${statusTone(row.status)}`}>{formatActivityText(row.status)}</span>
               </div>
             </article>
           ))}

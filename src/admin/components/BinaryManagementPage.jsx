@@ -61,12 +61,24 @@ const DEFAULT_PAIR_FORM = {
   displayName: "",
   baseAsset: "",
   quoteAsset: "USDT",
+  categoryId: "",
+  marketSymbol: "",
+  iconImageUrl: "",
   priceSourceType: "internal_feed",
   sourceSymbol: "",
   pricePrecision: "2",
   chartTimeframeLabel: "1s",
   isEnabled: true,
   isFeatured: false,
+  displaySortOrder: "0",
+};
+
+const DEFAULT_CATEGORY_FORM = {
+  categoryId: "",
+  categoryName: "",
+  categorySlug: "",
+  iconImageUrl: "",
+  isEnabled: true,
   displaySortOrder: "0",
 };
 
@@ -87,6 +99,7 @@ const DEFAULT_TICK_FORM = {
 
 export default function BinaryManagementPage({
   summary,
+  categories,
   pairs,
   rules,
   trades,
@@ -95,6 +108,9 @@ export default function BinaryManagementPage({
   searchValue,
   onSearchChange,
   onRefresh,
+  onCreateCategory,
+  onUpdateCategory,
+  onDeleteCategory,
   onCreatePair,
   onUpdatePair,
   onDeletePair,
@@ -106,11 +122,13 @@ export default function BinaryManagementPage({
   onPushManualTick,
 }) {
   const [tab, setTab] = useState("control");
+  const [categoryStatusFilter, setCategoryStatusFilter] = useState("all");
   const [pairStatusFilter, setPairStatusFilter] = useState("all");
   const [rulePairFilter, setRulePairFilter] = useState("all");
   const [tradeStatusFilter, setTradeStatusFilter] = useState("all");
   const [tradePairFilter, setTradePairFilter] = useState("all");
 
+  const [categoryForm, setCategoryForm] = useState(DEFAULT_CATEGORY_FORM);
   const [pairForm, setPairForm] = useState(DEFAULT_PAIR_FORM);
   const [ruleForm, setRuleForm] = useState(DEFAULT_RULE_FORM);
   const [tickForm, setTickForm] = useState(DEFAULT_TICK_FORM);
@@ -118,6 +136,7 @@ export default function BinaryManagementPage({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
+  const [categorySubmitting, setCategorySubmitting] = useState(false);
   const [pairSubmitting, setPairSubmitting] = useState(false);
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [tradeSubmitting, setTradeSubmitting] = useState(false);
@@ -159,9 +178,24 @@ export default function BinaryManagementPage({
   }, [settings]);
 
   const keyword = normalizeText(searchValue);
+  const categoryList = Array.isArray(categories) ? categories : [];
   const pairList = Array.isArray(pairs) ? pairs : [];
   const ruleList = Array.isArray(rules) ? rules : [];
   const tradeList = Array.isArray(trades) ? trades : [];
+
+  const filteredCategories = useMemo(() => {
+    return categoryList.filter((item) => {
+      const enabled = item?.isEnabled ? "enabled" : "disabled";
+      if (categoryStatusFilter !== "all" && enabled !== categoryStatusFilter) {
+        return false;
+      }
+      if (!keyword) {
+        return true;
+      }
+      const candidate = `${item.categoryName} ${item.categorySlug}`.toLowerCase();
+      return candidate.includes(keyword);
+    });
+  }, [categoryList, categoryStatusFilter, keyword]);
 
   const filteredPairs = useMemo(() => {
     return pairList.filter((item) => {
@@ -172,7 +206,7 @@ export default function BinaryManagementPage({
       if (!keyword) {
         return true;
       }
-      const candidate = `${item.pairCode} ${item.displayName} ${item.baseAsset} ${item.quoteAsset} ${item.priceSourceType}`.toLowerCase();
+      const candidate = `${item.pairCode} ${item.displayName} ${item.baseAsset} ${item.quoteAsset} ${item.priceSourceType} ${item.categoryName} ${item.marketSymbol}`.toLowerCase();
       return candidate.includes(keyword);
     });
   }, [keyword, pairList, pairStatusFilter]);
@@ -217,7 +251,11 @@ export default function BinaryManagementPage({
       ? "Forced Win Mode"
       : outcomeTone === "force_loss"
         ? "Forced Loss Mode"
-        : "Auto Settlement Mode";
+      : "Auto Settlement Mode";
+
+  const updateCategoryField = (key, value) => {
+    setCategoryForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   const updatePairField = (key, value) => {
     setPairForm((prev) => ({ ...prev, [key]: value }));
@@ -231,8 +269,23 @@ export default function BinaryManagementPage({
     setEngineForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const resetCategoryForm = () => setCategoryForm(DEFAULT_CATEGORY_FORM);
   const resetPairForm = () => setPairForm(DEFAULT_PAIR_FORM);
   const resetRuleForm = () => setRuleForm(DEFAULT_RULE_FORM);
+
+  const editCategory = (category) => {
+    setError("");
+    setNotice("");
+    setCategoryForm({
+      categoryId: String(category?.categoryId || ""),
+      categoryName: String(category?.categoryName || ""),
+      categorySlug: String(category?.categorySlug || ""),
+      iconImageUrl: String(category?.iconImageUrl || ""),
+      isEnabled: Boolean(category?.isEnabled),
+      displaySortOrder: String(category?.displaySortOrder ?? "0"),
+    });
+    setTab("categories");
+  };
 
   const editPair = (pair) => {
     setError("");
@@ -243,6 +296,9 @@ export default function BinaryManagementPage({
       displayName: String(pair?.displayName || ""),
       baseAsset: String(pair?.baseAsset || ""),
       quoteAsset: String(pair?.quoteAsset || "USDT"),
+      categoryId: pair?.categoryId === null || pair?.categoryId === undefined ? "" : String(pair.categoryId),
+      marketSymbol: String(pair?.marketSymbol || ""),
+      iconImageUrl: String(pair?.iconImageUrl || ""),
       priceSourceType: String(pair?.priceSourceType || "internal_feed"),
       sourceSymbol: String(pair?.sourceSymbol || ""),
       pricePrecision: String(pair?.pricePrecision ?? "2"),
@@ -252,6 +308,46 @@ export default function BinaryManagementPage({
       displaySortOrder: String(pair?.displaySortOrder ?? "0"),
     });
     setTab("pairs");
+  };
+
+  const submitCategory = async (event) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    if (!categoryForm.categoryName.trim()) {
+      setError("Category name is required.");
+      return;
+    }
+
+    setCategorySubmitting(true);
+    try {
+      const response = categoryForm.categoryId
+        ? await onUpdateCategory({
+            categoryId: Number(categoryForm.categoryId),
+            categoryName: categoryForm.categoryName,
+            categorySlug: categoryForm.categorySlug,
+            iconImageUrl: categoryForm.iconImageUrl,
+            isEnabled: Boolean(categoryForm.isEnabled),
+            displaySortOrder: Number(categoryForm.displaySortOrder || 0),
+          })
+        : await onCreateCategory({
+            categoryName: categoryForm.categoryName,
+            categorySlug: categoryForm.categorySlug,
+            iconImageUrl: categoryForm.iconImageUrl,
+            isEnabled: Boolean(categoryForm.isEnabled),
+            displaySortOrder: Number(categoryForm.displaySortOrder || 0),
+          });
+
+      setNotice(response?.message || (categoryForm.categoryId ? "Category updated." : "Category created."));
+      if (!categoryForm.categoryId) {
+        resetCategoryForm();
+      }
+    } catch (requestError) {
+      setError(requestError.message || "Could not save category.");
+    } finally {
+      setCategorySubmitting(false);
+    }
   };
 
   const editRule = (rule) => {
@@ -289,6 +385,9 @@ export default function BinaryManagementPage({
       displayName: pairForm.displayName,
       baseAsset: pairForm.baseAsset,
       quoteAsset: pairForm.quoteAsset,
+      categoryId: pairForm.categoryId === "" ? null : Number(pairForm.categoryId),
+      marketSymbol: pairForm.marketSymbol,
+      iconImageUrl: pairForm.iconImageUrl,
       priceSourceType: pairForm.priceSourceType,
       sourceSymbol: pairForm.sourceSymbol,
       pricePrecision: Number(pairForm.pricePrecision || 2),
@@ -372,6 +471,26 @@ export default function BinaryManagementPage({
       }
     } catch (requestError) {
       setError(requestError.message || "Could not delete pair.");
+    }
+  };
+
+  const removeCategory = async (categoryId) => {
+    setError("");
+    setNotice("");
+    if (typeof window !== "undefined") {
+      const approved = window.confirm("Delete this category? Linked market items will be reassigned.");
+      if (!approved) {
+        return;
+      }
+    }
+    try {
+      const response = await onDeleteCategory(categoryId);
+      setNotice(response?.message || "Category deleted.");
+      if (String(categoryForm.categoryId) === String(categoryId)) {
+        resetCategoryForm();
+      }
+    } catch (requestError) {
+      setError(requestError.message || "Could not delete category.");
     }
   };
 
@@ -524,6 +643,7 @@ export default function BinaryManagementPage({
 
       <div className="adminx-user-tabs" role="tablist" aria-label="Binary management tabs">
         <button type="button" role="tab" aria-selected={tab === "control"} className={tab === "control" ? "active" : ""} onClick={() => setTab("control")}>Control Center</button>
+        <button type="button" role="tab" aria-selected={tab === "categories"} className={tab === "categories" ? "active" : ""} onClick={() => setTab("categories")}>Category Desk</button>
         <button type="button" role="tab" aria-selected={tab === "pairs"} className={tab === "pairs" ? "active" : ""} onClick={() => setTab("pairs")}>Pairs Desk</button>
         <button type="button" role="tab" aria-selected={tab === "rules"} className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}>Period Rules</button>
         <button type="button" role="tab" aria-selected={tab === "trades"} className={tab === "trades" ? "active" : ""} onClick={() => setTab("trades")}>Trade Desk</button>
@@ -694,6 +814,113 @@ export default function BinaryManagementPage({
         </section>
       ) : null}
 
+      {tab === "categories" ? (
+        <section className="adminx-user-table-card">
+          <div className="adminx-user-toolbar">
+            <label className="adminx-user-search">
+              <i className="fas fa-search" />
+              <input
+                type="text"
+                placeholder="Search category name or slug..."
+                value={searchValue}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            </label>
+
+            <div className="adminx-user-toolbar-actions">
+              <select className="adminx-filter-btn adminx-filter-select" value={categoryStatusFilter} onChange={(event) => setCategoryStatusFilter(event.target.value)}>
+                <option value="all">All Status</option>
+                <option value="enabled">Enabled</option>
+                <option value="disabled">Disabled</option>
+              </select>
+              <button type="button" className="adminx-filter-btn" onClick={onRefresh}>
+                <i className={`fas ${loading ? "fa-spinner fa-spin" : "fa-arrows-rotate"}`} /> Refresh
+              </button>
+            </div>
+
+            <span className="adminx-user-count">{filteredCategories.length} categories</span>
+          </div>
+
+          <div className="adminx-deposit-layout">
+            <form className="adminx-deposit-asset-form" onSubmit={submitCategory}>
+              <h3>{categoryForm.categoryId ? "Update Category" : "Create Category"}</h3>
+
+              <div className="adminx-deposit-grid-two">
+                <label>
+                  Category Name
+                  <input type="text" value={categoryForm.categoryName} onChange={(event) => updateCategoryField("categoryName", event.target.value)} placeholder="Metals" />
+                </label>
+                <label>
+                  Category Slug
+                  <input type="text" value={categoryForm.categorySlug} onChange={(event) => updateCategoryField("categorySlug", event.target.value)} placeholder="metals" />
+                </label>
+              </div>
+
+              <div className="adminx-deposit-grid-two">
+                <label>
+                  Icon/Image URL
+                  <input type="text" value={categoryForm.iconImageUrl} onChange={(event) => updateCategoryField("iconImageUrl", event.target.value)} placeholder="https://..." />
+                </label>
+                <label>
+                  Sort Order
+                  <input type="number" value={categoryForm.displaySortOrder} onChange={(event) => updateCategoryField("displaySortOrder", event.target.value)} />
+                </label>
+              </div>
+
+              <label className="adminx-checkbox-row">
+                <input type="checkbox" checked={Boolean(categoryForm.isEnabled)} onChange={(event) => updateCategoryField("isEnabled", event.target.checked)} />
+                <span>Category enabled</span>
+              </label>
+
+              <div className="adminx-profile-actions">
+                <button type="button" className="btn btn-ghost" onClick={resetCategoryForm} disabled={categorySubmitting}>Reset</button>
+                <button type="submit" className="btn btn-primary" disabled={categorySubmitting}>{categorySubmitting ? "Saving..." : categoryForm.categoryId ? "Update Category" : "Create Category"}</button>
+              </div>
+            </form>
+
+            <div className="adminx-deposit-asset-table-wrap">
+              <table className="adminx-user-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Status</th>
+                    <th>Sort</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCategories.map((category) => (
+                    <tr key={category.categoryId}>
+                      <td>{category.categoryName}</td>
+                      <td>{category.categorySlug}</td>
+                      <td>
+                        <span className={`adminx-tag adminx-tag-kyc-${statusClass(category.isEnabled ? "active" : "disabled")}`}>
+                          {category.isEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </td>
+                      <td>{category.displaySortOrder}</td>
+                      <td>
+                        <div className="adminx-row-actions">
+                          <button type="button" title="Edit" onClick={() => editCategory(category)}><i className="fas fa-pen" /></button>
+                          <button type="button" title="Delete" onClick={() => removeCategory(category.categoryId)}><i className="fas fa-trash" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {!filteredCategories.length ? (
+                <div className="adminx-users-empty">
+                  <p>No category found.</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {tab === "pairs" ? (
         <section className="adminx-user-table-card">
           <div className="adminx-user-toolbar">
@@ -718,7 +945,7 @@ export default function BinaryManagementPage({
               </button>
             </div>
 
-            <span className="adminx-user-count">{filteredPairs.length} pairs</span>
+            <span className="adminx-user-count">{filteredPairs.length} items</span>
           </div>
 
           <div className="adminx-deposit-layout">
@@ -752,6 +979,27 @@ export default function BinaryManagementPage({
                   <input type="text" value={pairForm.quoteAsset} onChange={(event) => updatePairField("quoteAsset", event.target.value.toUpperCase())} />
                 </label>
               </div>
+
+              <div className="adminx-deposit-grid-two">
+                <label>
+                  Category
+                  <select className="adminx-filter-btn adminx-filter-select" value={pairForm.categoryId} onChange={(event) => updatePairField("categoryId", event.target.value)}>
+                    <option value="">No category</option>
+                    {categoryList.map((category) => (
+                      <option key={category.categoryId} value={category.categoryId}>{category.categoryName}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Item Symbol Label
+                  <input type="text" value={pairForm.marketSymbol} onChange={(event) => updatePairField("marketSymbol", event.target.value.toUpperCase())} placeholder="BTC" />
+                </label>
+              </div>
+
+              <label>
+                Item Icon/Image URL
+                <input type="text" value={pairForm.iconImageUrl} onChange={(event) => updatePairField("iconImageUrl", event.target.value)} placeholder="https://..." />
+              </label>
 
               <div className="adminx-deposit-grid-two">
                 <label>
@@ -807,6 +1055,8 @@ export default function BinaryManagementPage({
                 <thead>
                   <tr>
                     <th>Pair</th>
+                    <th>Category</th>
+                    <th>Symbol</th>
                     <th>Source</th>
                     <th>Current Price</th>
                     <th>Precision</th>
@@ -822,6 +1072,8 @@ export default function BinaryManagementPage({
                         <strong>{pair.displayName}</strong>
                         <small className="adminx-table-subtext">{pair.pairCode}</small>
                       </td>
+                      <td>{pair.categoryName || "-"}</td>
+                      <td>{pair.marketSymbol || "-"}</td>
                       <td>{prettyLabel(pair.priceSourceType)}</td>
                       <td>{toNumber(pair.currentPrice, 0).toLocaleString("en-US", { maximumFractionDigits: 8 })}</td>
                       <td>{pair.pricePrecision}</td>

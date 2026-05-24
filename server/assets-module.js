@@ -647,6 +647,9 @@ export function createAssetsModule({
     UPDATE withdrawal_requests
     SET status = @status,
         note = @note,
+        amount_usd = @amountUsd,
+        fee_amount_usd = @feeAmountUsd,
+        net_amount_usd = @netAmountUsd,
         reviewed_at = @reviewedAt,
         reviewed_by = @reviewedBy,
         completed_at = @completedAt,
@@ -3223,12 +3226,34 @@ export function createAssetsModule({
     throw new Error("withdrawalId or withdrawalRef is required.");
   }
 
-  function updateWithdrawalForAdmin({ existing, status, note, actor, completedAt = null }) {
+  function updateWithdrawalForAdmin({
+    existing,
+    status,
+    note,
+    actor,
+    completedAt = null,
+    amountUsd = null,
+    feeAmountUsd = null,
+    netAmountUsd = null,
+  }) {
     const nowIso = toIso(getNow());
+    const nextAmountUsd = amountUsd === null || amountUsd === undefined
+      ? toMoney(toNumber(existing.amount_usd, 0))
+      : toMoney(toNumber(amountUsd, 0));
+    const nextFeeAmountUsd = feeAmountUsd === null || feeAmountUsd === undefined
+      ? toMoney(toNumber(existing.fee_amount_usd, 0))
+      : toMoney(toNumber(feeAmountUsd, 0));
+    const nextNetAmountUsd = netAmountUsd === null || netAmountUsd === undefined
+      ? toMoney(toNumber(existing.net_amount_usd, 0))
+      : toMoney(toNumber(netAmountUsd, 0));
+
     updateWithdrawalStatusStatement.run({
       id: existing.id,
       status,
       note: note || String(existing.note || ""),
+      amountUsd: nextAmountUsd,
+      feeAmountUsd: nextFeeAmountUsd,
+      netAmountUsd: nextNetAmountUsd,
       reviewedAt: nowIso,
       reviewedBy: actor,
       completedAt,
@@ -3313,6 +3338,11 @@ export function createAssetsModule({
       }
       const targetStatus = normalizeWithdrawalStatus(decisionRaw || "pending");
       const note = sanitizeShortText(parseRequestValue(req, "note", ""), 280);
+      const approvedAmountInput = parseRequestValue(req, "approvedAmountUsd", null);
+      const hasApprovedAmountInput =
+        approvedAmountInput !== null &&
+        approvedAmountInput !== undefined &&
+        String(approvedAmountInput).trim() !== "";
 
       if (!WITHDRAW_REVIEW_ALLOWED_SET.has(targetStatus)) {
         throw new Error("Invalid review status.");
@@ -3339,7 +3369,37 @@ export function createAssetsModule({
         const scope = getWalletScope(walletSymbol);
         const assetCode = normalizeAssetCode(existing.asset_symbol || "USDT") || "USDT";
         const walletAssetSymbol = buildScopedWalletSymbol(scope, assetCode);
-        const amountUsd = toMoney(toNumber(existing.amount_usd, 0));
+        const requestAmountUsd = toMoney(toNumber(existing.amount_usd, 0));
+        const requestFeeAmountUsd = toMoney(toNumber(existing.fee_amount_usd, 0));
+        const requestNetAmountUsd = toMoney(toNumber(existing.net_amount_usd, 0));
+
+        let approvedAmountUsd = requestAmountUsd;
+        if (targetStatus === "approved" && hasApprovedAmountInput) {
+          const parsedApprovedAmount = toMoney(toNumber(approvedAmountInput, 0));
+          if (parsedApprovedAmount <= 0) {
+            throw new Error("Approved amount must be greater than 0.");
+          }
+          if (parsedApprovedAmount > requestAmountUsd) {
+            throw new Error("Approved amount cannot exceed submitted withdrawal amount.");
+          }
+          approvedAmountUsd = parsedApprovedAmount;
+        }
+
+        const feeRatio =
+          requestAmountUsd > 0
+            ? toMoney(requestFeeAmountUsd / requestAmountUsd)
+            : toMoney(Math.max(0, defaultWithdrawFeePercent) / 100);
+        const approvedFeeAmountUsd =
+          targetStatus === "approved"
+            ? toMoney(approvedAmountUsd * feeRatio)
+            : requestFeeAmountUsd;
+        const approvedNetAmountUsd =
+          targetStatus === "approved"
+            ? toMoney(approvedAmountUsd - approvedFeeAmountUsd)
+            : requestNetAmountUsd;
+        if (targetStatus === "approved" && approvedNetAmountUsd <= 0) {
+          throw new Error("Approved net amount is too low after fee.");
+        }
 
         if (
           WITHDRAW_OPEN_STATUS_SET.has(previousStatus) &&
@@ -3348,15 +3408,15 @@ export function createAssetsModule({
           const detail = ensureWalletDetailRow(userId, walletAssetSymbol, nowIso, walletAssetSymbol);
           const availableBefore = toMoney(toNumber(detail.available_usd, 0));
           const lockedBefore = toMoney(toNumber(detail.locked_usd, 0));
-          if (lockedBefore < amountUsd) {
+          if (lockedBefore < requestAmountUsd) {
             throw new Error("Locked balance is not sufficient to unlock this withdrawal.");
           }
 
           const saved = saveWalletDetail({
             userId,
             assetSymbol: walletAssetSymbol,
-            availableUsd: toMoney(availableBefore + amountUsd),
-            lockedUsd: toMoney(lockedBefore - amountUsd),
+            availableUsd: toMoney(availableBefore + requestAmountUsd),
+            lockedUsd: toMoney(lockedBefore - requestAmountUsd),
             rewardEarnedUsd: toNumber(detail.reward_earned_usd, 0),
             updatedAt: nowIso,
           });
@@ -3375,10 +3435,51 @@ export function createAssetsModule({
             walletSymbol,
             assetSymbol: assetCode,
             movementType: "unlock",
-            amountUsd,
+            amountUsd: requestAmountUsd,
             balanceBeforeUsd: lockedBefore,
             balanceAfterUsd: toNumber(saved.locked_usd, 0),
             note: note || `Withdrawal ${targetStatus} by admin.`,
+            createdAt: nowIso,
+            createdBy: actor,
+          });
+        }
+
+        if (WITHDRAW_OPEN_STATUS_SET.has(previousStatus) && targetStatus === "approved" && approvedAmountUsd < requestAmountUsd) {
+          const unlockAmountUsd = toMoney(requestAmountUsd - approvedAmountUsd);
+          const detail = ensureWalletDetailRow(userId, walletAssetSymbol, nowIso, walletAssetSymbol);
+          const availableBefore = toMoney(toNumber(detail.available_usd, 0));
+          const lockedBefore = toMoney(toNumber(detail.locked_usd, 0));
+          if (lockedBefore < unlockAmountUsd) {
+            throw new Error("Locked balance is not sufficient for approved amount adjustment.");
+          }
+
+          const saved = saveWalletDetail({
+            userId,
+            assetSymbol: walletAssetSymbol,
+            availableUsd: toMoney(availableBefore + unlockAmountUsd),
+            lockedUsd: toMoney(lockedBefore - unlockAmountUsd),
+            rewardEarnedUsd: toNumber(detail.reward_earned_usd, 0),
+            updatedAt: nowIso,
+          });
+
+          syncWalletSummaryFromDetail({
+            userId,
+            assetSymbol: walletAssetSymbol,
+            updatedAt: nowIso,
+            assetNameFallback: walletAssetSymbol,
+          });
+
+          insertAssetWalletLedgerEntry({
+            userId,
+            ledgerRefType: "withdraw_adjust_unlock",
+            ledgerRefId: String(existing.withdrawal_ref || existing.id || ""),
+            walletSymbol,
+            assetSymbol: assetCode,
+            movementType: "unlock",
+            amountUsd: unlockAmountUsd,
+            balanceBeforeUsd: lockedBefore,
+            balanceAfterUsd: toNumber(saved.locked_usd, 0),
+            note: note || "Withdrawal approved amount adjusted by admin.",
             createdAt: nowIso,
             createdBy: actor,
           });
@@ -3390,6 +3491,9 @@ export function createAssetsModule({
           note,
           actor,
           completedAt: existing.completed_at || null,
+          amountUsd: targetStatus === "approved" ? approvedAmountUsd : requestAmountUsd,
+          feeAmountUsd: targetStatus === "approved" ? approvedFeeAmountUsd : requestFeeAmountUsd,
+          netAmountUsd: targetStatus === "approved" ? approvedNetAmountUsd : requestNetAmountUsd,
         });
 
         insertAssetAdminAuditLog({
@@ -3419,6 +3523,11 @@ export function createAssetsModule({
     try {
       const actor = getAdminActor(req);
       const note = sanitizeShortText(parseRequestValue(req, "note", ""), 280);
+      const approvedAmountInput = parseRequestValue(req, "approvedAmountUsd", null);
+      const hasApprovedAmountInput =
+        approvedAmountInput !== null &&
+        approvedAmountInput !== undefined &&
+        String(approvedAmountInput).trim() !== "";
       const existing = resolveAdminWithdrawalRow(req);
 
       if (!existing) {
@@ -3446,20 +3555,48 @@ export function createAssetsModule({
         const scope = getWalletScope(walletSymbol);
         const assetCode = normalizeAssetCode(existing.asset_symbol || "USDT") || "USDT";
         const walletAssetSymbol = buildScopedWalletSymbol(scope, assetCode);
-        const amountUsd = toMoney(toNumber(existing.amount_usd, 0));
+        const requestAmountUsd = toMoney(toNumber(existing.amount_usd, 0));
+        const requestFeeAmountUsd = toMoney(toNumber(existing.fee_amount_usd, 0));
+        const requestNetAmountUsd = toMoney(toNumber(existing.net_amount_usd, 0));
+        let approvedAmountUsd = requestAmountUsd;
+
+        if (hasApprovedAmountInput) {
+          const parsedApprovedAmount = toMoney(toNumber(approvedAmountInput, 0));
+          if (parsedApprovedAmount <= 0) {
+            throw new Error("Approved amount must be greater than 0.");
+          }
+          if (parsedApprovedAmount > requestAmountUsd) {
+            throw new Error("Approved amount cannot exceed submitted withdrawal amount.");
+          }
+          approvedAmountUsd = parsedApprovedAmount;
+        }
+
+        const feeRatio =
+          requestAmountUsd > 0
+            ? toMoney(requestFeeAmountUsd / requestAmountUsd)
+            : toMoney(Math.max(0, defaultWithdrawFeePercent) / 100);
+        const approvedFeeAmountUsd = toMoney(approvedAmountUsd * feeRatio);
+        const approvedNetAmountUsd = toMoney(approvedAmountUsd - approvedFeeAmountUsd);
+        if (approvedNetAmountUsd <= 0) {
+          throw new Error("Approved net amount is too low after fee.");
+        }
+        const unlockAmountUsd = toMoney(requestAmountUsd - approvedAmountUsd);
 
         const detail = ensureWalletDetailRow(userId, walletAssetSymbol, nowIso, walletAssetSymbol);
         const availableBefore = toMoney(toNumber(detail.available_usd, 0));
         const lockedBefore = toMoney(toNumber(detail.locked_usd, 0));
-        if (lockedBefore < amountUsd) {
+        if (lockedBefore < requestAmountUsd) {
           throw new Error("Locked balance is insufficient to complete withdrawal.");
         }
+
+        const lockedAfterUnlockUsd = toMoney(lockedBefore - unlockAmountUsd);
+        const lockedAfterDebitUsd = toMoney(lockedAfterUnlockUsd - approvedAmountUsd);
 
         const saved = saveWalletDetail({
           userId,
           assetSymbol: walletAssetSymbol,
-          availableUsd: availableBefore,
-          lockedUsd: toMoney(lockedBefore - amountUsd),
+          availableUsd: toMoney(availableBefore + unlockAmountUsd),
+          lockedUsd: lockedAfterDebitUsd,
           rewardEarnedUsd: toNumber(detail.reward_earned_usd, 0),
           updatedAt: nowIso,
         });
@@ -3471,12 +3608,32 @@ export function createAssetsModule({
           assetNameFallback: walletAssetSymbol,
         });
 
+        if (unlockAmountUsd > 0) {
+          insertAssetWalletLedgerEntry({
+            userId,
+            ledgerRefType: "withdraw_adjust_unlock",
+            ledgerRefId: String(existing.withdrawal_ref || existing.id || ""),
+            walletSymbol,
+            assetSymbol: assetCode,
+            movementType: "unlock",
+            amountUsd: unlockAmountUsd,
+            balanceBeforeUsd: lockedBefore,
+            balanceAfterUsd: lockedAfterUnlockUsd,
+            note: note || "Withdrawal approved amount adjusted by admin.",
+            createdAt: nowIso,
+            createdBy: actor,
+          });
+        }
+
         const updated = updateWithdrawalForAdmin({
           existing,
           status: "completed",
           note,
           actor,
           completedAt: nowIso,
+          amountUsd: approvedAmountUsd,
+          feeAmountUsd: approvedFeeAmountUsd,
+          netAmountUsd: approvedNetAmountUsd,
         });
 
         insertAssetWalletLedgerEntry({
@@ -3486,8 +3643,8 @@ export function createAssetsModule({
           walletSymbol,
           assetSymbol: assetCode,
           movementType: "debit",
-          amountUsd,
-          balanceBeforeUsd: lockedBefore,
+          amountUsd: approvedAmountUsd,
+          balanceBeforeUsd: lockedAfterUnlockUsd,
           balanceAfterUsd: toNumber(saved.locked_usd, 0),
           note: note || "Withdrawal completed by admin.",
           createdAt: nowIso,

@@ -61,14 +61,73 @@
 
 .binary-header {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
-  gap: 0.72rem;
-  align-items: center;
+  gap: 0.68rem;
 }
 
-.binary-header-main {
-  display: grid;
-  gap: 0.5rem;
+.binary-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.binary-category-tabs {
+  display: flex;
+  gap: 0.44rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+}
+
+.binary-category-tabs button {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(10, 20, 36, 0.84);
+  color: #d7e8fa;
+  padding: 0.38rem 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.binary-category-tabs button:hover {
+  border-color: rgba(88, 205, 255, 0.44);
+  transform: translateY(-1px);
+}
+
+.binary-category-tabs button.active {
+  border-color: rgba(73, 216, 255, 0.58);
+  background: linear-gradient(140deg, rgba(40, 68, 115, 0.68), rgba(25, 184, 239, 0.26));
+  color: #e8f9ff;
+}
+
+.binary-selected-asset-card {
+  border-radius: 14px;
+  border: 1px solid rgba(104, 168, 230, 0.34);
+  background: linear-gradient(145deg, rgba(8, 18, 35, 0.9), rgba(11, 22, 43, 0.86));
+  padding: 0.58rem 0.7rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.binary-selected-asset-card span {
+  color: #8fb5d8;
+  font-size: 0.73rem;
+}
+
+.binary-selected-asset-card strong {
+  display: block;
+  margin-top: 0.16rem;
+  color: #e8f7ff;
+  font-size: 1.01rem;
+}
+
+.binary-selected-asset-card em {
+  font-style: normal;
+  color: #8deaff;
+  font-weight: 800;
+  font-size: 0.96rem;
 }
 
 .binary-pair-selector {
@@ -428,6 +487,137 @@
   color: #9bb1cb;
 }
 
+.binary-market-list-card {
+  border-radius: 22px;
+  border: 1px solid var(--prodash-soft-border);
+  background: var(--prodash-card);
+  padding: 0.95rem;
+}
+
+.binary-market-list-card > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.binary-market-list-card h3 {
+  margin: 0;
+  color: #ecf8ff;
+  font-size: 1rem;
+}
+
+.binary-market-list-card p {
+  margin: 0.22rem 0 0;
+  color: #95aecb;
+  font-size: 0.79rem;
+}
+
+.binary-market-list-card > header span {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  padding: 0.26rem 0.56rem;
+  font-size: 0.73rem;
+  color: #add6f4;
+}
+
+.binary-market-list {
+  margin-top: 0.72rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.binary-market-item {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(9, 19, 35, 0.84);
+  padding: 0.62rem 0.72rem;
+  color: #e3f5ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.binary-market-item:hover {
+  border-color: rgba(73, 216, 255, 0.52);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(2, 9, 24, 0.42);
+}
+
+.binary-market-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.binary-market-item-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(11, 22, 39, 0.92);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d2ecff;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.binary-market-item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.binary-market-item-left strong,
+.binary-market-item-left small {
+  display: block;
+}
+
+.binary-market-item-left strong {
+  color: #edf9ff;
+  font-size: 0.96rem;
+}
+
+.binary-market-item-left small {
+  margin-top: 0.12rem;
+  color: #90b1ce;
+  font-size: 0.77rem;
+}
+
+.binary-market-item-right {
+  display: grid;
+  justify-items: end;
+  gap: 0.13rem;
+}
+
+.binary-market-item-right strong {
+  color: #9deefe;
+  font-size: 0.9rem;
+}
+
+.binary-market-item-right em {
+  font-style: normal;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.binary-market-item-right em.is-up {
+  color: #67efb4;
+}
+
+.binary-market-item-right em.is-down {
+  color: #ff9ca8;
+}
+
 .binary-chart-card,
 .binary-period-section,
 .binary-amount-card,
@@ -678,15 +868,17 @@
 }
 
 .binary-direction-toggle button.active.long {
-  border-color: rgba(70, 211, 255, 0.58);
-  background: linear-gradient(140deg, rgba(70, 211, 255, 0.3), rgba(25, 184, 239, 0.24));
-  color: #dcf8ff;
+  border-color: rgba(52, 211, 153, 0.56);
+  background: linear-gradient(140deg, rgba(20, 184, 166, 0.24), rgba(14, 165, 233, 0.2));
+  color: #dcfff4;
+  box-shadow: 0 12px 20px rgba(20, 184, 166, 0.16);
 }
 
 .binary-direction-toggle button.active.short {
-  border-color: rgba(255, 108, 120, 0.56);
-  background: linear-gradient(140deg, rgba(255, 108, 120, 0.24), rgba(219, 73, 96, 0.2));
-  color: #ffe4e8;
+  border-color: rgba(239, 68, 68, 0.56);
+  background: linear-gradient(140deg, rgba(185, 28, 28, 0.26), rgba(239, 68, 68, 0.2));
+  color: #ffe5e8;
+  box-shadow: 0 12px 20px rgba(239, 68, 68, 0.14);
 }
 
 .binary-period-section header h3 {
@@ -881,13 +1073,17 @@
 
 .binary-trade-btn.is-long,
 .binary-primary-btn {
-  background: linear-gradient(140deg, #49d8ff, #14b8ef);
-  color: #02222f;
+  border: 1px solid rgba(16, 185, 129, 0.48);
+  background: linear-gradient(140deg, rgba(16, 185, 129, 0.88), rgba(6, 182, 212, 0.86));
+  color: #032825;
+  box-shadow: 0 16px 26px rgba(14, 116, 144, 0.22);
 }
 
 .binary-trade-btn.is-short {
-  background: linear-gradient(140deg, #ff8b99, #ff627f);
-  color: #2f030b;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: linear-gradient(140deg, rgba(220, 38, 38, 0.88), rgba(190, 24, 93, 0.84));
+  color: #2b070d;
+  box-shadow: 0 16px 26px rgba(127, 29, 29, 0.24);
 }
 
 .binary-trade-btn:disabled {
@@ -1381,10 +1577,6 @@
 }
 
 @media (max-width: 740px) {
-  .binary-header {
-    grid-template-columns: 42px 1fr auto;
-  }
-
   .binary-summary-grid,
   .binary-summary-highlight {
     grid-template-columns: 1fr;
@@ -1393,6 +1585,14 @@
 
   .binary-shell {
     border-radius: 22px;
+  }
+
+  .binary-market-item {
+    padding: 0.55rem 0.58rem;
+  }
+
+  .binary-selected-asset-card strong {
+    font-size: 0.92rem;
   }
 }
 

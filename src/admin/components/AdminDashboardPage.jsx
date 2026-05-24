@@ -106,6 +106,9 @@ export default function AdminDashboardPage({
   onSaveLumPlanContent,
   onReviewLumInvestment,
   onForceSettleLumInvestment,
+  onCreateBinaryCategory,
+  onUpdateBinaryCategory,
+  onDeleteBinaryCategory,
   onCreateBinaryPair,
   onUpdateBinaryPair,
   onDeleteBinaryPair,
@@ -668,6 +671,7 @@ export default function AdminDashboardPage({
         {activeSection === "binaryCenter" ? (
           <BinaryManagementPage
             summary={binaryCenter?.summary || {}}
+            categories={Array.isArray(binaryCenter?.categories) ? binaryCenter.categories : []}
             pairs={Array.isArray(binaryCenter?.pairs) ? binaryCenter.pairs : []}
             rules={Array.isArray(binaryCenter?.rules) ? binaryCenter.rules : []}
             trades={Array.isArray(binaryCenter?.trades) ? binaryCenter.trades : []}
@@ -676,6 +680,9 @@ export default function AdminDashboardPage({
             searchValue={adminSearch}
             onSearchChange={setAdminSearch}
             onRefresh={onRefresh}
+            onCreateCategory={onCreateBinaryCategory}
+            onUpdateCategory={onUpdateBinaryCategory}
+            onDeleteCategory={onDeleteBinaryCategory}
             onCreatePair={onCreateBinaryPair}
             onUpdatePair={onUpdateBinaryPair}
             onDeletePair={onDeleteBinaryPair}

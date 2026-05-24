@@ -1226,10 +1226,10 @@ const remoteAuthService = {
       payload: { ticketRef, status },
     });
   },
-  async adminSignup({ name, email, phone, password }) {
+  async adminSignup({ name, email, phone, password, adminSignupKey = "" }) {
     const data = await this.requestGatewayAction({
       action: "admin.auth.signup",
-      payload: { name, email, phone, password },
+      payload: { name, email, phone, password, adminSignupKey },
     });
     return data;
   },
@@ -1393,6 +1393,33 @@ const remoteAuthService = {
     return this.requestGatewayAction({
       action: "admin.binary.dashboard-summary",
       sessionToken,
+    });
+  },
+  async adminListBinaryCategories({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.categories",
+      sessionToken,
+    });
+  },
+  async adminCreateBinaryCategory({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.categories.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateBinaryCategory({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.categories.update",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminDeleteBinaryCategory({ sessionToken, categoryId }) {
+    return this.requestGatewayAction({
+      action: "admin.binary.categories.delete",
+      sessionToken,
+      payload: { categoryId },
     });
   },
   async adminListBinaryPairs({ sessionToken }) {
@@ -1713,18 +1740,18 @@ const remoteAuthService = {
       payload: { status, asset, network, wallet, userKeyword, page, limit },
     });
   },
-  async adminReviewAssetsWithdrawal({ sessionToken, withdrawalId, withdrawalRef, decision, note = "" }) {
+  async adminReviewAssetsWithdrawal({ sessionToken, withdrawalId, withdrawalRef, decision, note = "", approvedAmountUsd }) {
     return this.requestGatewayAction({
       action: "admin.assets.withdrawals.review",
       sessionToken,
-      payload: { withdrawalId, withdrawalRef, decision, note },
+      payload: { withdrawalId, withdrawalRef, decision, note, approvedAmountUsd },
     });
   },
-  async adminCompleteAssetsWithdrawal({ sessionToken, withdrawalId, withdrawalRef, note = "" }) {
+  async adminCompleteAssetsWithdrawal({ sessionToken, withdrawalId, withdrawalRef, note = "", approvedAmountUsd }) {
     return this.requestGatewayAction({
       action: "admin.assets.withdrawals.complete",
       sessionToken,
-      payload: { withdrawalId, withdrawalRef, note },
+      payload: { withdrawalId, withdrawalRef, note, approvedAmountUsd },
     });
   },
   async adminListAssetsTransfers({ sessionToken, status = "all", route = "all", wallet = "all", userKeyword = "", page = 1, limit = 50 }) {
@@ -3222,6 +3249,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           user={authSnapshot}
           onBack={() => setActiveAppScreen("dashboard")}
           onDashboardSnapshot={handleDashboardSnapshot}
+          onLoadAssetsWallets={handleAssetsWallets}
           onLoadSummary={handleLumSummary}
           onLoadPlans={handleLumPlans}
           onLoadPlanDetail={handleLumPlanDetail}
@@ -3231,6 +3259,30 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onAfterInvestmentSuccess={async () => {
             await onAuthChanged();
           }}
+        />
+      );
+    }
+
+    if (activeAppScreen === "goldMining") {
+      return (
+        <LUMPage
+          user={authSnapshot}
+          onBack={() => setActiveAppScreen("dashboard")}
+          onDashboardSnapshot={handleDashboardSnapshot}
+          onLoadAssetsWallets={handleAssetsWallets}
+          onLoadSummary={handleLumSummary}
+          onLoadPlans={handleLumPlans}
+          onLoadPlanDetail={handleLumPlanDetail}
+          onLoadEntrust={handleLumEntrust}
+          onLoadInfo={handleLumInfo}
+          onCreateInvestment={handleLumInvest}
+          onAfterInvestmentSuccess={async () => {
+            await onAuthChanged();
+          }}
+          centerTitle="Gold Mining Center"
+          productLabel="Gold Mining"
+          defaultTab="mining"
+          lockCategory="mining"
         />
       );
     }
@@ -3355,6 +3407,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onDashboardSnapshot={handleDashboardSnapshot}
         onOpenDepositPage={() => setActiveAppScreen("deposit")}
         onOpenLumPage={() => setActiveAppScreen("lum")}
+        onOpenGoldMiningPage={() => setActiveAppScreen("goldMining")}
         onOpenBinaryPage={() => setActiveAppScreen("binary")}
         onOpenTransactionPage={() => setActiveAppScreen("transaction")}
         onOpenAssetsPage={() => setActiveAppScreen("assets")}

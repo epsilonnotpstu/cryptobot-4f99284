@@ -1,4 +1,4 @@
-import { formatDateTime, formatMoney, statusClass, statusLabel } from "./lum-utils";
+import { categoryLabel, formatDateTime, formatMoney, statusClass, statusLabel } from "./lum-utils";
 
 export default function LUMInvestmentTable({ items, emptyLabel = "No investment found." }) {
   if (!items.length) {
@@ -27,7 +27,7 @@ export default function LUMInvestmentTable({ items, emptyLabel = "No investment 
             <tr key={item.investmentId}>
               <td>
                 <strong>{item.planTitle || "-"}</strong>
-                <small>{item.category || "lum"}</small>
+                <small>{categoryLabel(item.category)}</small>
               </td>
               <td>{formatDateTime(item.createdAt)}</td>
               <td>{formatMoney(item.investedAmountUsd || 0, item.currency || "USDT")}</td>

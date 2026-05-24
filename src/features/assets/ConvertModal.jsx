@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { moneyLabel } from "./assets-utils";
+import { formatWalletSymbolDisplay, moneyLabel } from "./assets-utils";
 
 const CONVERT_WALLETS = ["SPOT_USDT", "MAIN_USDT", "BINARY_USDT"];
 
@@ -103,7 +103,7 @@ export default function ConvertModal({
             <select value={walletSymbol} onChange={(event) => setWalletSymbol(event.target.value)}>
               {CONVERT_WALLETS.map((wallet) => (
                 <option key={wallet} value={wallet}>
-                  {wallet}
+                  {formatWalletSymbolDisplay(wallet)}
                 </option>
               ))}
             </select>

@@ -6,7 +6,7 @@ import WithdrawModal from "./WithdrawModal";
 import TransferModal from "./TransferModal";
 import ConvertModal from "./ConvertModal";
 import AssetsHistorySection from "./AssetsHistorySection";
-import { toNumber, walletAssetFromSymbol, tokenIconUrl } from "./assets-utils";
+import { formatWalletSymbolDisplay, toNumber, walletAssetFromSymbol, tokenIconUrl } from "./assets-utils";
 import "./assets.css";
 
 const BOTTOM_NAV_ITEMS = [
@@ -358,7 +358,7 @@ export default function AssetsPage({
     return {
       walletCount: wallets.length,
       activeWallets,
-      topWalletLabel: topWallet ? String(topWallet.walletSymbol || "--") : "--",
+      topWalletLabel: topWallet ? formatWalletSymbolDisplay(topWallet.walletSymbol || "--") : "--",
       topWalletUsd: topWallet ? toNumber(topWallet.availableUsd, 0) : 0,
       historyTotal: toNumber(historyPagination?.total, 0),
     };

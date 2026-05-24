@@ -385,8 +385,15 @@ function buildLumCenterModel(summaryPayload, plansPayload, investmentsPayload) {
   };
 }
 
-function buildBinaryCenterModel(summaryPayload, pairsPayload, rulesPayload, tradesPayload, settingsPayload) {
+function buildBinaryCenterModel(summaryPayload, categoriesPayload, pairsPayload, rulesPayload, tradesPayload, settingsPayload) {
   const summaryRaw = summaryPayload?.summary || summaryPayload?.data || {};
+  const categoriesRaw = Array.isArray(categoriesPayload?.categories)
+    ? categoriesPayload.categories
+    : Array.isArray(categoriesPayload?.data)
+      ? categoriesPayload.data
+      : Array.isArray(pairsPayload?.categories)
+        ? pairsPayload.categories
+        : [];
   const pairsRaw = Array.isArray(pairsPayload?.pairs)
     ? pairsPayload.pairs
     : Array.isArray(pairsPayload?.data)
@@ -417,6 +424,12 @@ function buildBinaryCenterModel(summaryPayload, pairsPayload, rulesPayload, trad
       topTradedPairs: Array.isArray(summaryRaw.topTradedPairs) ? summaryRaw.topTradedPairs : [],
       breakdown: summaryRaw?.breakdown || {},
     },
+    categories: categoriesRaw.map((item) => ({
+      ...item,
+      categoryId: toNumber(item.categoryId, 0),
+      displaySortOrder: toNumber(item.displaySortOrder, 0),
+      isEnabled: Boolean(item.isEnabled),
+    })),
     pairs: pairsRaw.map((item) => ({
       ...item,
       pairId: toNumber(item.pairId, 0),
@@ -425,6 +438,11 @@ function buildBinaryCenterModel(summaryPayload, pairsPayload, rulesPayload, trad
       pricePrecision: toNumber(item.pricePrecision, 2),
       isEnabled: Boolean(item.isEnabled),
       isFeatured: Boolean(item.isFeatured),
+      categoryId: item.categoryId === null || item.categoryId === undefined ? null : toNumber(item.categoryId, 0),
+      categoryName: String(item.categoryName || ""),
+      categorySlug: String(item.categorySlug || ""),
+      marketSymbol: String(item.marketSymbol || ""),
+      iconImageUrl: String(item.iconImageUrl || ""),
       displaySortOrder: toNumber(item.displaySortOrder, 0),
     })),
     rules: rulesRaw.map((item) => ({
@@ -653,6 +671,7 @@ const DEFAULT_BINARY_CENTER = {
     topTradedPairs: [],
     breakdown: {},
   },
+  categories: [],
   pairs: [],
   rules: [],
   trades: [],
@@ -821,8 +840,9 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       }
 
       try {
-        const [binarySummaryPayload, binaryPairsPayload, binaryRulesPayload, binaryTradesPayload, binarySettingsPayload] = await Promise.all([
+        const [binarySummaryPayload, binaryCategoriesPayload, binaryPairsPayload, binaryRulesPayload, binaryTradesPayload, binarySettingsPayload] = await Promise.all([
           authService.adminGetBinaryDashboardSummary({ sessionToken: snapshot.sessionToken }),
+          authService.adminListBinaryCategories({ sessionToken: snapshot.sessionToken }),
           authService.adminListBinaryPairs({ sessionToken: snapshot.sessionToken }),
           authService.adminListBinaryPeriodRules({ sessionToken: snapshot.sessionToken }),
           authService.adminListBinaryTrades({
@@ -835,7 +855,16 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
           }),
           authService.adminGetBinaryEngineSettings({ sessionToken: snapshot.sessionToken }),
         ]);
-        setBinaryCenter(buildBinaryCenterModel(binarySummaryPayload, binaryPairsPayload, binaryRulesPayload, binaryTradesPayload, binarySettingsPayload));
+        setBinaryCenter(
+          buildBinaryCenterModel(
+            binarySummaryPayload,
+            binaryCategoriesPayload,
+            binaryPairsPayload,
+            binaryRulesPayload,
+            binaryTradesPayload,
+            binarySettingsPayload,
+          ),
+        );
       } catch {
         setBinaryCenter(DEFAULT_BINARY_CENTER);
       }
@@ -1191,6 +1220,45 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data?.data || data;
   }, [authService, loadAdminData]);
 
+  const createBinaryCategory = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCreateBinaryCategory({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data?.data || data;
+  }, [authService, loadAdminData]);
+
+  const updateBinaryCategory = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateBinaryCategory({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data?.data || data;
+  }, [authService, loadAdminData]);
+
+  const deleteBinaryCategory = useCallback(async (categoryId) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminDeleteBinaryCategory({
+      sessionToken: snapshot.sessionToken,
+      categoryId,
+    });
+    await loadAdminData();
+    return data?.data || data;
+  }, [authService, loadAdminData]);
+
   const updateBinaryPair = useCallback(async (payload) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -1536,7 +1604,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
-  const reviewAssetWithdrawal = useCallback(async ({ withdrawalId, withdrawalRef, decision, note }) => {
+  const reviewAssetWithdrawal = useCallback(async ({ withdrawalId, withdrawalRef, decision, note, approvedAmountUsd }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       throw new Error("Admin session expired. Please login again.");
@@ -1547,12 +1615,13 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       withdrawalRef,
       decision,
       note,
+      approvedAmountUsd,
     });
     await loadAdminData();
     return data;
   }, [authService, loadAdminData]);
 
-  const completeAssetWithdrawal = useCallback(async ({ withdrawalId, withdrawalRef, note }) => {
+  const completeAssetWithdrawal = useCallback(async ({ withdrawalId, withdrawalRef, note, approvedAmountUsd }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       throw new Error("Admin session expired. Please login again.");
@@ -1562,6 +1631,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       withdrawalId,
       withdrawalRef,
       note,
+      approvedAmountUsd,
     });
     await loadAdminData();
     return data;
@@ -1648,11 +1718,11 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     };
   }, [adminSnapshot.isLoggedIn, adminSnapshot.sessionToken, authReady, loadAdminData]);
 
-  const handleSignup = async ({ name, email, phone, password }) => {
+  const handleSignup = async ({ name, email, phone, password, adminSignupKey }) => {
     clearAuthFeedback();
     setAuthSubmitting(true);
     try {
-      const data = await authService.adminSignup({ name, email, phone, password });
+      const data = await authService.adminSignup({ name, email, phone, password, adminSignupKey });
       storeAdminSession({ user: data?.user, sessionToken: data?.sessionToken });
       setAdminSnapshot(readAdminSnapshot());
       setActiveSection("dashboard");
@@ -1764,6 +1834,9 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onSaveLumPlanContent={saveLumPlanContent}
       onReviewLumInvestment={reviewLumInvestment}
       onForceSettleLumInvestment={forceSettleLumInvestment}
+      onCreateBinaryCategory={createBinaryCategory}
+      onUpdateBinaryCategory={updateBinaryCategory}
+      onDeleteBinaryCategory={deleteBinaryCategory}
       onCreateBinaryPair={createBinaryPair}
       onUpdateBinaryPair={updateBinaryPair}
       onDeleteBinaryPair={deleteBinaryPair}

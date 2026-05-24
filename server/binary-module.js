@@ -36,6 +36,12 @@ function normalizeUpper(value = "") {
   return normalizeText(value).toUpperCase();
 }
 
+function normalizeCategorySlug(value = "") {
+  return normalizeLower(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function normalizeWalletAssetSymbol(value = "", fallback = "USDT") {
   const cleaned = normalizeUpper(value).replace(/[^A-Z0-9_]/g, "");
   const fallbackCleaned = normalizeUpper(fallback).replace(/[^A-Z0-9_]/g, "") || "USDT";
@@ -184,12 +190,28 @@ export function createBinaryModule({
   sanitizeShortText,
 }) {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS binary_market_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT NOT NULL UNIQUE,
+      category_name TEXT NOT NULL,
+      icon_image_url TEXT,
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      display_sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      created_by TEXT,
+      updated_by TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS binary_pairs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       pair_code TEXT NOT NULL UNIQUE,
       display_name TEXT NOT NULL,
       base_asset TEXT NOT NULL,
       quote_asset TEXT NOT NULL,
+      category_id INTEGER,
+      market_symbol TEXT,
+      icon_image_url TEXT,
       price_source_type TEXT NOT NULL DEFAULT 'internal_feed',
       source_symbol TEXT,
       current_price REAL NOT NULL DEFAULT 0,
@@ -300,6 +322,18 @@ export function createBinaryModule({
     );
   `);
 
+  function ensureTableColumn(tableName, columnName, columnDefinition) {
+    const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    const exists = columns.some((column) => normalizeLower(column?.name || "") === normalizeLower(columnName));
+    if (!exists) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
+    }
+  }
+
+  ensureTableColumn("binary_pairs", "category_id", "category_id INTEGER");
+  ensureTableColumn("binary_pairs", "market_symbol", "market_symbol TEXT");
+  ensureTableColumn("binary_pairs", "icon_image_url", "icon_image_url TEXT");
+
   const findEngineSettingsStatement = db.prepare(`SELECT * FROM binary_engine_settings WHERE id = 1 LIMIT 1`);
   const findUserTradeOutcomeModeStatement = db.prepare(`
     SELECT binary_trade_outcome_mode
@@ -361,23 +395,95 @@ export function createBinaryModule({
       updated_at = excluded.updated_at
   `);
 
-  const listEnabledPairsStatement = db.prepare(`
-    SELECT * FROM binary_pairs
+  const listEnabledCategoriesStatement = db.prepare(`
+    SELECT *
+    FROM binary_market_categories
     WHERE is_enabled = 1
-    ORDER BY is_featured DESC, display_sort_order ASC, id ASC
+    ORDER BY display_sort_order ASC, id ASC
+  `);
+  const listAllCategoriesStatement = db.prepare(`
+    SELECT *
+    FROM binary_market_categories
+    ORDER BY display_sort_order ASC, id ASC
+  `);
+  const findCategoryByIdStatement = db.prepare(`SELECT * FROM binary_market_categories WHERE id = ? LIMIT 1`);
+  const findCategoryBySlugStatement = db.prepare(`SELECT * FROM binary_market_categories WHERE slug = ? LIMIT 1`);
+  const insertCategoryStatement = db.prepare(`
+    INSERT INTO binary_market_categories (
+      slug,
+      category_name,
+      icon_image_url,
+      is_enabled,
+      display_sort_order,
+      created_at,
+      updated_at,
+      created_by,
+      updated_by
+    ) VALUES (
+      @slug,
+      @categoryName,
+      @iconImageUrl,
+      @isEnabled,
+      @displaySortOrder,
+      @createdAt,
+      @updatedAt,
+      @createdBy,
+      @updatedBy
+    )
+  `);
+  const updateCategoryStatement = db.prepare(`
+    UPDATE binary_market_categories
+    SET slug = @slug,
+        category_name = @categoryName,
+        icon_image_url = @iconImageUrl,
+        is_enabled = @isEnabled,
+        display_sort_order = @displaySortOrder,
+        updated_at = @updatedAt,
+        updated_by = @updatedBy
+    WHERE id = @id
+  `);
+  const deleteCategoryStatement = db.prepare(`DELETE FROM binary_market_categories WHERE id = ?`);
+  const clearPairsByCategoryStatement = db.prepare(`UPDATE binary_pairs SET category_id = NULL WHERE category_id = ?`);
+  const reassignPairsCategoryStatement = db.prepare(`UPDATE binary_pairs SET category_id = @nextCategoryId WHERE category_id = @currentCategoryId`);
+  const countPairsByCategoryIdStatement = db.prepare(`SELECT COUNT(*) AS total FROM binary_pairs WHERE category_id = ?`);
+
+  const listEnabledPairsStatement = db.prepare(`
+    SELECT p.*, c.slug AS category_slug, c.category_name, c.icon_image_url AS category_icon_image_url, c.is_enabled AS category_is_enabled
+    FROM binary_pairs p
+    LEFT JOIN binary_market_categories c ON c.id = p.category_id
+    WHERE p.is_enabled = 1
+      AND (p.category_id IS NULL OR c.is_enabled = 1)
+    ORDER BY p.is_featured DESC, p.display_sort_order ASC, p.id ASC
   `);
   const listAllPairsStatement = db.prepare(`
-    SELECT * FROM binary_pairs
-    ORDER BY is_featured DESC, display_sort_order ASC, id ASC
+    SELECT p.*, c.slug AS category_slug, c.category_name, c.icon_image_url AS category_icon_image_url, c.is_enabled AS category_is_enabled
+    FROM binary_pairs p
+    LEFT JOIN binary_market_categories c ON c.id = p.category_id
+    ORDER BY p.is_featured DESC, p.display_sort_order ASC, p.id ASC
   `);
-  const findPairByIdStatement = db.prepare(`SELECT * FROM binary_pairs WHERE id = ? LIMIT 1`);
-  const findPairByCodeStatement = db.prepare(`SELECT * FROM binary_pairs WHERE pair_code = ? LIMIT 1`);
+  const findPairByIdStatement = db.prepare(`
+    SELECT p.*, c.slug AS category_slug, c.category_name, c.icon_image_url AS category_icon_image_url, c.is_enabled AS category_is_enabled
+    FROM binary_pairs p
+    LEFT JOIN binary_market_categories c ON c.id = p.category_id
+    WHERE p.id = ?
+    LIMIT 1
+  `);
+  const findPairByCodeStatement = db.prepare(`
+    SELECT p.*, c.slug AS category_slug, c.category_name, c.icon_image_url AS category_icon_image_url, c.is_enabled AS category_is_enabled
+    FROM binary_pairs p
+    LEFT JOIN binary_market_categories c ON c.id = p.category_id
+    WHERE p.pair_code = ?
+    LIMIT 1
+  `);
   const insertPairStatement = db.prepare(`
     INSERT INTO binary_pairs (
       pair_code,
       display_name,
       base_asset,
       quote_asset,
+      category_id,
+      market_symbol,
+      icon_image_url,
       price_source_type,
       source_symbol,
       current_price,
@@ -396,6 +502,9 @@ export function createBinaryModule({
       @displayName,
       @baseAsset,
       @quoteAsset,
+      @categoryId,
+      @marketSymbol,
+      @iconImageUrl,
       @priceSourceType,
       @sourceSymbol,
       @currentPrice,
@@ -417,6 +526,9 @@ export function createBinaryModule({
         display_name = @displayName,
         base_asset = @baseAsset,
         quote_asset = @quoteAsset,
+        category_id = @categoryId,
+        market_symbol = @marketSymbol,
+        icon_image_url = @iconImageUrl,
         price_source_type = @priceSourceType,
         source_symbol = @sourceSymbol,
         price_precision = @pricePrecision,
@@ -935,16 +1047,47 @@ export function createBinaryModule({
     return normalizeOutcomeMode(fallbackMode || "auto");
   }
 
-  function mapPair(row) {
+  function mapCategory(row) {
     if (!row) {
       return null;
     }
     return {
+      categoryId: Number(row.id || 0),
+      categoryName: String(row.category_name || ""),
+      categorySlug: normalizeCategorySlug(row.slug || ""),
+      iconImageUrl: String(row.icon_image_url || ""),
+      isEnabled: normalizeBooleanNumber(row.is_enabled, 1) === 1,
+      displaySortOrder: Math.floor(toNumber(row.display_sort_order, 0)),
+      updatedAt: String(row.updated_at || ""),
+    };
+  }
+
+  function mapPair(row) {
+    if (!row) {
+      return null;
+    }
+    const displayName = String(row.display_name || "");
+    const baseAsset = normalizeUpper(row.base_asset || "");
+    const quoteAsset = normalizeUpper(row.quote_asset || "");
+    const marketSymbol =
+      normalizeUpper(row.market_symbol || "") || (quoteAsset === "USDT" ? baseAsset : `${baseAsset}/${quoteAsset}`);
+
+    return {
       pairId: Number(row.id || 0),
       pairCode: normalizeUpper(row.pair_code || ""),
-      displayName: String(row.display_name || ""),
-      baseAsset: normalizeUpper(row.base_asset || ""),
-      quoteAsset: normalizeUpper(row.quote_asset || ""),
+      displayName,
+      baseAsset,
+      quoteAsset,
+      marketSymbol,
+      iconImageUrl: String(row.icon_image_url || ""),
+      categoryId: row.category_id === null || row.category_id === undefined ? null : Number(row.category_id || 0),
+      categoryName: String(row.category_name || ""),
+      categorySlug: normalizeCategorySlug(row.category_slug || ""),
+      categoryIconImageUrl: String(row.category_icon_image_url || ""),
+      categoryIsEnabled:
+        row.category_is_enabled === null || row.category_is_enabled === undefined
+          ? true
+          : normalizeBooleanNumber(row.category_is_enabled, 1) === 1,
       priceSourceType: normalizePairSourceType(row.price_source_type || "internal_feed"),
       sourceSymbol: String(row.source_symbol || ""),
       currentPrice: toNumber(row.current_price, 0),
@@ -1215,6 +1358,36 @@ export function createBinaryModule({
     return rules.find((item) => item.periodSeconds === targetPeriod) || null;
   }
 
+  function ensureDefaultCategories(actor = "system") {
+    const nowIso = toIso(getNow());
+    const seeds = [
+      { slug: "watchlist", categoryName: "Watchlist", displaySortOrder: 1 },
+      { slug: "crypto", categoryName: "Crypto", displaySortOrder: 2 },
+      { slug: "metals", categoryName: "Metals", displaySortOrder: 3 },
+      { slug: "forex", categoryName: "Forex", displaySortOrder: 4 },
+      { slug: "xstocks", categoryName: "xStocks", displaySortOrder: 5 },
+      { slug: "new-coin", categoryName: "New Coin", displaySortOrder: 6 },
+    ];
+
+    for (const seed of seeds) {
+      const existing = findCategoryBySlugStatement.get(seed.slug);
+      if (existing) {
+        continue;
+      }
+      insertCategoryStatement.run({
+        slug: seed.slug,
+        categoryName: seed.categoryName,
+        iconImageUrl: "",
+        isEnabled: 1,
+        displaySortOrder: seed.displaySortOrder,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        createdBy: actor,
+        updatedBy: actor,
+      });
+    }
+  }
+
   function ensureDefaultPairsFromDepositAssets(actor = "system") {
     const assets = db
       .prepare(`
@@ -1225,6 +1398,7 @@ export function createBinaryModule({
       .all();
 
     const nowIso = toIso(getNow());
+    const cryptoCategoryId = Number(findCategoryBySlugStatement.get("crypto")?.id || 0) || null;
 
     for (const asset of assets) {
       const symbol = normalizeAssetSymbol(asset?.symbol || "");
@@ -1243,6 +1417,9 @@ export function createBinaryModule({
         displayName: `${symbol}/USDT`,
         baseAsset: symbol,
         quoteAsset: "USDT",
+        categoryId: cryptoCategoryId,
+        marketSymbol: symbol,
+        iconImageUrl: "",
         priceSourceType: "internal_feed",
         sourceSymbol: pairCode,
         currentPrice: seedPrice,
@@ -1257,6 +1434,10 @@ export function createBinaryModule({
         createdBy: actor,
         updatedBy: actor,
       });
+    }
+
+    if (cryptoCategoryId) {
+      db.prepare(`UPDATE binary_pairs SET category_id = ? WHERE category_id IS NULL`).run(cryptoCategoryId);
     }
   }
 
@@ -1329,6 +1510,7 @@ export function createBinaryModule({
   migrateWalletSymbolAlias("BINARYUSDT", "BINARY_USDT");
 
   ensureEngineSettings();
+  ensureDefaultCategories();
   ensureDefaultPairsFromDepositAssets();
   ensureDefaultRules();
   ensureDefaultTicks();
@@ -1743,7 +1925,11 @@ async function fetchExternalTickerMap(symbols = []) {
 
     const pairId = Number(payload.pairId || 0);
     const pair = findPairByIdStatement.get(pairId);
-    if (!pair || normalizeBooleanNumber(pair.is_enabled, 0) !== 1) {
+    const categoryEnabled =
+      pair?.category_id === null || pair?.category_id === undefined
+        ? true
+        : normalizeBooleanNumber(pair?.category_is_enabled, 1) === 1;
+    if (!pair || normalizeBooleanNumber(pair.is_enabled, 0) !== 1 || !categoryEnabled) {
       throw new Error("Selected pair is not available.");
     }
 
@@ -1946,7 +2132,11 @@ async function fetchExternalTickerMap(symbols = []) {
 
   function getPairChartPayload(pairId, settingsOverride = null) {
     const pairRow = findPairByIdStatement.get(Number(pairId || 0));
-    if (!pairRow || normalizeBooleanNumber(pairRow.is_enabled, 0) !== 1) {
+    const categoryEnabled =
+      pairRow?.category_id === null || pairRow?.category_id === undefined
+        ? true
+        : normalizeBooleanNumber(pairRow?.category_is_enabled, 1) === 1;
+    if (!pairRow || normalizeBooleanNumber(pairRow.is_enabled, 0) !== 1 || !categoryEnabled) {
       throw new Error("Pair not available.");
     }
 
@@ -2060,11 +2250,43 @@ async function fetchExternalTickerMap(symbols = []) {
     };
   }
 
+  function listMarketCategories({ includeDisabled = false } = {}) {
+    const rows = includeDisabled ? listAllCategoriesStatement.all() : listEnabledCategoriesStatement.all();
+    return rows.map((row) => mapCategory(row)).filter(Boolean);
+  }
+
+  function buildMarketCatalog({ includeDisabledCategories = false, includeDisabledPairs = false } = {}) {
+    const categories = listMarketCategories({ includeDisabled: includeDisabledCategories });
+    const categoryMap = new Map(categories.map((item) => [String(item.categoryId), item]));
+    const pairs = (includeDisabledPairs ? listAllPairsStatement.all() : listEnabledPairsStatement.all())
+      .map((row) => mapPair(row))
+      .filter(Boolean)
+      .map((pair) => {
+        const resolvedCategory = pair.categoryId ? categoryMap.get(String(pair.categoryId)) || null : null;
+        return {
+          ...pair,
+          categoryName: pair.categoryName || resolvedCategory?.categoryName || "",
+          categorySlug: pair.categorySlug || resolvedCategory?.categorySlug || "",
+          categoryIconImageUrl: pair.categoryIconImageUrl || resolvedCategory?.iconImageUrl || "",
+        };
+      });
+
+    return {
+      categories,
+      pairs,
+    };
+  }
+
   function parsePairPayload(raw, actorUserId) {
     const pairCode = normalizeUpper(raw.pairCode || raw.pair_code || "");
     const displayName = normalizeText(raw.displayName || raw.display_name || "");
     const baseAsset = normalizeUpper(raw.baseAsset || raw.base_asset || pairCode.replace(/USDT$/i, ""));
     const quoteAsset = normalizeUpper(raw.quoteAsset || raw.quote_asset || "USDT");
+    const categoryIdRaw = raw.categoryId ?? raw.category_id;
+    const categoryId = categoryIdRaw === null || categoryIdRaw === undefined || categoryIdRaw === "" ? null : Number(categoryIdRaw);
+    const marketSymbol =
+      normalizeUpper(raw.marketSymbol || raw.market_symbol || "") || (quoteAsset === "USDT" ? baseAsset : `${baseAsset}/${quoteAsset}`);
+    const iconImageUrl = normalizeText(raw.iconImageUrl || raw.icon_image_url || "");
     const priceSourceType = normalizePairSourceType(raw.priceSourceType || raw.price_source_type || "internal_feed");
     const sourceSymbol = normalizeText(raw.sourceSymbol || raw.source_symbol || pairCode);
     const pricePrecision = Math.max(2, Math.min(10, Math.floor(toNumber(raw.pricePrecision ?? raw.price_precision, 2))));
@@ -2082,6 +2304,12 @@ async function fetchExternalTickerMap(symbols = []) {
     if (!baseAsset || !quoteAsset) {
       throw new Error("Base and quote assets are required.");
     }
+    if (categoryId !== null && (!Number.isInteger(categoryId) || categoryId <= 0)) {
+      throw new Error("Valid category is required.");
+    }
+    if (categoryId !== null && !findCategoryByIdStatement.get(categoryId)) {
+      throw new Error("Selected category does not exist.");
+    }
 
     const existing = findPairByCodeStatement.get(pairCode);
     const seedPrice = existing ? toNumber(existing.current_price, 0) : pickSeedPrice(pairCode);
@@ -2091,6 +2319,9 @@ async function fetchExternalTickerMap(symbols = []) {
       displayName,
       baseAsset,
       quoteAsset,
+      categoryId,
+      marketSymbol,
+      iconImageUrl,
       priceSourceType,
       sourceSymbol,
       currentPrice: seedPrice,
@@ -2099,6 +2330,31 @@ async function fetchExternalTickerMap(symbols = []) {
       chartTimeframeLabel,
       isEnabled,
       isFeatured,
+      displaySortOrder,
+      createdBy: actorUserId,
+      updatedBy: actorUserId,
+    };
+  }
+
+  function parseCategoryPayload(raw, actorUserId) {
+    const categoryName = normalizeText(raw.categoryName || raw.category_name || raw.name || "");
+    const categorySlug = normalizeCategorySlug(raw.categorySlug || raw.category_slug || categoryName);
+    const iconImageUrl = normalizeText(raw.iconImageUrl || raw.icon_image_url || "");
+    const isEnabled = normalizeBooleanNumber(raw.isEnabled ?? raw.is_enabled, 1);
+    const displaySortOrder = Math.max(0, Math.floor(toNumber(raw.displaySortOrder ?? raw.display_sort_order, 0)));
+
+    if (!categoryName) {
+      throw new Error("Category name is required.");
+    }
+    if (!categorySlug) {
+      throw new Error("Category slug is required.");
+    }
+
+    return {
+      categoryName,
+      slug: categorySlug,
+      iconImageUrl,
+      isEnabled,
       displaySortOrder,
       createdBy: actorUserId,
       updatedBy: actorUserId,
@@ -2146,9 +2402,15 @@ async function fetchExternalTickerMap(symbols = []) {
 
   function handleBinaryPairs(_req, res) {
     try {
+      ensureDefaultCategories();
       ensureDefaultPairsFromDepositAssets();
-      const pairs = listEnabledPairsStatement.all().map((row) => mapPair(row)).filter(Boolean);
-      res.json({ ok: true, data: pairs, pairs });
+      const catalog = buildMarketCatalog();
+      res.json({
+        ok: true,
+        data: catalog.pairs,
+        pairs: catalog.pairs,
+        categories: catalog.categories,
+      });
     } catch (error) {
       res.status(400).json({ ok: false, error: error.message || "Could not load pairs." });
     }
@@ -2171,10 +2433,12 @@ async function fetchExternalTickerMap(symbols = []) {
 
   function handleBinaryConfig(_req, res) {
     try {
+      ensureDefaultCategories();
       ensureDefaultPairsFromDepositAssets();
       const settings = mapEngineSettings();
       const defaultPair = getDefaultPair();
       const availablePeriods = defaultPair ? resolveRulesForPair(defaultPair.pairId) : [];
+      const categories = listMarketCategories();
 
       res.json({
         ok: true,
@@ -2184,6 +2448,7 @@ async function fetchExternalTickerMap(symbols = []) {
           settings,
           availablePeriods,
           defaultPair,
+          categories,
           engineMode: settings.engineMode,
         },
       });
@@ -2284,11 +2549,137 @@ async function fetchExternalTickerMap(symbols = []) {
     }
   }
 
+  function handleAdminBinaryCategories(_req, res) {
+    try {
+      ensureDefaultCategories();
+      const categories = listMarketCategories({ includeDisabled: true });
+      res.json({ ok: true, data: categories, categories });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Could not load binary categories." });
+    }
+  }
+
+  function handleAdminBinaryCategoryCreate(req, res) {
+    try {
+      const payload = parseCategoryPayload(req.body || {}, req.currentUser.userId);
+      if (findCategoryBySlugStatement.get(payload.slug)) {
+        throw new Error("Category slug already exists.");
+      }
+      const nowIso = toIso(getNow());
+      const result = insertCategoryStatement.run({
+        ...payload,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+
+      writeAudit(req.currentUser.userId, "category_create", "category", result.lastInsertRowid, payload.categoryName);
+      res.json({
+        ok: true,
+        data: {
+          message: "Category created.",
+          category: mapCategory(findCategoryByIdStatement.get(result.lastInsertRowid)),
+        },
+      });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Could not create category." });
+    }
+  }
+
+  function handleAdminBinaryCategoryUpdate(req, res) {
+    try {
+      const categoryId = Number(req.body?.categoryId || req.body?.id || 0);
+      if (!Number.isInteger(categoryId) || categoryId <= 0) {
+        throw new Error("Valid categoryId is required.");
+      }
+      const existing = findCategoryByIdStatement.get(categoryId);
+      if (!existing) {
+        res.status(404).json({ ok: false, error: "Category not found." });
+        return;
+      }
+
+      const payload = parseCategoryPayload(
+        {
+          categoryName: existing.category_name,
+          categorySlug: existing.slug,
+          iconImageUrl: existing.icon_image_url,
+          isEnabled: existing.is_enabled,
+          displaySortOrder: existing.display_sort_order,
+          ...req.body,
+        },
+        req.currentUser.userId,
+      );
+
+      const duplicate = findCategoryBySlugStatement.get(payload.slug);
+      if (duplicate && Number(duplicate.id) !== categoryId) {
+        throw new Error("Category slug already exists.");
+      }
+
+      updateCategoryStatement.run({
+        ...payload,
+        id: categoryId,
+        updatedAt: toIso(getNow()),
+      });
+
+      writeAudit(req.currentUser.userId, "category_update", "category", categoryId, payload.categoryName);
+      res.json({
+        ok: true,
+        data: {
+          message: "Category updated.",
+          category: mapCategory(findCategoryByIdStatement.get(categoryId)),
+        },
+      });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Could not update category." });
+    }
+  }
+
+  function handleAdminBinaryCategoryDelete(req, res) {
+    try {
+      const categoryId = Number(req.body?.categoryId || req.query?.categoryId || 0);
+      if (!Number.isInteger(categoryId) || categoryId <= 0) {
+        throw new Error("Valid categoryId is required.");
+      }
+      const existing = findCategoryByIdStatement.get(categoryId);
+      if (!existing) {
+        res.status(404).json({ ok: false, error: "Category not found." });
+        return;
+      }
+
+      const linkedPairs = Number(countPairsByCategoryIdStatement.get(categoryId)?.total || 0);
+      const fallbackCategoryId = Number(findCategoryBySlugStatement.get("crypto")?.id || 0);
+      if (fallbackCategoryId && fallbackCategoryId !== categoryId) {
+        reassignPairsCategoryStatement.run({ currentCategoryId: categoryId, nextCategoryId: fallbackCategoryId });
+      } else {
+        clearPairsByCategoryStatement.run(categoryId);
+      }
+
+      deleteCategoryStatement.run(categoryId);
+      writeAudit(req.currentUser.userId, "category_delete", "category", categoryId, existing.category_name || "");
+
+      res.json({
+        ok: true,
+        data: {
+          message: "Category deleted.",
+          categoryId,
+          linkedPairs,
+        },
+      });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Could not delete category." });
+    }
+  }
+
   function handleAdminBinaryPairs(_req, res) {
     try {
+      ensureDefaultCategories();
       ensureDefaultPairsFromDepositAssets();
-      const pairs = listAllPairsStatement.all().map((row) => mapPair(row)).filter(Boolean);
-      res.json({ ok: true, data: pairs, pairs });
+      const catalog = buildMarketCatalog({ includeDisabledCategories: true, includeDisabledPairs: true });
+      res.json({
+        ok: true,
+        data: catalog.pairs,
+        pairs: catalog.pairs,
+        categories: catalog.categories,
+      });
     } catch (error) {
       res.status(400).json({ ok: false, error: error.message || "Could not load admin pairs." });
     }
@@ -2719,6 +3110,10 @@ async function fetchExternalTickerMap(symbols = []) {
     handleBinaryTradeSettle,
 
     handleAdminBinaryDashboardSummary,
+    handleAdminBinaryCategories,
+    handleAdminBinaryCategoryCreate,
+    handleAdminBinaryCategoryUpdate,
+    handleAdminBinaryCategoryDelete,
     handleAdminBinaryPairs,
     handleAdminBinaryPairCreate,
     handleAdminBinaryPairUpdate,

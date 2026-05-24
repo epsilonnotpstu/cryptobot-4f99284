@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { moneyLabel } from "./assets-utils";
+import { formatWalletSymbolDisplay, moneyLabel } from "./assets-utils";
 
 const TRANSFER_WALLETS = ["SPOT_USDT", "MAIN_USDT", "BINARY_USDT"];
 
@@ -90,7 +90,7 @@ export default function TransferModal({
             <select value={fromWalletSymbol} onChange={(event) => setFromWalletSymbol(event.target.value)}>
               {TRANSFER_WALLETS.map((wallet) => (
                 <option key={wallet} value={wallet}>
-                  {wallet}
+                  {formatWalletSymbolDisplay(wallet)}
                 </option>
               ))}
             </select>
@@ -101,7 +101,7 @@ export default function TransferModal({
             <select value={toWalletSymbol} onChange={(event) => setToWalletSymbol(event.target.value)}>
               {TRANSFER_WALLETS.map((wallet) => (
                 <option key={wallet} value={wallet}>
-                  {wallet}
+                  {formatWalletSymbolDisplay(wallet)}
                 </option>
               ))}
             </select>

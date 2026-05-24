@@ -224,33 +224,30 @@
   display: flex;
   flex-direction: column;
   gap: 0.58rem;
-}
-
-.prodash-deposit-btn,
-.prodash-logout-btn {
-  border: none;
-  border-radius: 12px;
-  padding: 0.68rem 1rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  justify-content: center;
 }
 
 .prodash-deposit-btn {
-  background: linear-gradient(140deg, #49d8ff, #14b8ef);
-  color: #02222f;
+  border: none;
+  border-radius: 14px;
+  padding: 0.74rem 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+  min-width: 130px;
 }
 
-.prodash-logout-btn {
-  background: rgba(255, 255, 255, 0.06);
-  color: #c6d7ea;
-  border: 1px solid var(--prodash-soft-border);
+.prodash-deposit-btn {
+  background: linear-gradient(140deg, #56e1ff, #18bdeb);
+  color: #032635;
+  box-shadow: 0 16px 26px rgba(24, 189, 235, 0.28);
 }
 
-.prodash-deposit-btn:hover,
-.prodash-logout-btn:hover {
+.prodash-deposit-btn:hover {
   transform: translateY(-1px);
   filter: brightness(1.05);
+  box-shadow: 0 18px 30px rgba(24, 189, 235, 0.34);
 }
 
 .prodash-quick-actions {
@@ -398,6 +395,7 @@ button.prodash-promo-card {
   align-items: center;
   justify-content: space-between;
   background: linear-gradient(145deg, rgba(15, 30, 54, 0.92), rgba(11, 24, 43, 0.85));
+  cursor: pointer;
 }
 
 .prodash-promo-paper button {
@@ -844,7 +842,8 @@ button.prodash-promo-card {
 }
 
 .prodash-chat-overlay,
-.prodash-popup-overlay {
+.prodash-popup-overlay,
+.prodash-whitepaper-overlay {
   position: fixed;
   inset: 0;
   z-index: 95;
@@ -864,6 +863,76 @@ button.prodash-promo-card {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.prodash-whitepaper-modal {
+  width: min(560px, 100%);
+  border-radius: 22px;
+  border: 1px solid rgba(244, 203, 92, 0.32);
+  background: linear-gradient(155deg, rgba(14, 25, 45, 0.98), rgba(9, 18, 33, 0.98));
+  box-shadow: 0 34px 64px rgba(2, 6, 23, 0.56);
+  padding: 1rem;
+}
+
+.prodash-whitepaper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.72rem;
+}
+
+.prodash-whitepaper-head h3 {
+  margin: 0;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  font-size: 1.45rem;
+  color: #f3d78a;
+}
+
+.prodash-whitepaper-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(255, 255, 255, 0.05);
+  color: #dce8f6;
+  cursor: pointer;
+}
+
+.prodash-whitepaper-section {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.84rem;
+}
+
+.prodash-whitepaper-section + .prodash-whitepaper-section {
+  margin-top: 0.7rem;
+}
+
+.prodash-whitepaper-section h4 {
+  margin: 0 0 0.38rem;
+  color: #f3f8ff;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.prodash-whitepaper-section p {
+  margin: 0;
+  color: #b8cbdf;
+  line-height: 1.5;
+}
+
+.prodash-whitepaper-section small {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #8ea6c2;
+}
+
+.prodash-whitepaper-section ul {
+  margin: 0;
+  padding-left: 1.05rem;
+  color: #c3d6ea;
+  display: grid;
+  gap: 0.34rem;
 }
 
 .prodash-chat-header {
@@ -1557,8 +1626,7 @@ button.prodash-promo-card {
   min-width: 132px;
 }
 
-.prodash-deposit-btn,
-.prodash-logout-btn {
+.prodash-deposit-btn {
   min-height: 46px;
 }
 
@@ -1650,8 +1718,7 @@ button.prodash-promo-card {
 @media (prefers-reduced-motion: reduce) {
   .prodash-icon-btn,
   .prodash-quick-item,
-  .prodash-deposit-btn,
-  .prodash-logout-btn {
+  .prodash-deposit-btn {
     transition: none;
   }
 }

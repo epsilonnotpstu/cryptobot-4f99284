@@ -50,6 +50,17 @@ function formatLabel(value = "") {
     .join(" ");
 }
 
+function formatCategoryLabel(value = "") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "mining") {
+    return "Gold Mining";
+  }
+  if (normalized === "lum") {
+    return "LUM";
+  }
+  return formatLabel(value);
+}
+
 const DEFAULT_PLAN_FORM = {
   planId: "",
   planCode: "",
@@ -454,7 +465,7 @@ export default function LUMManagementPage({
         </article>
       </section>
 
-      <div className="adminx-user-tabs" role="tablist" aria-label="LUM management tabs">
+      <div className="adminx-user-tabs" role="tablist" aria-label="LUM and Gold Mining management tabs">
         <button
           type="button"
           role="tab"
@@ -508,7 +519,7 @@ export default function LUMManagementPage({
               >
                 <option value="all">All Category</option>
                 <option value="lum">LUM</option>
-                <option value="mining">Mining</option>
+                <option value="mining">Gold Mining</option>
               </select>
 
               <select
@@ -533,7 +544,7 @@ export default function LUMManagementPage({
 
           <div className="adminx-deposit-layout">
             <form className="adminx-deposit-asset-form" onSubmit={submitPlan}>
-              <h3>{planForm.planId ? "Update LUM Plan" : "Create LUM Plan"}</h3>
+              <h3>{planForm.planId ? "Update LUM / Gold Mining Plan" : "Create LUM / Gold Mining Plan"}</h3>
 
               <div className="adminx-deposit-grid-two">
                 <label>
@@ -554,7 +565,7 @@ export default function LUMManagementPage({
                     onChange={(event) => updatePlanField("category", event.target.value)}
                   >
                     <option value="lum">LUM</option>
-                    <option value="mining">Mining</option>
+                    <option value="mining">Gold Mining</option>
                   </select>
                 </label>
               </div>
@@ -714,7 +725,7 @@ export default function LUMManagementPage({
                         <strong>{plan.title}</strong>
                         <small className="adminx-table-subtext">{plan.payoutType}</small>
                       </td>
-                      <td>{formatLabel(plan.category)}</td>
+                      <td>{formatCategoryLabel(plan.category)}</td>
                       <td>
                         {formatUsd(plan.minimumAmountUsd)} - {plan.maximumAmountUsd === null ? "No Max" : formatUsd(plan.maximumAmountUsd)}
                       </td>
@@ -750,7 +761,7 @@ export default function LUMManagementPage({
 
               {!filteredPlans.length ? (
                 <div className="adminx-users-empty">
-                  <p>No LUM plans found for this filter.</p>
+                  <p>No LUM / Gold Mining plans found for this filter.</p>
                 </div>
               ) : null}
             </div>
@@ -779,7 +790,7 @@ export default function LUMManagementPage({
               >
                 <option value="all">All Category</option>
                 <option value="lum">LUM</option>
-                <option value="mining">Mining</option>
+                <option value="mining">Gold Mining</option>
               </select>
 
               <select
@@ -828,7 +839,7 @@ export default function LUMManagementPage({
                     </td>
                     <td>
                       <strong>{item.planTitle}</strong>
-                      <small className="adminx-table-subtext">{formatLabel(item.category)}</small>
+                      <small className="adminx-table-subtext">{formatCategoryLabel(item.category)}</small>
                     </td>
                     <td>{formatUsd(item.investedAmountUsd)}</td>
                     <td>{formatUsd(item.expectedProfitUsd)}</td>

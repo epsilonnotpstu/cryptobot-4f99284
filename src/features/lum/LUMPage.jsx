@@ -9,19 +9,54 @@ import LUMInfoModal from "./LUMInfoModal";
 import { formatMoney } from "./lum-utils";
 import "./lum.css";
 
-function extractWalletAvailable(snapshot) {
+function toSafeNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function extractSpotAvailableFromSnapshot(snapshot) {
   const balances = Array.isArray(snapshot?.wallet?.balances) ? snapshot.wallet.balances : [];
+  const spot = balances.find((item) => {
+    const symbol = String(item.symbol || "").toUpperCase();
+    return symbol === "SPOT_USDT" || symbol === "SPOTUSDT";
+  });
+  if (spot) {
+    return toSafeNumber(spot.totalUsd, 0);
+  }
+
+  if (snapshot?.wallet?.totalSpotAssetsUsd !== undefined) {
+    return toSafeNumber(snapshot.wallet.totalSpotAssetsUsd, 0);
+  }
+
   const usdt = balances.find((item) => String(item.symbol || "").toUpperCase() === "USDT");
   if (usdt) {
-    return Number(usdt.totalUsd || 0);
+    return toSafeNumber(usdt.totalUsd, 0);
   }
   return 0;
+}
+
+function extractSpotTotalFromAssetsWallets(payload) {
+  const wallets = Array.isArray(payload?.wallets) ? payload.wallets : [];
+  const spotWallet = wallets.find((item) => {
+    const walletSymbol = String(item.walletSymbol || "").toUpperCase();
+    const walletScope = String(item.walletScope || "").toUpperCase();
+    return walletSymbol === "SPOT_USDT" || walletScope === "SPOT";
+  });
+  if (spotWallet) {
+    return toSafeNumber(spotWallet.totalUsd, 0);
+  }
+
+  const details = Array.isArray(payload?.walletDetails) ? payload.walletDetails : [];
+  return details
+    .filter((row) => String(row?.symbol || "").toUpperCase().startsWith("SPOT_"))
+    .reduce((sum, row) => sum + toSafeNumber(row?.availableUsd, 0) + toSafeNumber(row?.lockedUsd, 0), 0);
 }
 
 export default function LUMPage({
   user,
   onBack,
   onDashboardSnapshot,
+  onLoadAssetsWallets,
   onLoadSummary,
   onLoadPlans,
   onLoadPlanDetail,
@@ -29,8 +64,12 @@ export default function LUMPage({
   onLoadInfo,
   onCreateInvestment,
   onAfterInvestmentSuccess,
+  centerTitle = "LUM Center",
+  productLabel = "LUM",
+  defaultTab = "lum",
+  lockCategory = "",
 }) {
-  const [activeTab, setActiveTab] = useState("lum");
+  const [activeTab, setActiveTab] = useState(defaultTab === "mining" ? "mining" : "lum");
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [plansLoading, setPlansLoading] = useState(true);
@@ -59,12 +98,29 @@ export default function LUMPage({
   const [toast, setToast] = useState("");
 
   const loadWalletSnapshot = useCallback(async () => {
-    if (!onDashboardSnapshot) {
-      return;
+    let resolvedValue = null;
+
+    if (onLoadAssetsWallets) {
+      try {
+        const walletPayload = await onLoadAssetsWallets();
+        resolvedValue = extractSpotTotalFromAssetsWallets(walletPayload);
+      } catch {
+        // Fall back to dashboard snapshot when wallet service is unavailable.
+      }
     }
-    const snapshot = await onDashboardSnapshot();
-    setWalletAvailableUsd(extractWalletAvailable(snapshot));
-  }, [onDashboardSnapshot]);
+
+    if (resolvedValue === null && onDashboardSnapshot) {
+      const snapshot = await onDashboardSnapshot();
+      resolvedValue = extractSpotAvailableFromSnapshot(snapshot);
+    }
+
+    setWalletAvailableUsd(toSafeNumber(resolvedValue, 0));
+  }, [onDashboardSnapshot, onLoadAssetsWallets]);
+
+  useEffect(() => {
+    const nextTab = lockCategory === "mining" ? "mining" : defaultTab === "mining" ? "mining" : "lum";
+    setActiveTab(nextTab);
+  }, [defaultTab, lockCategory]);
 
   const loadSummary = useCallback(async () => {
     if (!onLoadSummary) {
@@ -231,6 +287,7 @@ export default function LUMPage({
   };
 
   const hasPlans = plans.length > 0;
+  const activeTabLabel = activeTab === "mining" ? "mining" : activeTab;
 
   const headerDate = useMemo(() => {
     const now = new Date();
@@ -271,7 +328,7 @@ export default function LUMPage({
           </button>
 
           <div className="lum-title">
-            <h1>LUM Center</h1>
+            <h1>{centerTitle}</h1>
             <p>{headerDate}</p>
           </div>
 
@@ -292,7 +349,7 @@ export default function LUMPage({
           <article className="lum-overview-main">
             <p>Liquidity Overview</p>
             <h2>{formatMoney(summary?.totalProfitUsd || summary?.totalProfit || 0, "USDT")}</h2>
-            <span>Total profit snapshot across your LUM positions</span>
+            <span>Total profit snapshot across your {productLabel} positions</span>
           </article>
 
           <div className="lum-overview-grid">
@@ -319,14 +376,14 @@ export default function LUMPage({
 
         <LUMSummaryCard summary={summary} loading={summaryLoading} onOpenEntrust={openEntrust} />
 
-        <LUMPlanTabs activeTab={activeTab} onChange={setActiveTab} />
+        {!lockCategory ? <LUMPlanTabs activeTab={activeTab} onChange={setActiveTab} /> : null}
 
         {notice ? <p className="lum-notice">{notice}</p> : null}
         {pageError ? <p className="lum-error">{pageError}</p> : null}
 
         <section className="lum-plan-list">
           {plansLoading ? <p className="lum-empty">Loading plans...</p> : null}
-          {!plansLoading && !hasPlans ? <p className="lum-empty">No active {activeTab} plans available.</p> : null}
+          {!plansLoading && !hasPlans ? <p className="lum-empty">No active {activeTabLabel} plans available.</p> : null}
 
           {!plansLoading &&
             hasPlans &&

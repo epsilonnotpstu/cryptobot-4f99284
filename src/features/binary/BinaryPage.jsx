@@ -7,7 +7,7 @@ import BinaryAmountCard from "./BinaryAmountCard";
 import BinaryActiveTradeModal from "./BinaryActiveTradeModal";
 import BinaryResultModal from "./BinaryResultModal";
 import BinaryRecordsSection from "./BinaryRecordsSection";
-import { calculateProjection, formatMoney, normalizeDirection, remainingSeconds, toNumber } from "./binary-utils";
+import { calculateProjection, formatMoney, formatPrice, getTokenIconUrl, normalizeDirection, remainingSeconds, toNumber } from "./binary-utils";
 import "./binary.css";
 
 const BOTTOM_NAV_ITEMS = [
@@ -53,7 +53,10 @@ export default function BinaryPage({
 
   const [summary, setSummary] = useState(null);
   const [pairs, setPairs] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [config, setConfig] = useState(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [marketMode, setMarketMode] = useState("browse");
 
   const [selectedPairId, setSelectedPairId] = useState(0);
   const [selectedPair, setSelectedPair] = useState(null);
@@ -153,15 +156,33 @@ export default function BinaryPage({
       : Array.isArray(pairsPayload?.data)
         ? pairsPayload.data
         : [];
+    const nextCategories = Array.isArray(pairsPayload?.categories)
+      ? pairsPayload.categories
+      : Array.isArray(configPayload?.data?.categories)
+        ? configPayload.data.categories
+        : [];
 
     const nextConfig = configPayload?.data || configPayload || null;
     setPairs(nextPairs);
+    setCategories(nextCategories);
     setConfig(nextConfig);
 
     const preferredPairId =
       Number(selectedPairId) ||
       Number(nextConfig?.defaultPair?.pairId) ||
       Number(nextPairs[0]?.pairId || 0);
+
+    const preferredCategoryIdFromPair =
+      Number(nextPairs.find((item) => Number(item.pairId) === Number(preferredPairId))?.categoryId || 0) || null;
+    const preferredCategoryId =
+      Number(selectedCategoryId || 0) ||
+      preferredCategoryIdFromPair ||
+      Number(nextCategories[0]?.categoryId || 0) ||
+      null;
+
+    if (preferredCategoryId) {
+      setSelectedCategoryId(preferredCategoryId);
+    }
 
     if (preferredPairId > 0) {
       setSelectedPairId(preferredPairId);
@@ -177,7 +198,7 @@ export default function BinaryPage({
     }
 
     return preferredPairId;
-  }, [onLoadConfig, onLoadPairs, selectedPairId, selectedPeriod]);
+  }, [onLoadConfig, onLoadPairs, selectedCategoryId, selectedPairId, selectedPeriod]);
 
   const syncHistory = useCallback(
     async (resultFilter = historyFilter) => {
@@ -325,6 +346,13 @@ export default function BinaryPage({
   }, [selectedPairId, syncChart]);
 
   useEffect(() => {
+    if (!selectedPair?.categoryId) {
+      return;
+    }
+    setSelectedCategoryId((prev) => (Number(prev || 0) === Number(selectedPair.categoryId) ? prev : Number(selectedPair.categoryId)));
+  }, [selectedPair?.categoryId]);
+
+  useEffect(() => {
     let isActive = true;
     const run = async () => {
       try {
@@ -344,6 +372,42 @@ export default function BinaryPage({
       window.clearInterval(timer);
     };
   }, [syncActiveTrades]);
+
+  useEffect(() => {
+    if (!onLoadPairs) {
+      return;
+    }
+
+    let isActive = true;
+    const run = async () => {
+      try {
+        const payload = await onLoadPairs();
+        if (!isActive) {
+          return;
+        }
+        const nextPairs = Array.isArray(payload?.pairs)
+          ? payload.pairs
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        const nextCategories = Array.isArray(payload?.categories) ? payload.categories : [];
+        if (nextPairs.length) {
+          setPairs(nextPairs);
+        }
+        if (nextCategories.length) {
+          setCategories(nextCategories);
+        }
+      } catch {
+        // Ignore background refresh errors.
+      }
+    };
+
+    const timer = window.setInterval(run, 2500);
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, [onLoadPairs]);
 
   useEffect(() => {
     syncHistory(historyFilter);
@@ -509,17 +573,57 @@ export default function BinaryPage({
     };
   }, [periods, selectedPair, selectedPeriod, summary?.activeTradeCount]);
 
+  const selectedCategory = useMemo(
+    () => categories.find((item) => Number(item.categoryId) === Number(selectedCategoryId)) || null,
+    [categories, selectedCategoryId],
+  );
+
+  const categoryPairs = useMemo(() => {
+    if (!pairs.length) {
+      return [];
+    }
+    if (!selectedCategoryId) {
+      return pairs;
+    }
+    return pairs.filter((item) => Number(item.categoryId) === Number(selectedCategoryId));
+  }, [pairs, selectedCategoryId]);
+
+  const openPairFromMarket = (pairId) => {
+    setSelectedPairId(Number(pairId || 0));
+    setMarketMode("trade");
+    setPageError("");
+    setNotice("");
+  };
+
+  const handleCategorySelect = (categoryId) => {
+    setSelectedCategoryId(Number(categoryId || 0));
+    setMarketMode("browse");
+  };
+
+  const handleHeaderBack = () => {
+    if (marketMode === "trade") {
+      setMarketMode("browse");
+      return;
+    }
+    if (onBack) {
+      onBack();
+    }
+  };
+
   return (
     <main className="binary-page">
       <div className="binary-background-orb binary-background-orb-left" />
       <div className="binary-background-orb binary-background-orb-right" />
       <div className="binary-shell">
         <BinaryHeader
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onCategorySelect={handleCategorySelect}
+          mode={marketMode}
           selectedPair={selectedPair}
-          pairs={pairs}
-          selectedPairId={selectedPairId}
-          onPairChange={setSelectedPairId}
-          onBack={onBack}
+          selectedCategory={selectedCategory}
+          onBack={handleHeaderBack}
+          onBrowseMarkets={() => setMarketMode("browse")}
           onRefresh={refreshPage}
           onOpenHistory={() => recordsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
           loading={pageLoading}
@@ -533,85 +637,129 @@ export default function BinaryPage({
           <span>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</span>
         </div>
 
-        <section className="binary-summary-grid">
-          <article className="binary-summary-highlight">
-            <span>Trade Desk Overview</span>
-            <strong>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</strong>
-            <small>Ready balance for new trade positions</small>
-          </article>
-          <article>
-            <span>Selected Pair</span>
-            <strong>{binaryOverview.pairName}</strong>
-            <small>Live chart synced</small>
-          </article>
-          <article>
-            <span>Period / Payout</span>
-            <strong>
-              {binaryOverview.periodLabel} • {binaryOverview.payoutLabel}
-            </strong>
-            <small>Current rule view</small>
-          </article>
-          <article>
-            <span>Open Positions</span>
-            <strong>{binaryOverview.activeTradeCount}</strong>
-            <small>Active trades right now</small>
-          </article>
-
-          {summaryCards.map((card) => (
-            <article key={card.label}>
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-              {card.hint ? <small>{card.hint}</small> : null}
-            </article>
-          ))}
-        </section>
-
         {pageError ? <p className="binary-error">{pageError}</p> : null}
         {notice ? <p className="binary-notice">{notice}</p> : null}
 
-        <BinaryChartCard pair={selectedPair} ticks={ticks} engineMode={config?.settings?.engineMode} />
+        {marketMode === "browse" ? (
+          <section className="binary-market-list-card">
+            <header>
+              <div>
+                <h3>{selectedCategory?.categoryName || "Markets"}</h3>
+                <p>Choose an item to open binary trading.</p>
+              </div>
+              <span>{categoryPairs.length} assets</span>
+            </header>
 
-        <BinaryDirectionToggle value={direction} onChange={setDirection} />
+            <div className="binary-market-list">
+              {categoryPairs.map((pair) => {
+                const currentPrice = toNumber(pair.currentPrice, 0);
+                const previousPrice = toNumber(pair.previousPrice, currentPrice);
+                const deltaPercent = previousPrice > 0 ? ((currentPrice - previousPrice) / previousPrice) * 100 : 0;
+                const isPositive = deltaPercent >= 0;
+                const iconUrl = pair.iconImageUrl || getTokenIconUrl(pair.baseAsset);
 
-        <BinaryPeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
+                return (
+                  <button key={pair.pairId} type="button" className="binary-market-item" onClick={() => openPairFromMarket(pair.pairId)}>
+                    <div className="binary-market-item-left">
+                      <span className="binary-market-item-icon">{iconUrl ? <img src={iconUrl} alt="" loading="lazy" /> : pair.baseAsset?.slice(0, 2) || "AS"}</span>
+                      <span>
+                        <strong>{pair.displayName}</strong>
+                        <small>{pair.marketSymbol || pair.baseAsset}</small>
+                      </span>
+                    </div>
+                    <div className="binary-market-item-right">
+                      <strong>{formatPrice(pair.currentPrice, pair.pricePrecision)}</strong>
+                      <em className={isPositive ? "is-up" : "is-down"}>{isPositive ? "+" : ""}{deltaPercent.toFixed(2)}%</em>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-        <BinaryAmountCard
-          currency={walletAsset}
-          minStake={minStake}
-          maxStake={effectiveMaxStake}
-          binaryWallet={binaryWallet}
-          spotWallet={spotWallet}
-          tradableBalance={tradableBalance}
-          autoTransferFromSpot={autoTransferFromSpot}
-          amount={stakeInput}
-          percent={stakePercent}
-          expectedProfit={projection.expectedProfitUsd}
-          expectedTotal={projection.expectedTotalPayoutUsd}
-          onAmountChange={handleAmountChange}
-          onAmountBlur={handleAmountBlur}
-          onPercentChange={handlePercentChange}
-          onQuickPercent={handleQuickPercent}
-        />
+            {!categoryPairs.length ? (
+              <p className="binary-empty">No market item found in this category.</p>
+            ) : null}
+          </section>
+        ) : (
+          <>
+            <section className="binary-summary-grid">
+              <article className="binary-summary-highlight">
+                <span>Trade Desk Overview</span>
+                <strong>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</strong>
+                <small>Ready balance for new trade positions</small>
+              </article>
+              <article>
+                <span>Selected Pair</span>
+                <strong>{binaryOverview.pairName}</strong>
+                <small>Live chart synced</small>
+              </article>
+              <article>
+                <span>Period / Payout</span>
+                <strong>
+                  {binaryOverview.periodLabel} • {binaryOverview.payoutLabel}
+                </strong>
+                <small>Current rule view</small>
+              </article>
+              <article>
+                <span>Open Positions</span>
+                <strong>{binaryOverview.activeTradeCount}</strong>
+                <small>Active trades right now</small>
+              </article>
 
-        <button
-          type="button"
-          className={`binary-trade-btn ${direction === "short" ? "is-short" : "is-long"}`}
-          onClick={openTrade}
-          disabled={pageLoading || !selectedPairId}
-        >
-          Open {normalizeDirection(direction) === "short" ? "Short" : "Long"} Trade
-        </button>
+              {summaryCards.map((card) => (
+                <article key={card.label}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                  {card.hint ? <small>{card.hint}</small> : null}
+                </article>
+              ))}
+            </section>
 
-        <div ref={recordsRef}>
-          <BinaryRecordsSection
-            trades={historyTrades}
-            loading={historyLoading}
-            error={historyError}
-            filter={historyFilter}
-            onFilterChange={setHistoryFilter}
-            onRefresh={() => syncHistory(historyFilter)}
-          />
-        </div>
+            <BinaryChartCard pair={selectedPair} ticks={ticks} engineMode={config?.settings?.engineMode} />
+
+            <BinaryDirectionToggle value={direction} onChange={setDirection} />
+
+            <BinaryPeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
+
+            <BinaryAmountCard
+              currency={walletAsset}
+              minStake={minStake}
+              maxStake={effectiveMaxStake}
+              binaryWallet={binaryWallet}
+              spotWallet={spotWallet}
+              tradableBalance={tradableBalance}
+              autoTransferFromSpot={autoTransferFromSpot}
+              amount={stakeInput}
+              percent={stakePercent}
+              expectedProfit={projection.expectedProfitUsd}
+              expectedTotal={projection.expectedTotalPayoutUsd}
+              onAmountChange={handleAmountChange}
+              onAmountBlur={handleAmountBlur}
+              onPercentChange={handlePercentChange}
+              onQuickPercent={handleQuickPercent}
+            />
+
+            <button
+              type="button"
+              className={`binary-trade-btn ${direction === "short" ? "is-short" : "is-long"}`}
+              onClick={openTrade}
+              disabled={pageLoading || !selectedPairId}
+            >
+              Open {normalizeDirection(direction) === "short" ? "Short" : "Long"} Trade
+            </button>
+
+            <div ref={recordsRef}>
+              <BinaryRecordsSection
+                trades={historyTrades}
+                loading={historyLoading}
+                error={historyError}
+                filter={historyFilter}
+                onFilterChange={setHistoryFilter}
+                onRefresh={() => syncHistory(historyFilter)}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <BinaryActiveTradeModal

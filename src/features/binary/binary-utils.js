@@ -46,12 +46,36 @@ export function parsePairAssets(pair = null) {
   };
 }
 
+function formatCurrencyLabel(currency = "USDT") {
+  const raw = String(currency || "").trim();
+  if (!raw) {
+    return "USDT";
+  }
+
+  const normalized = raw.replace(/-/g, "_").toUpperCase();
+  if (!normalized.includes("_")) {
+    return normalized;
+  }
+
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part, index) => {
+      if (index === 0 && ["SPOT", "MAIN", "BINARY"].includes(part)) {
+        return part.charAt(0) + part.slice(1).toLowerCase();
+      }
+      return part;
+    })
+    .join(" ");
+}
+
 export function formatMoney(value = 0, currency = "USDT") {
   const numeric = toNumber(value, 0);
+  const currencyLabel = formatCurrencyLabel(currency);
   return `${numeric.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })} ${currency}`;
+  })} ${currencyLabel}`;
 }
 
 export function formatPrice(value = 0, precision = 2) {

@@ -1,4 +1,4 @@
-import { moneyLabel, percentLabel, walletShortLabel } from "./assets-utils";
+import { formatWalletSymbolDisplay, moneyLabel, percentLabel, walletShortLabel } from "./assets-utils";
 
 export default function WalletRowCard({ wallet, walletCoins, restriction, expanded, onToggle }) {
   return (
@@ -7,7 +7,7 @@ export default function WalletRowCard({ wallet, walletCoins, restriction, expand
         <div className="assetspage-wallet-title">
           <span>{walletShortLabel(wallet.walletSymbol)}</span>
           <strong>{wallet.walletName}</strong>
-          <small>{wallet.walletSymbol}</small>
+          <small>{formatWalletSymbolDisplay(wallet.walletSymbol)}</small>
         </div>
 
         <div className="assetspage-wallet-balance">
@@ -49,7 +49,7 @@ export default function WalletRowCard({ wallet, walletCoins, restriction, expand
                       </span>
                       <div>
                         <strong>{coin.assetSymbol}</strong>
-                        <small>{coin.symbol}</small>
+                        <small>{formatWalletSymbolDisplay(coin.symbol)}</small>
                       </div>
                     </div>
                     <div className="assetspage-wallet-coin-right">

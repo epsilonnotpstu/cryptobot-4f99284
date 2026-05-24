@@ -108,6 +108,27 @@ function formatCurrency(value) {
   });
 }
 
+function formatWalletSymbolDisplay(walletSymbol = "") {
+  const raw = String(walletSymbol || "").trim();
+  if (!raw) {
+    return "--";
+  }
+  const normalized = raw.replace(/-/g, "_").toUpperCase();
+  if (!normalized.includes("_")) {
+    return normalized;
+  }
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part, index) => {
+      if (index === 0 && ["SPOT", "MAIN", "BINARY"].includes(part)) {
+        return part.charAt(0) + part.slice(1).toLowerCase();
+      }
+      return part;
+    })
+    .join(" ");
+}
+
 function formatPrice(value) {
   if (value >= 1000) {
     return value.toLocaleString("en-US", {
@@ -258,6 +279,7 @@ export default function PremiumDashboardPage({
   onDashboardSnapshot,
   onOpenDepositPage,
   onOpenLumPage,
+  onOpenGoldMiningPage,
   onOpenBinaryPage,
   onOpenTransactionPage,
   onOpenAssetsPage,
@@ -332,6 +354,7 @@ export default function PremiumDashboardPage({
   const [depositRecordsLoading, setDepositRecordsLoading] = useState(false);
   const [recentDepositRecords, setRecentDepositRecords] = useState([]);
   const [depositStatusError, setDepositStatusError] = useState("");
+  const [whitepaperOpen, setWhitepaperOpen] = useState(false);
 
   useEffect(() => {
     if (!entryMainTab) {
@@ -840,6 +863,17 @@ export default function PremiumDashboardPage({
     }
   };
 
+  const openGoldMiningPage = () => {
+    if (!isUserKycAuthenticated) {
+      setProfileNotice("KYC authentication pending. Complete authentication before using Gold Mining.");
+      return;
+    }
+    if (onOpenGoldMiningPage) {
+      onOpenGoldMiningPage();
+      return;
+    }
+  };
+
   const openBinaryPage = () => {
     if (!isUserKycAuthenticated) {
       setProfileNotice("KYC authentication pending. Complete authentication before using Binary Options.");
@@ -1011,7 +1045,6 @@ export default function PremiumDashboardPage({
             <span>ID: {user.userId || "------"}</span>
             <div className="prodash-drawer-kyc-row">
               <span className={`prodash-kyc-chip ${kycMeta.className}`}>KYC: {kycMeta.label}</span>
-              <span className="prodash-auth-tag">{kycAuthTag || deriveAuthTagFromStatus(kycStatus)}</span>
             </div>
           </div>
         </div>
@@ -1107,14 +1140,17 @@ export default function PremiumDashboardPage({
                         Welcome back, {user.name || "Trader"} • ID {user.userId || "------"}
                       </small>
                       <div className="prodash-wallet-tags">
-                        
-                        <span className="prodash-auth-tag">{kycAuthTag || deriveAuthTagFromStatus(kycStatus)}</span>
+                        <span className="prodash-auth-tag">
+                          {String(kycAuthTag || deriveAuthTagFromStatus(kycStatus))
+                            .replace(/[_-]+/g, " ")
+                            .replace(/\b\w/g, (char) => char.toUpperCase())}
+                        </span>
                       </div>
                       {walletBalances.length ? (
                         <div className="prodash-wallet-balance-strip">
                           {walletBalances.slice(0, 4).map((balance) => (
                             <span key={balance.symbol}>
-                              {balance.symbol}: ${formatCurrency(balance.totalUsd)}
+                              {formatWalletSymbolDisplay(balance.symbol)}: ${formatCurrency(balance.totalUsd)}
                             </span>
                           ))}
                         </div>
@@ -1132,9 +1168,6 @@ export default function PremiumDashboardPage({
                         onClick={openDepositAssetSelector}
                       >
                         Deposit
-                      </button>
-                      <button type="button" className="prodash-logout-btn" onClick={onLogout}>
-                        Logout
                       </button>
                     </div>
                   </section>
@@ -1230,19 +1263,29 @@ export default function PremiumDashboardPage({
                         </span>
                       </button>
 
-                      <article className="prodash-promo-card prodash-promo-mini">
+                      <button
+                        type="button"
+                        className="prodash-promo-card prodash-promo-mini"
+                        disabled={!isUserKycAuthenticated}
+                        onClick={openGoldMiningPage}
+                      >
                         <div>
-                          <h4>Mining</h4>
+                          <h4>Gold Mining</h4>
                           <p>Optimized reward pools</p>
                         </div>
                         <span className="prodash-mini-badge prodash-sale-badge">SALE</span>
-                      </article>
+                      </button>
                     </div>
 
-                    <article className="prodash-promo-card prodash-promo-paper">
+                    <article className="prodash-promo-card prodash-promo-paper" onClick={() => setWhitepaperOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setWhitepaperOpen(true);
+                      }
+                    }}>
                       <div>
                         <h3>Crypto Byte Whitepaper</h3>
-                        <button type="button">Read</button>
+                        <button type="button" onClick={() => setWhitepaperOpen(true)}>Read</button>
                       </div>
                       <div className="prodash-paper-icon">
                         <i className="fas fa-file-lines" />
@@ -1719,6 +1762,39 @@ export default function PremiumDashboardPage({
         onSendTicketMessage={onSendSupportTicketMessage}
         onUpdateTicketStatus={onUpdateSupportTicketStatus}
       />
+
+      {whitepaperOpen ? (
+        <div className="prodash-whitepaper-overlay" onClick={() => setWhitepaperOpen(false)}>
+          <section className="prodash-whitepaper-modal" role="dialog" aria-modal="true" aria-label="Crypto Byte Whitepaper" onClick={(event) => event.stopPropagation()}>
+            <header className="prodash-whitepaper-head">
+              <h3>Crypto Byte</h3>
+              <button type="button" className="prodash-whitepaper-close" onClick={() => setWhitepaperOpen(false)} aria-label="Close whitepaper">
+                <i className="fas fa-xmark" />
+              </button>
+            </header>
+
+            <article className="prodash-whitepaper-section">
+              <h4>About Crypto Byte</h4>
+              <p>
+                Crypto Byte is your all-in-one crypto platform for trading, portfolio tracking, staking, and ICO participation.
+                It&apos;s built for fast execution, clean UX, and secure wallet management so you can move from discovery to action in seconds.
+              </p>
+              <small>Updated</small>
+            </article>
+
+            <article className="prodash-whitepaper-section">
+              <h4>Key Features</h4>
+              <ul>
+                <li>Spot & market prices</li>
+                <li>Binary options access</li>
+                <li>Staking/LUM plans</li>
+                <li>ICO listings & participation</li>
+                <li>Customer support chat</li>
+              </ul>
+            </article>
+          </section>
+        </div>
+      ) : null}
 
       {kycSuccessPopup ? (
         <div className="prodash-popup-overlay" onClick={() => setKycSuccessPopup("") }>

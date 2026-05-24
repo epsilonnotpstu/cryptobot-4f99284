@@ -1370,6 +1370,12 @@ if (shouldServeStaticAssets) {
 const OTP_TTL_MINUTES = Number(process.env.OTP_TTL_MINUTES || 10);
 const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 15);
 const SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS || 30);
+const ADMIN_SIGNUP_KEY = String(process.env.ADMIN_SIGNUP_KEY || "").trim();
+const ALLOW_PUBLIC_ADMIN_SIGNUP = String(process.env.ALLOW_PUBLIC_ADMIN_SIGNUP || "")
+  .trim()
+  .toLowerCase() === "true";
+const ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS = Math.max(30_000, Number(process.env.ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000));
+const ADMIN_LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Math.max(3, Number(process.env.ADMIN_LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8));
 const TEST_KYC_FILE_MAX_BYTES = Number(process.env.TEST_KYC_FILE_MAX_BYTES || 350000);
 const HASH_SECRET = process.env.AUTH_HASH_SECRET || "cryptobot-dev-secret";
 const KYC_CERTIFICATIONS = new Set(["nid", "passport", "driving_license"]);
@@ -1874,6 +1880,71 @@ function cleanupExpiredRecords() {
   db.prepare("DELETE FROM password_reset_tokens WHERE expires_at < ?").run(nowIso);
 }
 
+const adminLoginRateLimitStore = new Map();
+
+function getRequestClientIp(req) {
+  const forwarded = String(req?.headers?.["x-forwarded-for"] || "").trim();
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return String(req?.ip || req?.socket?.remoteAddress || "unknown");
+}
+
+function buildAdminLoginRateLimitKey(req, identifier = "") {
+  return `${getRequestClientIp(req)}::${normalizeIdentifier(identifier)}`;
+}
+
+function pruneAdminLoginRateLimitStore(nowMs = Date.now()) {
+  for (const [key, entry] of adminLoginRateLimitStore.entries()) {
+    if (!entry || nowMs >= Number(entry.windowStartMs || 0) + ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS) {
+      adminLoginRateLimitStore.delete(key);
+    }
+  }
+}
+
+function getAdminLoginRateLimitState(req, identifier = "") {
+  pruneAdminLoginRateLimitStore();
+  const key = buildAdminLoginRateLimitKey(req, identifier);
+  const nowMs = Date.now();
+  const current = adminLoginRateLimitStore.get(key);
+  if (!current) {
+    return { key, isBlocked: false, attempts: 0, retryAfterMs: 0 };
+  }
+  const elapsedMs = nowMs - Number(current.windowStartMs || nowMs);
+  if (elapsedMs >= ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS) {
+    adminLoginRateLimitStore.delete(key);
+    return { key, isBlocked: false, attempts: 0, retryAfterMs: 0 };
+  }
+
+  const attempts = Number(current.attempts || 0);
+  const retryAfterMs = Math.max(0, ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS - elapsedMs);
+  return {
+    key,
+    isBlocked: attempts >= ADMIN_LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+    attempts,
+    retryAfterMs,
+  };
+}
+
+function recordAdminLoginFailure(req, identifier = "") {
+  const nowMs = Date.now();
+  const key = buildAdminLoginRateLimitKey(req, identifier);
+  const current = adminLoginRateLimitStore.get(key);
+  if (!current || nowMs - Number(current.windowStartMs || 0) >= ADMIN_LOGIN_RATE_LIMIT_WINDOW_MS) {
+    adminLoginRateLimitStore.set(key, { attempts: 1, windowStartMs: nowMs });
+    return;
+  }
+  adminLoginRateLimitStore.set(key, {
+    attempts: Number(current.attempts || 0) + 1,
+    windowStartMs: Number(current.windowStartMs || nowMs),
+  });
+}
+
+function clearAdminLoginFailures(req, identifier = "") {
+  const key = buildAdminLoginRateLimitKey(req, identifier);
+  adminLoginRateLimitStore.delete(key);
+}
+
 function assertValidPassword(password = "") {
   if (password.trim().length < 6) {
     throw new Error("Password must be at least 6 characters.");
@@ -2274,6 +2345,10 @@ const {
   handleBinaryTradeDetail,
   handleBinaryTradeSettle,
   handleAdminBinaryDashboardSummary,
+  handleAdminBinaryCategories,
+  handleAdminBinaryCategoryCreate,
+  handleAdminBinaryCategoryUpdate,
+  handleAdminBinaryCategoryDelete,
   handleAdminBinaryPairs,
   handleAdminBinaryPairCreate,
   handleAdminBinaryPairUpdate,
@@ -3291,6 +3366,20 @@ async function handleAdminSignup(req, res) {
     const email = normalizeEmail(req.body?.email || "");
     const phone = sanitizeMobile(req.body?.phone || "");
     const password = req.body?.password || "";
+    const adminSignupKey = sanitizeShortText(req.body?.adminSignupKey || "", 240);
+    const totalAdminUsers = Number(countAdminUsersStatement.get()?.total || 0);
+    const signupKeyMatches = ADMIN_SIGNUP_KEY ? adminSignupKey === ADMIN_SIGNUP_KEY : false;
+
+    if (totalAdminUsers > 0 && !ALLOW_PUBLIC_ADMIN_SIGNUP && !signupKeyMatches) {
+      res.status(403).json({
+        error: "Public admin signup is disabled. Provide a valid admin signup key.",
+      });
+      return;
+    }
+    if (ADMIN_SIGNUP_KEY && !signupKeyMatches) {
+      res.status(403).json({ error: "Invalid admin signup key." });
+      return;
+    }
 
     assertValidName(name);
     assertValidEmail(email);
@@ -3343,28 +3432,46 @@ async function handleAdminLogin(req, res) {
   try {
     cleanupExpiredRecords();
 
-    const email = normalizeEmail(req.body?.email || "");
+    const identifier = sanitizeShortText(
+      req.body?.identifier || req.body?.email || "",
+      160,
+    );
     const password = req.body?.password || "";
 
-    assertValidEmail(email);
+    if (!identifier) {
+      throw new Error("Email or user ID is required.");
+    }
     assertValidPassword(password);
 
-    const user = findUserByEmailStatement.get(email);
+    const rateLimitState = getAdminLoginRateLimitState(req, identifier);
+    if (rateLimitState.isBlocked) {
+      const retryMinutes = Math.ceil(rateLimitState.retryAfterMs / 60000);
+      res.status(429).json({
+        error: `Too many failed attempts. Try again in ${retryMinutes} minute${retryMinutes > 1 ? "s" : ""}.`,
+      });
+      return;
+    }
+
+    const user = findUserByIdentifier(identifier);
     if (!user) {
-      res.status(404).json({ error: "Admin account not found." });
+      recordAdminLoginFailure(req, identifier);
+      res.status(401).json({ error: "Invalid admin credentials." });
       return;
     }
     if (!hasAdminRole(user.account_role || "")) {
-      res.status(403).json({ error: "This account does not have admin access." });
+      recordAdminLoginFailure(req, identifier);
+      res.status(401).json({ error: "Invalid admin credentials." });
       return;
     }
 
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
-      res.status(401).json({ error: "Invalid credentials." });
+      recordAdminLoginFailure(req, identifier);
+      res.status(401).json({ error: "Invalid admin credentials." });
       return;
     }
 
+    clearAdminLoginFailures(req, identifier);
     const sessionToken = createSessionForUser(user.user_id);
     res.json({
       message: "Admin login successful.",
@@ -5050,6 +5157,18 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.binary.dashboard-summary":
       requireAdminSession(req, res, () => handleAdminBinaryDashboardSummary(req, res));
       return;
+    case "admin.binary.categories":
+      requireAdminSession(req, res, () => handleAdminBinaryCategories(req, res));
+      return;
+    case "admin.binary.categories.create":
+      requireAdminSession(req, res, () => handleAdminBinaryCategoryCreate(req, res));
+      return;
+    case "admin.binary.categories.update":
+      requireAdminSession(req, res, () => handleAdminBinaryCategoryUpdate(req, res));
+      return;
+    case "admin.binary.categories.delete":
+      requireAdminSession(req, res, () => handleAdminBinaryCategoryDelete(req, res));
+      return;
     case "admin.binary.pairs":
       requireAdminSession(req, res, () => handleAdminBinaryPairs(req, res));
       return;
@@ -5267,6 +5386,10 @@ app.post("/api/admin/lum/investments/force-settle", requireAdminSession, handleA
 app.get("/api/admin/lum/dashboard-summary", requireAdminSession, handleAdminLumDashboardSummary);
 app.post("/api/admin/lum/content/save", requireAdminSession, handleAdminLumContentSave);
 app.get("/api/admin/binary/dashboard-summary", requireAdminSession, handleAdminBinaryDashboardSummary);
+app.get("/api/admin/binary/categories", requireAdminSession, handleAdminBinaryCategories);
+app.post("/api/admin/binary/categories/create", requireAdminSession, handleAdminBinaryCategoryCreate);
+app.post("/api/admin/binary/categories/update", requireAdminSession, handleAdminBinaryCategoryUpdate);
+app.post("/api/admin/binary/categories/delete", requireAdminSession, handleAdminBinaryCategoryDelete);
 app.get("/api/admin/binary/pairs", requireAdminSession, handleAdminBinaryPairs);
 app.post("/api/admin/binary/pairs/create", requireAdminSession, handleAdminBinaryPairCreate);
 app.post("/api/admin/binary/pairs/update", requireAdminSession, handleAdminBinaryPairUpdate);

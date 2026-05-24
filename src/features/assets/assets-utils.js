@@ -118,6 +118,61 @@ export function walletShortLabel(walletSymbol = "") {
   return "Spot";
 }
 
+function normalizeDisplayToken(token = "") {
+  const raw = String(token || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const upper = raw.toUpperCase();
+  if (["SPOT", "MAIN", "BINARY"].includes(upper)) {
+    return upper.charAt(0) + upper.slice(1).toLowerCase();
+  }
+  if (/^[A-Z0-9]{2,}$/.test(upper)) {
+    return upper;
+  }
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
+export function formatWalletSymbolDisplay(walletSymbol = "") {
+  const raw = String(walletSymbol || "").trim();
+  if (!raw) {
+    return "--";
+  }
+
+  const normalized = raw.replace(/-/g, "_").toUpperCase();
+  if (normalized.includes("_")) {
+    const parts = normalized.split("_").filter(Boolean);
+    if (!parts.length) {
+      return raw;
+    }
+    return parts.map((part) => normalizeDisplayToken(part)).join(" ");
+  }
+
+  return normalizeDisplayToken(raw);
+}
+
+export function formatActivityText(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "-";
+  }
+
+  const withWalletLabels = raw.replace(/\b[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+\b/g, (match) => {
+    const upper = match.toUpperCase();
+    if (upper.startsWith("SPOT_") || upper.startsWith("MAIN_") || upper.startsWith("BINARY_")) {
+      return formatWalletSymbolDisplay(match);
+    }
+    return match
+      .split("_")
+      .filter(Boolean)
+      .map((part) => normalizeDisplayToken(part))
+      .join(" ");
+  });
+
+  return withWalletLabels.replace(/\s{2,}/g, " ").trim();
+}
+
 export function buildDonutGradient(chartData = []) {
   const rows = Array.isArray(chartData) ? chartData : [];
   let cursor = 0;

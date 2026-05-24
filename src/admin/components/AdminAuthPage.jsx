@@ -19,6 +19,7 @@ export default function AdminAuthPage({
     email: "",
     phone: "",
     password: "",
+    adminSignupKey: "",
   });
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
@@ -32,7 +33,7 @@ export default function AdminAuthPage({
     }
     return {
       title: "Admin Login",
-      subtitle: "Login with admin email and password to access dashboard.",
+      subtitle: "Login with admin email or user ID and password to access dashboard.",
     };
   }, [mode]);
 
@@ -99,12 +100,12 @@ export default function AdminAuthPage({
         {mode === "login" ? (
           <form className="adminx-auth-form" onSubmit={handleLoginSubmit}>
             <label>
-              Email
+              Email / User ID
               <input
-                type="email"
+                type="text"
                 value={loginForm.email}
                 onChange={(event) => setLoginForm((prev) => ({ ...prev, email: event.target.value }))}
-                placeholder="admin@cryptobot.com"
+                placeholder="admin@cryptobot.com or 6-digit user ID"
                 required
               />
             </label>
@@ -188,6 +189,16 @@ export default function AdminAuthPage({
                   <i className={`fas ${showSignupPassword ? "fa-eye-slash" : "fa-eye"}`} />
                 </button>
               </div>
+            </label>
+
+            <label>
+              Admin Signup Key (Optional)
+              <input
+                type="text"
+                value={signupForm.adminSignupKey}
+                onChange={(event) => setSignupForm((prev) => ({ ...prev, adminSignupKey: event.target.value }))}
+                placeholder="Only needed if server requires signup key"
+              />
             </label>
 
             <button type="submit" className="btn btn-primary" disabled={submitting}>

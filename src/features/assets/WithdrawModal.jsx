@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { moneyLabel } from "./assets-utils";
+import { formatWalletSymbolDisplay, moneyLabel } from "./assets-utils";
 
 const WITHDRAW_WALLETS = ["SPOT_USDT", "MAIN_USDT", "BINARY_USDT"];
 
@@ -125,7 +125,7 @@ export default function WithdrawModal({
               <select value={walletSymbol} onChange={(event) => setWalletSymbol(event.target.value)}>
                 {WITHDRAW_WALLETS.map((symbol) => (
                   <option key={symbol} value={symbol}>
-                    {symbol}
+                    {formatWalletSymbolDisplay(symbol)}
                   </option>
                 ))}
               </select>
@@ -212,7 +212,7 @@ export default function WithdrawModal({
             <div className="assetspage-confirm-grid">
               <p>
                 <span>Wallet</span>
-                <strong>{walletSymbol}</strong>
+                <strong>{formatWalletSymbolDisplay(walletSymbol)}</strong>
               </p>
               <p>
                 <span>Asset</span>

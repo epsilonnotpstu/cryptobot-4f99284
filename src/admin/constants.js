@@ -8,7 +8,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "users", label: "User Management", icon: "fa-users" },
   { key: "kycReview", label: "KYC Review & Approvals", icon: "fa-id-card" },
   { key: "depositCenter", label: "Deposit Management", icon: "fa-coins" },
-  { key: "lumCenter", label: "LUM Management", icon: "fa-layer-group" },
+  { key: "lumCenter", label: "LUM & Gold Mining", icon: "fa-layer-group" },
   { key: "binaryCenter", label: "Binary Management", icon: "fa-chart-simple" },
   { key: "transactionCenter", label: "Transaction Management", icon: "fa-right-left" },
   { key: "assetCenter", label: "Asset Management", icon: "fa-wallet" },
@@ -46,8 +46,8 @@ export const ADMIN_SECTION_META = {
   },
   lumCenter: {
     icon: "fa-layer-group",
-    title: "LUM Management",
-    description: "Control plan lifecycle, investment review, and content publishing for LUM products.",
+    title: "LUM & Gold Mining Management",
+    description: "Control plan lifecycle, investment review, and content publishing for LUM and Gold Mining products.",
   },
   binaryCenter: {
     icon: "fa-chart-simple",

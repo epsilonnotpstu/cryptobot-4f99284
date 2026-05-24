@@ -44,6 +44,23 @@ function statusChipClass(status = "") {
   return "adminx-tag adminx-tag-role";
 }
 
+function formatWalletSymbolLabel(value = "") {
+  const normalized = String(value || "").toUpperCase();
+  if (!normalized.includes("_")) {
+    return normalized || "-";
+  }
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((part, index) => {
+      if (index === 0 && ["SPOT", "MAIN", "BINARY"].includes(part)) {
+        return part.charAt(0) + part.slice(1).toLowerCase();
+      }
+      return part;
+    })
+    .join(" ");
+}
+
 const ASSET_TABS = [
   { key: "overview", label: "Overview" },
   { key: "walletDesk", label: "Wallet Desk" },
@@ -144,6 +161,14 @@ export default function AssetManagementPage({
   const [adjustForm, setAdjustForm] = useState(DEFAULT_ADJUST_FORM);
   const [freezeForm, setFreezeForm] = useState(DEFAULT_FREEZE_FORM);
   const [settingsForm, setSettingsForm] = useState(DEFAULT_SETTINGS_FORM);
+  const [withdrawDetailModalOpen, setWithdrawDetailModalOpen] = useState(false);
+  const [withdrawDetailTarget, setWithdrawDetailTarget] = useState(null);
+  const [withdrawReviewModalOpen, setWithdrawReviewModalOpen] = useState(false);
+  const [withdrawReviewTarget, setWithdrawReviewTarget] = useState(null);
+  const [withdrawReviewDecision, setWithdrawReviewDecision] = useState("approved");
+  const [withdrawReviewAmountUsd, setWithdrawReviewAmountUsd] = useState("");
+  const [withdrawReviewNote, setWithdrawReviewNote] = useState("");
+  const [withdrawReviewSubmitting, setWithdrawReviewSubmitting] = useState(false);
 
   useEffect(() => {
     const normalizedSettings = settings || {};
@@ -341,26 +366,89 @@ export default function AssetManagementPage({
     });
   };
 
-  const handleReviewWithdrawal = async (row, decision) => {
+  const handleReviewWithdrawal = async (row, decision, options = {}) => {
     await runAction(`withdraw.review.${row.withdrawalId}.${decision}`, async () => {
       const data = await onReviewWithdrawal?.({
         withdrawalId: row.withdrawalId,
         decision,
-        note: row.note || "",
+        note: options.note || "",
+        approvedAmountUsd: options.approvedAmountUsd,
       });
       await onRefresh?.();
       return data;
     });
   };
 
-  const handleCompleteWithdrawal = async (row) => {
+  const handleCompleteWithdrawal = async (row, options = {}) => {
     await runAction(`withdraw.complete.${row.withdrawalId}`, async () => {
       const data = await onCompleteWithdrawal?.({
         withdrawalId: row.withdrawalId,
+        note: options.note || "",
+        approvedAmountUsd: options.approvedAmountUsd,
       });
       await onRefresh?.();
       return data;
     });
+  };
+
+  const openWithdrawalDetail = (row) => {
+    setWithdrawDetailTarget(row || null);
+    setWithdrawDetailModalOpen(true);
+  };
+
+  const openWithdrawalReviewModal = (row, decision) => {
+    const normalizedDecision = normalizeText(decision || "approved");
+    const isAmountEditable = normalizedDecision === "approved" || normalizedDecision === "completed";
+    setWithdrawDetailModalOpen(false);
+    setWithdrawReviewTarget(row || null);
+    setWithdrawReviewDecision(normalizedDecision || "approved");
+    setWithdrawReviewAmountUsd(isAmountEditable ? String(row?.amountUsd ?? "") : "");
+    setWithdrawReviewNote("");
+    setWithdrawReviewModalOpen(true);
+  };
+
+  const submitWithdrawalReview = async () => {
+    if (!withdrawReviewTarget) {
+      return;
+    }
+
+    const decision = normalizeText(withdrawReviewDecision || "approved");
+    const isAmountEditable = decision === "approved" || decision === "completed";
+    let approvedAmountUsd;
+
+    if (isAmountEditable) {
+      const parsedAmount = Number(withdrawReviewAmountUsd || 0);
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        setError("Approved amount must be greater than 0.");
+        return;
+      }
+      approvedAmountUsd = parsedAmount;
+    }
+
+    if (decision === "rejected" && !String(withdrawReviewNote || "").trim()) {
+      setError("Reject note is required.");
+      return;
+    }
+
+    setWithdrawReviewSubmitting(true);
+    try {
+      if (decision === "completed") {
+        await handleCompleteWithdrawal(withdrawReviewTarget, {
+          note: withdrawReviewNote,
+          approvedAmountUsd,
+        });
+      } else {
+        await handleReviewWithdrawal(withdrawReviewTarget, decision, {
+          note: withdrawReviewNote,
+          approvedAmountUsd,
+        });
+      }
+      setWithdrawReviewModalOpen(false);
+    } catch {
+      // runAction already sets the visible error.
+    } finally {
+      setWithdrawReviewSubmitting(false);
+    }
   };
 
   const handleSubmitSettings = async () => {
@@ -747,7 +835,7 @@ export default function AssetManagementPage({
                     <strong>{row.accountName || row.userId}</strong>
                     <div className="adminx-table-subtext">{row.accountEmail || row.userId}</div>
                   </td>
-                  <td>{row.walletSymbol}</td>
+                  <td>{formatWalletSymbolLabel(row.walletSymbol)}</td>
                   <td>
                     {row.assetSymbol}
                     <div className="adminx-table-subtext">{row.networkType || "-"}</div>
@@ -759,11 +847,22 @@ export default function AssetManagementPage({
                   </td>
                   <td><span className={statusChipClass(row.status)}>{row.status}</span></td>
                   <td>
-                    <div className="adminx-table-actions">
-                      <button type="button" className="btn btn-ghost" onClick={() => handleReviewWithdrawal(row, "processing")}>Processing</button>
-                      <button type="button" className="btn btn-ghost" onClick={() => handleReviewWithdrawal(row, "approved")}>Approve</button>
-                      <button type="button" className="btn btn-ghost danger" onClick={() => handleReviewWithdrawal(row, "rejected")}>Reject</button>
-                      <button type="button" className="btn btn-primary" onClick={() => handleCompleteWithdrawal(row)}>Complete</button>
+                    <div className="adminx-row-actions">
+                      <button type="button" title="View request" onClick={() => openWithdrawalDetail(row)}>
+                        <i className="fas fa-eye" />
+                      </button>
+                      <button type="button" title="Mark processing" onClick={() => openWithdrawalReviewModal(row, "processing")}>
+                        <i className="fas fa-rotate-left" />
+                      </button>
+                      <button type="button" title="Approve amount" onClick={() => openWithdrawalReviewModal(row, "approved")}>
+                        <i className="fas fa-check" />
+                      </button>
+                      <button type="button" title="Reject request" onClick={() => openWithdrawalReviewModal(row, "rejected")}>
+                        <i className="fas fa-xmark" />
+                      </button>
+                      <button type="button" title="Complete withdrawal" onClick={() => openWithdrawalReviewModal(row, "completed")}>
+                        <i className="fas fa-flag-checkered" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1068,6 +1167,131 @@ export default function AssetManagementPage({
       {tab === "conversions" ? conversionsSection : null}
       {tab === "controls" ? controlsSection : null}
       {tab === "audit" ? auditSection : null}
+
+      {withdrawDetailModalOpen && withdrawDetailTarget ? (
+        <div className="adminx-modal-backdrop" onClick={() => setWithdrawDetailModalOpen(false)}>
+          <section className="adminx-profile-modal adminx-deposit-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <h2>Withdrawal Request Details</h2>
+              <button type="button" className="adminx-icon-btn" onClick={() => setWithdrawDetailModalOpen(false)}>
+                <i className="fas fa-xmark" />
+              </button>
+            </header>
+
+            <div className="adminx-profile-grid adminx-kyc-detail-grid">
+              <p><span>Reference</span><strong>{withdrawDetailTarget.withdrawalRef || "-"}</strong></p>
+              <p><span>User ID</span><strong>{withdrawDetailTarget.userId || "-"}</strong></p>
+              <p><span>Account Name</span><strong>{withdrawDetailTarget.accountName || "-"}</strong></p>
+              <p><span>Account Email</span><strong>{withdrawDetailTarget.accountEmail || "-"}</strong></p>
+              <p><span>Wallet</span><strong>{formatWalletSymbolLabel(withdrawDetailTarget.walletSymbol)}</strong></p>
+              <p><span>Asset</span><strong>{withdrawDetailTarget.assetSymbol || "-"}</strong></p>
+              <p><span>Network</span><strong>{withdrawDetailTarget.networkType || "-"}</strong></p>
+              <p><span>Requested Amount</span><strong>${formatMoney(withdrawDetailTarget.amountUsd, 2)}</strong></p>
+              <p><span>Fee</span><strong>${formatMoney(withdrawDetailTarget.feeAmountUsd, 2)}</strong></p>
+              <p><span>Net Amount</span><strong>${formatMoney(withdrawDetailTarget.netAmountUsd, 2)}</strong></p>
+              <p><span>Destination Address</span><strong>{withdrawDetailTarget.destinationAddress || "-"}</strong></p>
+              <p><span>Address Label</span><strong>{withdrawDetailTarget.destinationLabel || "-"}</strong></p>
+              <p><span>Status</span><strong>{withdrawDetailTarget.status || "-"}</strong></p>
+              <p><span>Submitted At</span><strong>{formatDateTime(withdrawDetailTarget.submittedAt)}</strong></p>
+              <p><span>Reviewed At</span><strong>{formatDateTime(withdrawDetailTarget.reviewedAt)}</strong></p>
+              <p><span>Completed At</span><strong>{formatDateTime(withdrawDetailTarget.completedAt)}</strong></p>
+              <p><span>Admin Note</span><strong>{withdrawDetailTarget.note || "-"}</strong></p>
+            </div>
+
+            <div className="adminx-profile-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => openWithdrawalReviewModal(withdrawDetailTarget, "processing")}>
+                Processing
+              </button>
+              <button type="button" className="btn btn-success" onClick={() => openWithdrawalReviewModal(withdrawDetailTarget, "approved")}>
+                Approve
+              </button>
+              <button type="button" className="btn btn-danger" onClick={() => openWithdrawalReviewModal(withdrawDetailTarget, "rejected")}>
+                Reject
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => openWithdrawalReviewModal(withdrawDetailTarget, "completed")}>
+                Complete
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {withdrawReviewModalOpen && withdrawReviewTarget ? (
+        <div className="adminx-modal-backdrop" onClick={() => setWithdrawReviewModalOpen(false)}>
+          <section className="adminx-profile-modal adminx-delete-modal" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <h2>
+                {withdrawReviewDecision === "approved"
+                  ? "Approve Withdrawal"
+                  : withdrawReviewDecision === "rejected"
+                    ? "Reject Withdrawal"
+                    : withdrawReviewDecision === "processing"
+                      ? "Move To Processing"
+                      : "Complete Withdrawal"}
+              </h2>
+              <button type="button" className="adminx-icon-btn" onClick={() => setWithdrawReviewModalOpen(false)}>
+                <i className="fas fa-xmark" />
+              </button>
+            </header>
+
+            <p className="adminx-page-note">
+              Request <strong>{withdrawReviewTarget.withdrawalRef || "-"}</strong> for{" "}
+              <strong>{withdrawReviewTarget.accountEmail || withdrawReviewTarget.userId || "-"}</strong>
+            </p>
+
+            <div className="adminx-deposit-review-summary">
+              <p>
+                <span>Current Requested</span>
+                <strong>${formatMoney(withdrawReviewTarget.amountUsd, 2)}</strong>
+              </p>
+              <p>
+                <span>Current Net</span>
+                <strong>${formatMoney(withdrawReviewTarget.netAmountUsd, 2)}</strong>
+              </p>
+            </div>
+
+            {withdrawReviewDecision === "approved" || withdrawReviewDecision === "completed" ? (
+              <label className="adminx-review-note-field">
+                <span>Approved Amount (USD)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={withdrawReviewAmountUsd}
+                  onChange={(event) => setWithdrawReviewAmountUsd(event.target.value)}
+                  placeholder="Set amount to withdraw"
+                />
+              </label>
+            ) : null}
+
+            <label className="adminx-review-note-field">
+              <span>
+                Admin Note
+                {withdrawReviewDecision === "rejected" ? " (required)" : " (optional)"}
+              </span>
+              <textarea
+                rows={4}
+                value={withdrawReviewNote}
+                onChange={(event) => setWithdrawReviewNote(event.target.value)}
+                placeholder={
+                  withdrawReviewDecision === "rejected"
+                    ? "Write reject reason"
+                    : "Optional note for this action"
+                }
+              />
+            </label>
+
+            <div className="adminx-profile-actions">
+              <button type="button" className="btn btn-ghost" disabled={withdrawReviewSubmitting} onClick={() => setWithdrawReviewModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" disabled={withdrawReviewSubmitting} onClick={submitWithdrawalReview}>
+                {withdrawReviewSubmitting ? "Saving..." : "Confirm"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
