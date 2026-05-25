@@ -160,6 +160,21 @@ All values now come from DB-backed API payloads:
   - review deposit request (`approved`, `rejected`, `pending`)
   - view screenshot and metadata in modal before decision.
 
+## Website Content Management (This Prompt)
+
+New table:
+- `home_page_configs`
+
+New gateway actions:
+- `home.content.get` (public read for landing page)
+- `admin.home.content.get`
+- `admin.home.content.save`
+
+Admin UI integration:
+- Sidebar section: `Website Content`
+- Component: `src/admin/components/HomeContentManagementPage.jsx`
+- Allows saving full home page JSON so footer/admin URL, hero, feature cards, FAQ, market cards and links are admin-controlled.
+
 ## Notes for Future Planning
 - If you later want hard physical separation, create dedicated `admins` and `platform_users` tables and migrate auth/session references.
 - Current implementation keeps one `users` table for compatibility but enforces separation through role-based views and stats queries.

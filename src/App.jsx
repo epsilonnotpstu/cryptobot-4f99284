@@ -174,6 +174,301 @@ const footerSections = [
   { title: "Support", links: ["Contact Us", "Submit a Request", "System Status", "Bug Bounty"] },
 ];
 
+const DEFAULT_HOME_PAGE_CONTENT = {
+  brand: {
+    name: "CryptoByte Pro",
+    footerDescription:
+      "The world's most trusted cryptocurrency trading platform with advanced security and professional tools.",
+    copyrightText: "© 2024 CryptoByte Pro. All rights reserved.",
+  },
+  nav: {
+    loginText: "Login",
+    signupText: "Start Trading",
+    links: [
+      { label: "Features", href: "#features" },
+      { label: "How it Works", href: "#how-it-works" },
+      { label: "Download", href: "#download" },
+      { label: "FAQ", href: "#faq" },
+    ],
+  },
+  hero: {
+    titleLine1: "Advanced Crypto Trading",
+    titleLine2: "Made Simple & Secure",
+    description:
+      "Trade cryptocurrencies with institutional-grade tools, real-time analytics, and bank-level security. Join thousands of traders who trust our platform.",
+    primaryCtaText: "Start Trading Now",
+    secondaryCtaText: "Login",
+    portfolioTitle: "Live Portfolio",
+    portfolioBalance: "$124,567.89",
+    stats: {
+      volumeTarget: 2.4,
+      usersTarget: 500,
+      uptimeTarget: 99.9,
+      volumeLabel: "Trading Volume",
+      usersLabel: "Active Users",
+      uptimeLabel: "Uptime",
+      volumeSuffix: "B+",
+      usersSuffix: "K+",
+      uptimeSuffix: "%",
+    },
+  },
+  market: {
+    enableRandomMovement: true,
+    assets: initialAssets,
+  },
+  sections: {
+    features: {
+      title: "Why Choose CryptoByte Pro?",
+      description: "Advanced features designed for both beginners and professional traders",
+      items: features,
+    },
+    howItWorks: {
+      title: "How It Works",
+      description: "Get started with crypto trading in just 3 simple steps",
+      items: steps,
+    },
+    download: {
+      title: "Trade Anywhere, Anytime",
+      description:
+        "Download our mobile app and desktop application for seamless trading experience across all your devices.",
+      buttons: [
+        {
+          icon: "fab fa-apple",
+          labelTop: "Download for",
+          labelBottom: "iOS",
+          href: "#download",
+        },
+        {
+          icon: "fab fa-google-play",
+          labelTop: "Get it on",
+          labelBottom: "Google Play",
+          href: "#download",
+        },
+        {
+          icon: "fas fa-desktop",
+          labelTop: "Download for",
+          labelBottom: "Desktop",
+          href: "#download",
+        },
+      ],
+    },
+    faq: {
+      title: "Frequently Asked Questions",
+      description: "Get answers to the most common questions about our platform",
+      items: faqs,
+    },
+  },
+  footer: {
+    socialLinks: [
+      { icon: "fab fa-twitter", href: "#home" },
+      { icon: "fab fa-facebook", href: "#home" },
+      { icon: "fab fa-linkedin", href: "#home" },
+      { icon: "fab fa-telegram", href: "#home" },
+    ],
+    sections: footerSections.map((section) => ({
+      title: section.title,
+      links: section.links.map((label) => ({ label, href: "#home" })),
+    })),
+    legalLinks: [
+      { label: "Privacy Policy", href: "#home" },
+      { label: "Terms of Service", href: "#home" },
+      { label: "Cookie Policy", href: "#home" },
+    ],
+    adminPanelLinkText: "Admin Panel",
+    adminPanelHref: ROUTES.admin,
+  },
+};
+
+function cloneHomePageContent(value = DEFAULT_HOME_PAGE_CONTENT) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeLinkHref(value = "", fallback = "#home") {
+  const href = String(value || "").trim();
+  if (!href) {
+    return fallback;
+  }
+  if (/^javascript:/i.test(href)) {
+    return fallback;
+  }
+  return href;
+}
+
+function normalizeHomePageContent(payload) {
+  const base = cloneHomePageContent();
+  const input = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+
+  const navInput = input.nav && typeof input.nav === "object" ? input.nav : {};
+  const heroInput = input.hero && typeof input.hero === "object" ? input.hero : {};
+  const heroStatsInput = heroInput.stats && typeof heroInput.stats === "object" ? heroInput.stats : {};
+  const marketInput = input.market && typeof input.market === "object" ? input.market : {};
+  const sectionsInput = input.sections && typeof input.sections === "object" ? input.sections : {};
+  const footerInput = input.footer && typeof input.footer === "object" ? input.footer : {};
+  const brandInput = input.brand && typeof input.brand === "object" ? input.brand : {};
+
+  const normalizeItems = (items, fallback) => {
+    if (!Array.isArray(items) || !items.length) {
+      return fallback;
+    }
+    return items;
+  };
+
+  const normalizeFeatureItems = (items, fallback) =>
+    normalizeItems(items, fallback)
+      .map((item) => ({
+        icon: String(item?.icon || "fa-circle").trim() || "fa-circle",
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+      }))
+      .filter((item) => item.title && item.description);
+
+  const normalizeFaqItems = (items, fallback) =>
+    normalizeItems(items, fallback)
+      .map((item) => ({
+        question: String(item?.question || "").trim(),
+        answer: String(item?.answer || "").trim(),
+      }))
+      .filter((item) => item.question && item.answer);
+
+  return {
+    brand: {
+      name: String(brandInput.name || base.brand.name).trim() || base.brand.name,
+      footerDescription:
+        String(brandInput.footerDescription || base.brand.footerDescription).trim() || base.brand.footerDescription,
+      copyrightText: String(brandInput.copyrightText || base.brand.copyrightText).trim() || base.brand.copyrightText,
+    },
+    nav: {
+      loginText: String(navInput.loginText || base.nav.loginText).trim() || base.nav.loginText,
+      signupText: String(navInput.signupText || base.nav.signupText).trim() || base.nav.signupText,
+      links: normalizeItems(navInput.links, base.nav.links)
+        .map((item) => ({
+          label: String(item?.label || "").trim(),
+          href: normalizeLinkHref(item?.href, "#home"),
+        }))
+        .filter((item) => item.label),
+    },
+    hero: {
+      titleLine1: String(heroInput.titleLine1 || base.hero.titleLine1).trim() || base.hero.titleLine1,
+      titleLine2: String(heroInput.titleLine2 || base.hero.titleLine2).trim() || base.hero.titleLine2,
+      description: String(heroInput.description || base.hero.description).trim() || base.hero.description,
+      primaryCtaText: String(heroInput.primaryCtaText || base.hero.primaryCtaText).trim() || base.hero.primaryCtaText,
+      secondaryCtaText: String(heroInput.secondaryCtaText || base.hero.secondaryCtaText).trim() || base.hero.secondaryCtaText,
+      portfolioTitle: String(heroInput.portfolioTitle || base.hero.portfolioTitle).trim() || base.hero.portfolioTitle,
+      portfolioBalance:
+        String(heroInput.portfolioBalance || base.hero.portfolioBalance).trim() || base.hero.portfolioBalance,
+      stats: {
+        volumeTarget: Number.isFinite(Number(heroStatsInput.volumeTarget))
+          ? Number(heroStatsInput.volumeTarget)
+          : base.hero.stats.volumeTarget,
+        usersTarget: Number.isFinite(Number(heroStatsInput.usersTarget))
+          ? Number(heroStatsInput.usersTarget)
+          : base.hero.stats.usersTarget,
+        uptimeTarget: Number.isFinite(Number(heroStatsInput.uptimeTarget))
+          ? Number(heroStatsInput.uptimeTarget)
+          : base.hero.stats.uptimeTarget,
+        volumeLabel: String(heroStatsInput.volumeLabel || base.hero.stats.volumeLabel).trim() || base.hero.stats.volumeLabel,
+        usersLabel: String(heroStatsInput.usersLabel || base.hero.stats.usersLabel).trim() || base.hero.stats.usersLabel,
+        uptimeLabel: String(heroStatsInput.uptimeLabel || base.hero.stats.uptimeLabel).trim() || base.hero.stats.uptimeLabel,
+        volumeSuffix: String(heroStatsInput.volumeSuffix || base.hero.stats.volumeSuffix).trim() || base.hero.stats.volumeSuffix,
+        usersSuffix: String(heroStatsInput.usersSuffix || base.hero.stats.usersSuffix).trim() || base.hero.stats.usersSuffix,
+        uptimeSuffix: String(heroStatsInput.uptimeSuffix || base.hero.stats.uptimeSuffix).trim() || base.hero.stats.uptimeSuffix,
+      },
+    },
+    market: {
+      enableRandomMovement:
+        typeof marketInput.enableRandomMovement === "boolean"
+          ? marketInput.enableRandomMovement
+          : base.market.enableRandomMovement,
+      assets: normalizeItems(marketInput.assets, base.market.assets)
+        .map((asset) => ({
+          name: String(asset?.name || "").trim(),
+          symbol: String(asset?.symbol || "").trim(),
+          price: Number.isFinite(Number(asset?.price)) ? Number(asset.price) : 0,
+          change: Number.isFinite(Number(asset?.change)) ? Number(asset.change) : 0,
+          iconClass: String(asset?.iconClass || "btc").trim() || "btc",
+        }))
+        .filter((asset) => asset.name && asset.symbol),
+    },
+    sections: {
+      features: {
+        title:
+          String(sectionsInput?.features?.title || base.sections.features.title).trim() ||
+          base.sections.features.title,
+        description:
+          String(sectionsInput?.features?.description || base.sections.features.description).trim() ||
+          base.sections.features.description,
+        items: normalizeFeatureItems(sectionsInput?.features?.items, base.sections.features.items),
+      },
+      howItWorks: {
+        title:
+          String(sectionsInput?.howItWorks?.title || base.sections.howItWorks.title).trim() ||
+          base.sections.howItWorks.title,
+        description:
+          String(sectionsInput?.howItWorks?.description || base.sections.howItWorks.description).trim() ||
+          base.sections.howItWorks.description,
+        items: normalizeFeatureItems(sectionsInput?.howItWorks?.items, base.sections.howItWorks.items),
+      },
+      download: {
+        title:
+          String(sectionsInput?.download?.title || base.sections.download.title).trim() ||
+          base.sections.download.title,
+        description:
+          String(sectionsInput?.download?.description || base.sections.download.description).trim() ||
+          base.sections.download.description,
+        buttons: normalizeItems(sectionsInput?.download?.buttons, base.sections.download.buttons)
+          .map((button) => ({
+            icon: String(button?.icon || "fas fa-link").trim() || "fas fa-link",
+            labelTop: String(button?.labelTop || "").trim(),
+            labelBottom: String(button?.labelBottom || "").trim(),
+            href: normalizeLinkHref(button?.href, "#download"),
+          }))
+          .filter((button) => button.labelBottom),
+      },
+      faq: {
+        title: String(sectionsInput?.faq?.title || base.sections.faq.title).trim() || base.sections.faq.title,
+        description:
+          String(sectionsInput?.faq?.description || base.sections.faq.description).trim() ||
+          base.sections.faq.description,
+        items: normalizeFaqItems(sectionsInput?.faq?.items, base.sections.faq.items),
+      },
+    },
+    footer: {
+      socialLinks: normalizeItems(footerInput.socialLinks, base.footer.socialLinks)
+        .map((item) => ({
+          icon: String(item?.icon || "fas fa-link").trim() || "fas fa-link",
+          href: normalizeLinkHref(item?.href, "#home"),
+        }))
+        .filter((item) => item.icon),
+      sections: normalizeItems(footerInput.sections, base.footer.sections)
+        .map((section) => ({
+          title: String(section?.title || "").trim(),
+          links: normalizeItems(section?.links, [])
+            .map((link) => {
+              if (typeof link === "string") {
+                return { label: link.trim(), href: "#home" };
+              }
+              return {
+                label: String(link?.label || "").trim(),
+                href: normalizeLinkHref(link?.href, "#home"),
+              };
+            })
+            .filter((link) => link.label),
+        }))
+        .filter((section) => section.title),
+      legalLinks: normalizeItems(footerInput.legalLinks, base.footer.legalLinks)
+        .map((item) => ({
+          label: String(item?.label || "").trim(),
+          href: normalizeLinkHref(item?.href, "#home"),
+        }))
+        .filter((item) => item.label),
+      adminPanelLinkText:
+        String(footerInput.adminPanelLinkText || base.footer.adminPanelLinkText).trim() ||
+        base.footer.adminPanelLinkText,
+      adminPanelHref: normalizeLinkHref(footerInput.adminPanelHref, ROUTES.admin),
+    },
+  };
+}
+
 function formatPrice(price, symbol) {
   if (symbol === "ADA") {
     return `$${price.toFixed(4)}`;
@@ -1226,6 +1521,11 @@ const remoteAuthService = {
       payload: { ticketRef, status },
     });
   },
+  async getHomeContent() {
+    return this.requestGatewayAction({
+      action: "home.content.get",
+    });
+  },
   async adminSignup({ name, email, phone, password, adminSignupKey = "" }) {
     const data = await this.requestGatewayAction({
       action: "admin.auth.signup",
@@ -1262,6 +1562,19 @@ const remoteAuthService = {
       action: "admin.notice.update",
       sessionToken,
       payload: { message },
+    });
+  },
+  async adminGetHomeContent({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.home.content.get",
+      sessionToken,
+    });
+  },
+  async adminSaveHomeContent({ sessionToken, content }) {
+    return this.requestGatewayAction({
+      action: "admin.home.content.save",
+      sessionToken,
+      payload: { content },
     });
   },
   async adminListDepositAssets({ sessionToken }) {
@@ -2632,7 +2945,7 @@ function AuthForms({ flow, classes }) {
   );
 }
 
-function AuthPage({ mode, authSnapshot, onAuthenticated, onBackHome, onGoAdmin }) {
+function AuthPage({ mode, authSnapshot, onAuthenticated, onBackHome }) {
   const initialView = mode === ROUTES.signup ? "signup" : "login";
   const flow = useAuthFlow({
     initialView,
@@ -2655,9 +2968,6 @@ function AuthPage({ mode, authSnapshot, onAuthenticated, onBackHome, onGoAdmin }
         </button>
 
         <div className="auth-topbar-actions">
-          <button type="button" className="btn btn-ghost" onClick={onGoAdmin}>
-            Admin URL
-          </button>
           <button type="button" className="btn btn-ghost" onClick={onBackHome}>
             Back to Home
           </button>
@@ -3425,7 +3735,39 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   return <MobileAuthPage authSnapshot={authSnapshot} onAuthenticated={onAuthChanged} />;
 }
 
-function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMobileMenuOpen, canvasRef }) {
+function HomePage({
+  homeContent,
+  assets,
+  stats,
+  activeFaq,
+  onFaqToggle,
+  mobileMenuOpen,
+  setMobileMenuOpen,
+  canvasRef,
+}) {
+  const navLinks = Array.isArray(homeContent?.nav?.links) ? homeContent.nav.links : [];
+  const featureItems = Array.isArray(homeContent?.sections?.features?.items) ? homeContent.sections.features.items : [];
+  const howItWorksItems = Array.isArray(homeContent?.sections?.howItWorks?.items) ? homeContent.sections.howItWorks.items : [];
+  const downloadButtons = Array.isArray(homeContent?.sections?.download?.buttons) ? homeContent.sections.download.buttons : [];
+  const faqItems = Array.isArray(homeContent?.sections?.faq?.items) ? homeContent.sections.faq.items : [];
+  const footerSectionsList = Array.isArray(homeContent?.footer?.sections) ? homeContent.footer.sections : [];
+  const footerSocialLinks = Array.isArray(homeContent?.footer?.socialLinks) ? homeContent.footer.socialLinks : [];
+  const footerLegalLinks = Array.isArray(homeContent?.footer?.legalLinks) ? homeContent.footer.legalLinks : [];
+  const adminPanelHref = String(homeContent?.footer?.adminPanelHref || ROUTES.admin).trim() || ROUTES.admin;
+  const adminPanelText = String(homeContent?.footer?.adminPanelLinkText || "Admin Panel").trim() || "Admin Panel";
+
+  const openAdminPanel = () => {
+    if (adminPanelHref.startsWith("/")) {
+      goToRoute(adminPanelHref);
+      return;
+    }
+    if (adminPanelHref.startsWith("#/")) {
+      window.location.hash = adminPanelHref.replace(/^#/, "");
+      return;
+    }
+    window.location.assign(adminPanelHref);
+  };
+
   return (
     <div>
       <nav className="navbar">
@@ -3433,31 +3775,24 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
           <div className="nav-brand">
             <div className="logo">
               <i className="fas fa-cube" />
-              <span>CryptoByte Pro</span>
+              <span>{homeContent?.brand?.name || "CryptoByte Pro"}</span>
             </div>
           </div>
 
           <div className={`nav-links ${mobileMenuOpen ? "active" : ""}`}>
-            <a href="#features" onClick={() => setMobileMenuOpen(false)}>
-              Features
-            </a>
-            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>
-              How it Works
-            </a>
-            <a href="#download" onClick={() => setMobileMenuOpen(false)}>
-              Download
-            </a>
-            <a href="#faq" onClick={() => setMobileMenuOpen(false)}>
-              FAQ
-            </a>
+            {navLinks.map((item) => (
+              <a href={item.href} key={`${item.label}-${item.href}`} onClick={() => setMobileMenuOpen(false)}>
+                {item.label}
+              </a>
+            ))}
           </div>
 
           <div className="nav-actions">
             <button type="button" className="btn btn-ghost" onClick={() => goToRoute(ROUTES.login)}>
-              Login
+              {homeContent?.nav?.loginText || "Login"}
             </button>
             <button type="button" className="btn btn-primary" onClick={() => goToRoute(ROUTES.signup)}>
-              Start Trading
+              {homeContent?.nav?.signupText || "Start Trading"}
             </button>
           </div>
 
@@ -3485,39 +3820,45 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
           <div className="hero-content">
             <div className="hero-text">
               <h1 className="hero-title">
-                <span className="gradient-text">Advanced Crypto Trading</span>
+                <span className="gradient-text">{homeContent?.hero?.titleLine1 || "Advanced Crypto Trading"}</span>
                 <br />
-                Made Simple &amp; Secure
+                {homeContent?.hero?.titleLine2 || "Made Simple & Secure"}
               </h1>
 
-              <p className="hero-description">
-                Trade cryptocurrencies with institutional-grade tools, real-time analytics, and
-                bank-level security. Join thousands of traders who trust our platform.
-              </p>
+              <p className="hero-description">{homeContent?.hero?.description || ""}</p>
 
               <div className="hero-actions">
                 <button type="button" className="btn btn-primary btn-large" onClick={() => goToRoute(ROUTES.signup)}>
                   <i className="fas fa-rocket" />
-                  Start Trading Now
+                  {homeContent?.hero?.primaryCtaText || "Start Trading Now"}
                 </button>
                 <button type="button" className="btn btn-ghost btn-large" onClick={() => goToRoute(ROUTES.login)}>
                   <i className="fas fa-play" />
-                  Login
+                  {homeContent?.hero?.secondaryCtaText || "Login"}
                 </button>
               </div>
 
               <div className="hero-stats">
                 <div className="stat">
-                  <div className="stat-number">${stats.volume.toFixed(1)}B+</div>
-                  <div className="stat-label">Trading Volume</div>
+                  <div className="stat-number">
+                    ${stats.volume.toFixed(1)}
+                    {homeContent?.hero?.stats?.volumeSuffix || "B+"}
+                  </div>
+                  <div className="stat-label">{homeContent?.hero?.stats?.volumeLabel || "Trading Volume"}</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-number">{stats.users}K+</div>
-                  <div className="stat-label">Active Users</div>
+                  <div className="stat-number">
+                    {stats.users}
+                    {homeContent?.hero?.stats?.usersSuffix || "K+"}
+                  </div>
+                  <div className="stat-label">{homeContent?.hero?.stats?.usersLabel || "Active Users"}</div>
                 </div>
                 <div className="stat">
-                  <div className="stat-number">{stats.uptime.toFixed(1)}%</div>
-                  <div className="stat-label">Uptime</div>
+                  <div className="stat-number">
+                    {stats.uptime.toFixed(1)}
+                    {homeContent?.hero?.stats?.uptimeSuffix || "%"}
+                  </div>
+                  <div className="stat-label">{homeContent?.hero?.stats?.uptimeLabel || "Uptime"}</div>
                 </div>
               </div>
             </div>
@@ -3525,8 +3866,8 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
             <div className="hero-visual">
               <div className="crypto-card">
                 <div className="card-header">
-                  <div className="card-title">Live Portfolio</div>
-                  <div className="card-balance">$124,567.89</div>
+                  <div className="card-title">{homeContent?.hero?.portfolioTitle || "Live Portfolio"}</div>
+                  <div className="card-balance">{homeContent?.hero?.portfolioBalance || "$124,567.89"}</div>
                 </div>
 
                 <div className="crypto-list">
@@ -3560,14 +3901,12 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
       <section id="features" className="features">
         <div className="container">
           <div className="section-header">
-            <h2 className="section-title">Why Choose CryptoByte Pro?</h2>
-            <p className="section-description">
-              Advanced features designed for both beginners and professional traders
-            </p>
+            <h2 className="section-title">{homeContent?.sections?.features?.title || "Why Choose CryptoByte Pro?"}</h2>
+            <p className="section-description">{homeContent?.sections?.features?.description || ""}</p>
           </div>
 
           <div className="features-grid">
-            {features.map((feature) => (
+            {featureItems.map((feature) => (
               <div className="feature-card" key={feature.title}>
                 <div className="feature-icon">
                   <i className={`fas ${feature.icon}`} />
@@ -3583,12 +3922,12 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
       <section id="how-it-works" className="how-it-works">
         <div className="container">
           <div className="section-header">
-            <h2 className="section-title">How It Works</h2>
-            <p className="section-description">Get started with crypto trading in just 3 simple steps</p>
+            <h2 className="section-title">{homeContent?.sections?.howItWorks?.title || "How It Works"}</h2>
+            <p className="section-description">{homeContent?.sections?.howItWorks?.description || ""}</p>
           </div>
 
           <div className="steps-container">
-            {steps.map((step, index) => (
+            {howItWorksItems.map((step, index) => (
               <div className="step-group" key={step.title}>
                 <div className="step">
                   <div className="step-number">{index + 1}</div>
@@ -3600,7 +3939,7 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
                     <p className="step-description">{step.description}</p>
                   </div>
                 </div>
-                {index < steps.length - 1 ? <div className="step-connector" /> : null}
+                {index < howItWorksItems.length - 1 ? <div className="step-connector" /> : null}
               </div>
             ))}
           </div>
@@ -3611,33 +3950,23 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
         <div className="container">
           <div className="download-content">
             <div className="download-text-block">
-              <h2 className="section-title">Trade Anywhere, Anytime</h2>
-              <p className="section-description">
-                Download our mobile app and desktop application for seamless trading experience across all your devices.
-              </p>
+              <h2 className="section-title">{homeContent?.sections?.download?.title || "Trade Anywhere, Anytime"}</h2>
+              <p className="section-description">{homeContent?.sections?.download?.description || ""}</p>
 
               <div className="download-buttons">
-                <a href="#download" className="download-btn ios">
-                  <i className="fab fa-apple" />
-                  <div className="download-text">
-                    <span className="download-label">Download for</span>
-                    <span className="download-platform">iOS</span>
-                  </div>
-                </a>
-                <a href="#download" className="download-btn android">
-                  <i className="fab fa-google-play" />
-                  <div className="download-text">
-                    <span className="download-label">Get it on</span>
-                    <span className="download-platform">Google Play</span>
-                  </div>
-                </a>
-                <a href="#download" className="download-btn desktop">
-                  <i className="fas fa-desktop" />
-                  <div className="download-text">
-                    <span className="download-label">Download for</span>
-                    <span className="download-platform">Desktop</span>
-                  </div>
-                </a>
+                {downloadButtons.map((button, index) => (
+                  <a
+                    href={button.href}
+                    key={`${button.labelBottom}-${index}`}
+                    className={`download-btn ${index === 0 ? "ios" : index === 1 ? "android" : "desktop"}`}
+                  >
+                    <i className={button.icon} />
+                    <div className="download-text">
+                      <span className="download-label">{button.labelTop}</span>
+                      <span className="download-platform">{button.labelBottom}</span>
+                    </div>
+                  </a>
+                ))}
               </div>
             </div>
 
@@ -3666,12 +3995,12 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
       <section id="faq" className="faq">
         <div className="container">
           <div className="section-header">
-            <h2 className="section-title">Frequently Asked Questions</h2>
-            <p className="section-description">Get answers to the most common questions about our platform</p>
+            <h2 className="section-title">{homeContent?.sections?.faq?.title || "Frequently Asked Questions"}</h2>
+            <p className="section-description">{homeContent?.sections?.faq?.description || ""}</p>
           </div>
 
           <div className="faq-list">
-            {faqs.map((faq, index) => (
+            {faqItems.map((faq, index) => (
               <div className={`faq-item ${activeFaq === index ? "active" : ""}`} key={faq.question}>
                 <button type="button" className="faq-question" onClick={() => onFaqToggle(index)}>
                   <span>{faq.question}</span>
@@ -3692,26 +4021,24 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
             <div className="footer-brand">
               <div className="logo">
                 <i className="fas fa-cube" />
-                <span>CryptoByte Pro</span>
+                <span>{homeContent?.brand?.name || "CryptoByte Pro"}</span>
               </div>
-              <p className="footer-description">
-                The world&apos;s most trusted cryptocurrency trading platform with advanced security
-                and professional tools.
-              </p>
+              <p className="footer-description">{homeContent?.brand?.footerDescription || ""}</p>
               <div className="social-links">
-                <a href="#home"><i className="fab fa-twitter" /></a>
-                <a href="#home"><i className="fab fa-facebook" /></a>
-                <a href="#home"><i className="fab fa-linkedin" /></a>
-                <a href="#home"><i className="fab fa-telegram" /></a>
+                {footerSocialLinks.map((link, index) => (
+                  <a href={link.href} key={`${link.icon}-${index}`}>
+                    <i className={link.icon} />
+                  </a>
+                ))}
               </div>
             </div>
 
             <div className="footer-links">
-              {footerSections.map((section) => (
+              {footerSectionsList.map((section) => (
                 <div className="footer-section" key={section.title}>
                   <h4 className="footer-title">{section.title}</h4>
                   {section.links.map((link) => (
-                    <a href="#home" key={link}>{link}</a>
+                    <a href={link.href} key={`${link.label}-${link.href}`}>{link.label}</a>
                   ))}
                 </div>
               ))}
@@ -3720,12 +4047,15 @@ function HomePage({ assets, stats, activeFaq, onFaqToggle, mobileMenuOpen, setMo
 
           <div className="footer-bottom">
             <div className="footer-copyright">
-              <p>&copy; 2024 CryptoByte Pro. All rights reserved.</p>
+              <p>{homeContent?.brand?.copyrightText || "© 2024 CryptoByte Pro. All rights reserved."}</p>
             </div>
             <div className="footer-legal">
-              <a href="#home">Privacy Policy</a>
-              <a href="#home">Terms of Service</a>
-              <a href="#home">Cookie Policy</a>
+              {footerLegalLinks.map((link) => (
+                <a href={link.href} key={`${link.label}-${link.href}`}>{link.label}</a>
+              ))}
+              <button type="button" className="btn btn-ghost" onClick={openAdminPanel}>
+                {adminPanelText}
+              </button>
             </div>
           </div>
         </div>
@@ -3739,7 +4069,10 @@ function App() {
   const [authSnapshot, setAuthSnapshot] = useState(readAuthSnapshot);
   const [authReady, setAuthReady] = useState(() => !readAuthSnapshot().sessionToken);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [assets, setAssets] = useState(initialAssets);
+  const [homeContent, setHomeContent] = useState(() => cloneHomePageContent(DEFAULT_HOME_PAGE_CONTENT));
+  const [assets, setAssets] = useState(() =>
+    cloneHomePageContent(DEFAULT_HOME_PAGE_CONTENT).market.assets,
+  );
   const [activeFaq, setActiveFaq] = useState(0);
   const [stats, setStats] = useState({ volume: 0, users: 0, uptime: 0 });
   const canvasRef = useRef(null);
@@ -3777,6 +4110,30 @@ function App() {
 
   useEffect(() => {
     refreshAuthSnapshot();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHomeContent = async () => {
+      try {
+        const payload = await getAuthService().getHomeContent();
+        if (cancelled) {
+          return;
+        }
+        const normalized = normalizeHomePageContent(payload?.content);
+        setHomeContent(normalized);
+        setAssets(normalized.market.assets);
+        setActiveFaq(0);
+      } catch {
+        // Keep default content when API is unavailable.
+      }
+    };
+
+    loadHomeContent();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -3885,7 +4242,11 @@ function App() {
       return undefined;
     }
 
-    const targets = { volume: 2.4, users: 500, uptime: 99.9 };
+    const targets = {
+      volume: Number(homeContent?.hero?.stats?.volumeTarget || 0),
+      users: Number(homeContent?.hero?.stats?.usersTarget || 0),
+      uptime: Number(homeContent?.hero?.stats?.uptimeTarget || 0),
+    };
     const startedAt = performance.now();
     let frameId = 0;
 
@@ -3904,10 +4265,23 @@ function App() {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [route]);
+  }, [
+    homeContent?.hero?.stats?.uptimeTarget,
+    homeContent?.hero?.stats?.usersTarget,
+    homeContent?.hero?.stats?.volumeTarget,
+    route,
+  ]);
+
+  useEffect(() => {
+    setAssets(homeContent?.market?.assets || []);
+    setActiveFaq(0);
+  }, [homeContent]);
 
   useEffect(() => {
     if (route !== ROUTES.home) {
+      return undefined;
+    }
+    if (!homeContent?.market?.enableRandomMovement) {
       return undefined;
     }
 
@@ -3925,7 +4299,7 @@ function App() {
     }, 3000);
 
     return () => window.clearInterval(intervalId);
-  }, [route]);
+  }, [homeContent?.market?.enableRandomMovement, route]);
 
   useEffect(() => {
     if (route !== ROUTES.home) {
@@ -4023,13 +4397,13 @@ function App() {
         authSnapshot={authSnapshot}
         onAuthenticated={refreshAuthSnapshot}
         onBackHome={() => goToRoute(ROUTES.home)}
-        onGoAdmin={() => goToRoute(ROUTES.admin)}
       />
     );
   }
 
   return (
     <HomePage
+      homeContent={homeContent}
       assets={assets}
       stats={stats}
       activeFaq={activeFaq}

@@ -13,6 +13,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "transactionCenter", label: "Transaction Management", icon: "fa-right-left" },
   { key: "assetCenter", label: "Asset Management", icon: "fa-wallet" },
   { key: "supportCenter", label: "Support Management", icon: "fa-headset" },
+  { key: "webContent", label: "Website Content", icon: "fa-globe" },
   { key: "bots", label: "Bot Management", icon: "fa-robot" },
   { key: "trades", label: "Trades & Orders", icon: "fa-arrow-trend-up" },
   { key: "strategies", label: "Strategies", icon: "fa-brain" },
@@ -68,6 +69,11 @@ export const ADMIN_SECTION_META = {
     icon: "fa-headset",
     title: "Support Management",
     description: "Handle support queues, ticket threads, assignment flow, and audit actions.",
+  },
+  webContent: {
+    icon: "fa-globe",
+    title: "Website Content Management",
+    description: "Control and publish the full public home page content from a single JSON-driven editor.",
   },
 };
 

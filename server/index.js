@@ -526,6 +526,15 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS home_page_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    config_json TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    updated_by TEXT NOT NULL DEFAULT ''
+  );
+
   CREATE TABLE IF NOT EXISTS deposit_assets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL UNIQUE,
@@ -944,6 +953,22 @@ const clearActiveNoticesStatement = db.prepare(`
 const insertNoticeStatement = db.prepare(`
   INSERT INTO platform_notices (message, is_active, created_at, updated_at)
   VALUES (@message, @isActive, @createdAt, @updatedAt)
+`);
+const getLatestActiveHomePageConfigStatement = db.prepare(`
+  SELECT * FROM home_page_configs
+  WHERE is_active = 1
+  ORDER BY updated_at DESC, id DESC
+  LIMIT 1
+`);
+const clearActiveHomePageConfigsStatement = db.prepare(`
+  UPDATE home_page_configs
+  SET is_active = 0,
+      updated_at = @updatedAt
+  WHERE is_active = 1
+`);
+const insertHomePageConfigStatement = db.prepare(`
+  INSERT INTO home_page_configs (config_json, is_active, created_at, updated_at, updated_by)
+  VALUES (@configJson, @isActive, @createdAt, @updatedAt, @updatedBy)
 `);
 const listDepositAssetsStatement = db.prepare(`
   SELECT * FROM deposit_assets
@@ -1804,8 +1829,14 @@ async function sendOtpEmail({ email, otp, purpose, name }) {
   const attempts = [];
   if (emailProviderPreference === "resend") {
     attempts.push("resend");
+    if (smtpReady) {
+      attempts.push("smtp");
+    }
   } else if (emailProviderPreference === "smtp") {
     attempts.push("smtp");
+    if (resendReady) {
+      attempts.push("resend");
+    }
   } else {
     if (resendReady) {
       attempts.push("resend");
@@ -1815,8 +1846,10 @@ async function sendOtpEmail({ email, otp, purpose, name }) {
     }
   }
 
+  const dedupedAttempts = Array.from(new Set(attempts));
+
   const errors = [];
-  for (const method of attempts) {
+  for (const method of dedupedAttempts) {
     try {
       if (method === "resend") {
         await sendOtpViaResend(template);
@@ -2481,6 +2514,477 @@ function buildNoticePayload(row) {
     message: row.message || "",
     updatedAt: row.updated_at || row.created_at || "",
   };
+}
+
+function buildDefaultHomePageContentConfig() {
+  return {
+    brand: {
+      name: "CryptoByte Pro",
+      footerDescription:
+        "The world's most trusted cryptocurrency trading platform with advanced security and professional tools.",
+      copyrightText: "© 2024 CryptoByte Pro. All rights reserved.",
+    },
+    nav: {
+      loginText: "Login",
+      signupText: "Start Trading",
+      links: [
+        { label: "Features", href: "#features" },
+        { label: "How it Works", href: "#how-it-works" },
+        { label: "Download", href: "#download" },
+        { label: "FAQ", href: "#faq" },
+      ],
+    },
+    hero: {
+      titleLine1: "Advanced Crypto Trading",
+      titleLine2: "Made Simple & Secure",
+      description:
+        "Trade cryptocurrencies with institutional-grade tools, real-time analytics, and bank-level security. Join thousands of traders who trust our platform.",
+      primaryCtaText: "Start Trading Now",
+      secondaryCtaText: "Login",
+      portfolioTitle: "Live Portfolio",
+      portfolioBalance: "$124,567.89",
+      stats: {
+        volumeTarget: 2.4,
+        usersTarget: 500,
+        uptimeTarget: 99.9,
+        volumeLabel: "Trading Volume",
+        usersLabel: "Active Users",
+        uptimeLabel: "Uptime",
+        volumeSuffix: "B+",
+        usersSuffix: "K+",
+        uptimeSuffix: "%",
+      },
+    },
+    market: {
+      enableRandomMovement: true,
+      assets: [
+        { name: "Bitcoin", symbol: "BTC", price: 67234.56, change: 2.34, iconClass: "btc" },
+        { name: "Ethereum", symbol: "ETH", price: 3456.78, change: 1.87, iconClass: "eth" },
+        { name: "Cardano", symbol: "ADA", price: 0.4567, change: -0.23, iconClass: "ada" },
+      ],
+    },
+    sections: {
+      features: {
+        title: "Why Choose CryptoByte Pro?",
+        description: "Advanced features designed for both beginners and professional traders",
+        items: [
+          {
+            icon: "fa-shield-alt",
+            title: "Bank-Level Security",
+            description:
+              "Multi-layer security with cold storage, 2FA, and insurance coverage for your digital assets.",
+          },
+          {
+            icon: "fa-chart-line",
+            title: "Advanced Analytics",
+            description:
+              "Real-time market data, technical indicators, and AI-powered insights for better trading decisions.",
+          },
+          {
+            icon: "fa-bolt",
+            title: "Lightning Fast",
+            description:
+              "Execute trades in milliseconds with our high-performance trading engine and global infrastructure.",
+          },
+          {
+            icon: "fa-coins",
+            title: "300+ Cryptocurrencies",
+            description:
+              "Trade Bitcoin, Ethereum, and 300+ other cryptocurrencies with competitive fees and deep liquidity.",
+          },
+          {
+            icon: "fa-mobile-alt",
+            title: "Mobile Trading",
+            description: "Secure mobile trading with verified access and instant account recovery.",
+          },
+          {
+            icon: "fa-headset",
+            title: "24/7 Support",
+            description:
+              "Get help anytime with our dedicated support team and comprehensive knowledge base.",
+          },
+        ],
+      },
+      howItWorks: {
+        title: "How It Works",
+        description: "Get started with crypto trading in just 3 simple steps",
+        items: [
+          {
+            icon: "fa-user-plus",
+            title: "Create Your Account",
+            description: "Sign up with your name, email, OTP verification, and secure password.",
+          },
+          {
+            icon: "fa-credit-card",
+            title: "Fund Your Wallet",
+            description: "Deposit funds securely and track your verified account from any device.",
+          },
+          {
+            icon: "fa-exchange-alt",
+            title: "Start Trading",
+            description: "Trade with pro tools, live pricing, and a protected crypto dashboard.",
+          },
+        ],
+      },
+      download: {
+        title: "Trade Anywhere, Anytime",
+        description:
+          "Download our mobile app and desktop application for seamless trading experience across all your devices.",
+        buttons: [
+          { icon: "fab fa-apple", labelTop: "Download for", labelBottom: "iOS", href: "#download" },
+          { icon: "fab fa-google-play", labelTop: "Get it on", labelBottom: "Google Play", href: "#download" },
+          { icon: "fas fa-desktop", labelTop: "Download for", labelBottom: "Desktop", href: "#download" },
+        ],
+      },
+      faq: {
+        title: "Frequently Asked Questions",
+        description: "Get answers to the most common questions about our platform",
+        items: [
+          {
+            question: "Is CryptoByte Pro safe and secure?",
+            answer:
+              "Yes, we use bank-level security, email verification, encrypted password storage, and protected account recovery.",
+          },
+          {
+            question: "What cryptocurrencies can I trade?",
+            answer:
+              "You can trade over 300 cryptocurrencies including Bitcoin, Ethereum, Cardano, Solana, and more.",
+          },
+          {
+            question: "How do I get started?",
+            answer:
+              "Create your account, verify your email OTP, set your password, and your 6-digit user ID will be assigned instantly.",
+          },
+          {
+            question: "Can I reset my password?",
+            answer:
+              "Yes. Use forgot password, enter your email or user ID, verify OTP from your signup email, and create a new password.",
+          },
+          {
+            question: "Can I use the platform on mobile?",
+            answer:
+              "Yes. The mobile app and the web login now share the same backend account system and recovery flow.",
+          },
+        ],
+      },
+    },
+    footer: {
+      socialLinks: [
+        { icon: "fab fa-twitter", href: "#home" },
+        { icon: "fab fa-facebook", href: "#home" },
+        { icon: "fab fa-linkedin", href: "#home" },
+        { icon: "fab fa-telegram", href: "#home" },
+      ],
+      sections: [
+        {
+          title: "Products",
+          links: [
+            { label: "Spot Trading", href: "#home" },
+            { label: "Futures Trading", href: "#home" },
+            { label: "Margin Trading", href: "#home" },
+            { label: "Staking", href: "#home" },
+          ],
+        },
+        {
+          title: "Company",
+          links: [
+            { label: "About Us", href: "#home" },
+            { label: "Careers", href: "#home" },
+            { label: "Press", href: "#home" },
+            { label: "Legal", href: "#home" },
+          ],
+        },
+        {
+          title: "Resources",
+          links: [
+            { label: "Help Center", href: "#home" },
+            { label: "API Documentation", href: "#home" },
+            { label: "Trading Guide", href: "#home" },
+            { label: "Blog", href: "#home" },
+          ],
+        },
+        {
+          title: "Support",
+          links: [
+            { label: "Contact Us", href: "#home" },
+            { label: "Submit a Request", href: "#home" },
+            { label: "System Status", href: "#home" },
+            { label: "Bug Bounty", href: "#home" },
+          ],
+        },
+      ],
+      legalLinks: [
+        { label: "Privacy Policy", href: "#home" },
+        { label: "Terms of Service", href: "#home" },
+        { label: "Cookie Policy", href: "#home" },
+      ],
+      adminPanelLinkText: "Admin Panel",
+      adminPanelHref: "/admin",
+    },
+  };
+}
+
+function normalizeHomeContentHref(value = "", fallback = "#home") {
+  const href = sanitizeShortText(value || "", 300);
+  if (!href || /^javascript:/i.test(href)) {
+    return fallback;
+  }
+  return href;
+}
+
+function normalizeHomePageContentConfig(content) {
+  const base = buildDefaultHomePageContentConfig();
+  const input = content && typeof content === "object" && !Array.isArray(content) ? content : {};
+
+  const navInput = input.nav && typeof input.nav === "object" ? input.nav : {};
+  const heroInput = input.hero && typeof input.hero === "object" ? input.hero : {};
+  const heroStatsInput = heroInput.stats && typeof heroInput.stats === "object" ? heroInput.stats : {};
+  const marketInput = input.market && typeof input.market === "object" ? input.market : {};
+  const sectionsInput = input.sections && typeof input.sections === "object" ? input.sections : {};
+  const footerInput = input.footer && typeof input.footer === "object" ? input.footer : {};
+  const brandInput = input.brand && typeof input.brand === "object" ? input.brand : {};
+
+  const normalizeArray = (rows, fallbackRows) =>
+    Array.isArray(rows) && rows.length ? rows : fallbackRows;
+
+  const normalizedContent = {
+    brand: {
+      name: sanitizeShortText(brandInput.name || base.brand.name, 120) || base.brand.name,
+      footerDescription:
+        sanitizeShortText(brandInput.footerDescription || base.brand.footerDescription, 500) ||
+        base.brand.footerDescription,
+      copyrightText:
+        sanitizeShortText(brandInput.copyrightText || base.brand.copyrightText, 180) ||
+        base.brand.copyrightText,
+    },
+    nav: {
+      loginText: sanitizeShortText(navInput.loginText || base.nav.loginText, 40) || base.nav.loginText,
+      signupText: sanitizeShortText(navInput.signupText || base.nav.signupText, 60) || base.nav.signupText,
+      links: normalizeArray(navInput.links, base.nav.links)
+        .map((row) => ({
+          label: sanitizeShortText(row?.label || "", 80),
+          href: normalizeHomeContentHref(row?.href, "#home"),
+        }))
+        .filter((row) => row.label),
+    },
+    hero: {
+      titleLine1: sanitizeShortText(heroInput.titleLine1 || base.hero.titleLine1, 120) || base.hero.titleLine1,
+      titleLine2: sanitizeShortText(heroInput.titleLine2 || base.hero.titleLine2, 120) || base.hero.titleLine2,
+      description: sanitizeShortText(heroInput.description || base.hero.description, 700) || base.hero.description,
+      primaryCtaText:
+        sanitizeShortText(heroInput.primaryCtaText || base.hero.primaryCtaText, 80) || base.hero.primaryCtaText,
+      secondaryCtaText:
+        sanitizeShortText(heroInput.secondaryCtaText || base.hero.secondaryCtaText, 80) || base.hero.secondaryCtaText,
+      portfolioTitle:
+        sanitizeShortText(heroInput.portfolioTitle || base.hero.portfolioTitle, 80) || base.hero.portfolioTitle,
+      portfolioBalance:
+        sanitizeShortText(heroInput.portfolioBalance || base.hero.portfolioBalance, 40) || base.hero.portfolioBalance,
+      stats: {
+        volumeTarget: Number.isFinite(Number(heroStatsInput.volumeTarget))
+          ? Number(heroStatsInput.volumeTarget)
+          : base.hero.stats.volumeTarget,
+        usersTarget: Number.isFinite(Number(heroStatsInput.usersTarget))
+          ? Number(heroStatsInput.usersTarget)
+          : base.hero.stats.usersTarget,
+        uptimeTarget: Number.isFinite(Number(heroStatsInput.uptimeTarget))
+          ? Number(heroStatsInput.uptimeTarget)
+          : base.hero.stats.uptimeTarget,
+        volumeLabel:
+          sanitizeShortText(heroStatsInput.volumeLabel || base.hero.stats.volumeLabel, 80) ||
+          base.hero.stats.volumeLabel,
+        usersLabel:
+          sanitizeShortText(heroStatsInput.usersLabel || base.hero.stats.usersLabel, 80) ||
+          base.hero.stats.usersLabel,
+        uptimeLabel:
+          sanitizeShortText(heroStatsInput.uptimeLabel || base.hero.stats.uptimeLabel, 80) ||
+          base.hero.stats.uptimeLabel,
+        volumeSuffix:
+          sanitizeShortText(heroStatsInput.volumeSuffix || base.hero.stats.volumeSuffix, 20) ||
+          base.hero.stats.volumeSuffix,
+        usersSuffix:
+          sanitizeShortText(heroStatsInput.usersSuffix || base.hero.stats.usersSuffix, 20) ||
+          base.hero.stats.usersSuffix,
+        uptimeSuffix:
+          sanitizeShortText(heroStatsInput.uptimeSuffix || base.hero.stats.uptimeSuffix, 20) ||
+          base.hero.stats.uptimeSuffix,
+      },
+    },
+    market: {
+      enableRandomMovement:
+        typeof marketInput.enableRandomMovement === "boolean"
+          ? marketInput.enableRandomMovement
+          : base.market.enableRandomMovement,
+      assets: normalizeArray(marketInput.assets, base.market.assets)
+        .map((row) => ({
+          name: sanitizeShortText(row?.name || "", 80),
+          symbol: sanitizeShortText(row?.symbol || "", 20).toUpperCase(),
+          price: Number.isFinite(Number(row?.price)) ? Number(row.price) : 0,
+          change: Number.isFinite(Number(row?.change)) ? Number(row.change) : 0,
+          iconClass: sanitizeShortText(row?.iconClass || "btc", 40) || "btc",
+        }))
+        .filter((row) => row.name && row.symbol),
+    },
+    sections: {
+      features: {
+        title:
+          sanitizeShortText(sectionsInput?.features?.title || base.sections.features.title, 120) ||
+          base.sections.features.title,
+        description:
+          sanitizeShortText(sectionsInput?.features?.description || base.sections.features.description, 400) ||
+          base.sections.features.description,
+        items: normalizeArray(sectionsInput?.features?.items, base.sections.features.items)
+          .map((row) => ({
+            icon: sanitizeShortText(row?.icon || "fa-circle", 60) || "fa-circle",
+            title: sanitizeShortText(row?.title || "", 100),
+            description: sanitizeShortText(row?.description || "", 400),
+          }))
+          .filter((row) => row.title && row.description),
+      },
+      howItWorks: {
+        title:
+          sanitizeShortText(sectionsInput?.howItWorks?.title || base.sections.howItWorks.title, 120) ||
+          base.sections.howItWorks.title,
+        description:
+          sanitizeShortText(
+            sectionsInput?.howItWorks?.description || base.sections.howItWorks.description,
+            400,
+          ) || base.sections.howItWorks.description,
+        items: normalizeArray(sectionsInput?.howItWorks?.items, base.sections.howItWorks.items)
+          .map((row) => ({
+            icon: sanitizeShortText(row?.icon || "fa-circle", 60) || "fa-circle",
+            title: sanitizeShortText(row?.title || "", 100),
+            description: sanitizeShortText(row?.description || "", 400),
+          }))
+          .filter((row) => row.title && row.description),
+      },
+      download: {
+        title:
+          sanitizeShortText(sectionsInput?.download?.title || base.sections.download.title, 120) ||
+          base.sections.download.title,
+        description:
+          sanitizeShortText(sectionsInput?.download?.description || base.sections.download.description, 400) ||
+          base.sections.download.description,
+        buttons: normalizeArray(sectionsInput?.download?.buttons, base.sections.download.buttons)
+          .map((row) => ({
+            icon: sanitizeShortText(row?.icon || "fas fa-link", 60) || "fas fa-link",
+            labelTop: sanitizeShortText(row?.labelTop || "", 80),
+            labelBottom: sanitizeShortText(row?.labelBottom || "", 80),
+            href: normalizeHomeContentHref(row?.href, "#download"),
+          }))
+          .filter((row) => row.labelBottom),
+      },
+      faq: {
+        title:
+          sanitizeShortText(sectionsInput?.faq?.title || base.sections.faq.title, 120) ||
+          base.sections.faq.title,
+        description:
+          sanitizeShortText(sectionsInput?.faq?.description || base.sections.faq.description, 400) ||
+          base.sections.faq.description,
+        items: normalizeArray(sectionsInput?.faq?.items, base.sections.faq.items)
+          .map((row) => ({
+            question: sanitizeShortText(row?.question || "", 220),
+            answer: sanitizeShortText(row?.answer || "", 700),
+          }))
+          .filter((row) => row.question && row.answer),
+      },
+    },
+    footer: {
+      socialLinks: normalizeArray(footerInput.socialLinks, base.footer.socialLinks)
+        .map((row) => ({
+          icon: sanitizeShortText(row?.icon || "fas fa-link", 60) || "fas fa-link",
+          href: normalizeHomeContentHref(row?.href, "#home"),
+        }))
+        .filter((row) => row.icon),
+      sections: normalizeArray(footerInput.sections, base.footer.sections)
+        .map((section) => ({
+          title: sanitizeShortText(section?.title || "", 120),
+          links: normalizeArray(section?.links, [])
+            .map((row) => {
+              if (typeof row === "string") {
+                return {
+                  label: sanitizeShortText(row, 80),
+                  href: "#home",
+                };
+              }
+              return {
+                label: sanitizeShortText(row?.label || "", 80),
+                href: normalizeHomeContentHref(row?.href, "#home"),
+              };
+            })
+            .filter((row) => row.label),
+        }))
+        .filter((section) => section.title),
+      legalLinks: normalizeArray(footerInput.legalLinks, base.footer.legalLinks)
+        .map((row) => ({
+          label: sanitizeShortText(row?.label || "", 80),
+          href: normalizeHomeContentHref(row?.href, "#home"),
+        }))
+        .filter((row) => row.label),
+      adminPanelLinkText:
+        sanitizeShortText(footerInput.adminPanelLinkText || base.footer.adminPanelLinkText, 80) ||
+        base.footer.adminPanelLinkText,
+      adminPanelHref: normalizeHomeContentHref(footerInput.adminPanelHref, "/admin"),
+    },
+  };
+
+  if (!normalizedContent.nav.links.length) {
+    normalizedContent.nav.links = base.nav.links;
+  }
+  if (!normalizedContent.market.assets.length) {
+    normalizedContent.market.assets = base.market.assets;
+  }
+  if (!normalizedContent.sections.features.items.length) {
+    normalizedContent.sections.features.items = base.sections.features.items;
+  }
+  if (!normalizedContent.sections.howItWorks.items.length) {
+    normalizedContent.sections.howItWorks.items = base.sections.howItWorks.items;
+  }
+  if (!normalizedContent.sections.download.buttons.length) {
+    normalizedContent.sections.download.buttons = base.sections.download.buttons;
+  }
+  if (!normalizedContent.sections.faq.items.length) {
+    normalizedContent.sections.faq.items = base.sections.faq.items;
+  }
+  if (!normalizedContent.footer.sections.length) {
+    normalizedContent.footer.sections = base.footer.sections;
+  }
+  if (!normalizedContent.footer.socialLinks.length) {
+    normalizedContent.footer.socialLinks = base.footer.socialLinks;
+  }
+  if (!normalizedContent.footer.legalLinks.length) {
+    normalizedContent.footer.legalLinks = base.footer.legalLinks;
+  }
+
+  return normalizedContent;
+}
+
+function readHomePageContentConfig() {
+  const row = getLatestActiveHomePageConfigStatement.get();
+  if (!row) {
+    return {
+      config: normalizeHomePageContentConfig(buildDefaultHomePageContentConfig()),
+      source: "default",
+      updatedAt: "",
+      updatedBy: "",
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(String(row.config_json || "{}"));
+    return {
+      config: normalizeHomePageContentConfig(parsed),
+      source: "database",
+      updatedAt: row.updated_at || row.created_at || "",
+      updatedBy: row.updated_by || "",
+    };
+  } catch {
+    return {
+      config: normalizeHomePageContentConfig(buildDefaultHomePageContentConfig()),
+      source: "default",
+      updatedAt: row.updated_at || row.created_at || "",
+      updatedBy: row.updated_by || "",
+    };
+  }
 }
 
 function buildDepositAssetPayload(row) {
@@ -3150,6 +3654,8 @@ app.get("/api/auth/public-config", (_req, res) => {
     publicAuthBaseUrl: PUBLIC_AUTH_BASE_URL,
   });
 });
+
+app.get("/api/home/content", handleHomeContentGet);
 
 async function handleSignupSendOtp(req, res) {
   try {
@@ -4448,6 +4954,72 @@ async function handleAdminNoticeUpdate(req, res) {
   }
 }
 
+function handleHomeContentGet(_req, res) {
+  try {
+    cleanupExpiredRecords();
+    const homeContent = readHomePageContentConfig();
+    res.json({
+      content: homeContent.config,
+      updatedAt: homeContent.updatedAt,
+      source: homeContent.source,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load home page content." });
+  }
+}
+
+function handleAdminHomeContentGet(_req, res) {
+  try {
+    cleanupExpiredRecords();
+    const homeContent = readHomePageContentConfig();
+    res.json({
+      content: homeContent.config,
+      updatedAt: homeContent.updatedAt,
+      updatedBy: homeContent.updatedBy,
+      source: homeContent.source,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load admin home content." });
+  }
+}
+
+async function handleAdminHomeContentSave(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const payload = req.body?.content;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Valid content object is required.");
+    }
+
+    const normalized = normalizeHomePageContentConfig(payload);
+    const nowIso = toIso(getNow());
+    const updateBy = sanitizeShortText(req.currentUser?.userId || "admin", 40) || "admin";
+
+    const updateTransaction = db.transaction(() => {
+      clearActiveHomePageConfigsStatement.run({ updatedAt: nowIso });
+      insertHomePageConfigStatement.run({
+        configJson: JSON.stringify(normalized),
+        isActive: 1,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        updatedBy: updateBy,
+      });
+    });
+
+    updateTransaction();
+    await persistDbToBlobSafe("admin.home.content.save");
+
+    res.json({
+      message: "Website home content saved successfully.",
+      content: normalized,
+      updatedAt: nowIso,
+      updatedBy: updateBy,
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not save home content." });
+  }
+}
+
 function handleAdminDepositAssetsList(_req, res) {
   try {
     cleanupExpiredRecords();
@@ -4831,6 +5403,9 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.auth.logout":
       requireAdminSession(req, res, () => handleAdminLogout(req, res));
       return;
+    case "home.content.get":
+      handleHomeContentGet(req, res);
+      return;
     case "signup.send-otp":
       await handleSignupSendOtp(req, res);
       return;
@@ -5108,6 +5683,12 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.notice.update":
       requireAdminSession(req, res, () => handleAdminNoticeUpdate(req, res));
+      return;
+    case "admin.home.content.get":
+      requireAdminSession(req, res, () => handleAdminHomeContentGet(req, res));
+      return;
+    case "admin.home.content.save":
+      requireAdminSession(req, res, () => handleAdminHomeContentSave(req, res));
       return;
     case "admin.deposit.assets.list":
       requireAdminSession(req, res, () => handleAdminDepositAssetsList(req, res));

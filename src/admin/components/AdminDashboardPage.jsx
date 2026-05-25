@@ -16,6 +16,7 @@ import BinaryManagementPage from "./BinaryManagementPage";
 import TransactionManagementPage from "./TransactionManagementPage";
 import AssetManagementPage from "./AssetManagementPage";
 import SupportManagementPage from "./SupportManagementPage";
+import HomeContentManagementPage from "./HomeContentManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -86,6 +87,7 @@ export default function AdminDashboardPage({
   transactionCenter,
   assetCenter,
   supportCenter,
+  webContent,
   activeSection,
   onSectionChange,
   onRefresh,
@@ -141,6 +143,7 @@ export default function AdminDashboardPage({
   onLoadSupportTicketDetail,
   onReplySupportTicket,
   onUpdateSupportTicket,
+  onSaveHomeContent,
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
@@ -194,6 +197,7 @@ export default function AdminDashboardPage({
         "transactionCenter",
         "assetCenter",
         "supportCenter",
+        "webContent",
       ]),
     [],
   );
@@ -209,6 +213,7 @@ export default function AdminDashboardPage({
       transactionCenter: formatCompactNumber(transactionCenter?.summary?.openSpotOrders || 0),
       assetCenter: formatCompactNumber(assetCenter?.withdrawals?.pagination?.total || 0),
       supportCenter: formatCompactNumber(supportCenter?.summary?.pendingAdminTickets || 0),
+      webContent: "CMS",
     }),
     [
       assetCenter?.withdrawals?.pagination?.total,
@@ -286,6 +291,13 @@ export default function AdminDashboardPage({
         { label: "Unread", value: formatCompactNumber(supportCenter?.summary?.unreadForAdmin || 0) },
       ];
     }
+    if (activeSection === "webContent") {
+      return [
+        { label: "Features", value: formatCompactNumber(webContent?.summary?.features || 0) },
+        { label: "FAQ", value: formatCompactNumber(webContent?.summary?.faqs || 0) },
+        { label: "Assets", value: formatCompactNumber(webContent?.summary?.assets || 0) },
+      ];
+    }
     return [];
   }, [
     activeSection,
@@ -313,6 +325,9 @@ export default function AdminDashboardPage({
     userDirectory?.stats?.activeUsers,
     userDirectory?.stats?.pendingVerifications,
     userDirectory?.stats?.totalUsers,
+    webContent?.summary?.assets,
+    webContent?.summary?.faqs,
+    webContent?.summary?.features,
   ]);
 
   const renderDashboard = () => (
@@ -566,8 +581,10 @@ export default function AdminDashboardPage({
                         ? "Search transaction pairs, orders, logs..."
                       : activeSection === "assetCenter"
                         ? "Search wallets, withdrawals, transfers..."
-                      : activeSection === "supportCenter"
+                    : activeSection === "supportCenter"
                         ? "Search support tickets, user, subjects..."
+                      : activeSection === "webContent"
+                        ? "Search website content notes..."
                         : "Search records..."
                     : "Search is available in data sections"
                 }
@@ -761,6 +778,18 @@ export default function AdminDashboardPage({
             adminUser={adminUser}
           />
         ) : null}
+        {activeSection === "webContent" ? (
+          <HomeContentManagementPage
+            contentConfig={webContent?.content || {}}
+            contentUpdatedAt={webContent?.updatedAt || ""}
+            contentUpdatedBy={webContent?.updatedBy || ""}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onSaveContent={onSaveHomeContent}
+          />
+        ) : null}
         {activeSection !== "dashboard" &&
         activeSection !== "users" &&
         activeSection !== "kycReview" &&
@@ -769,7 +798,8 @@ export default function AdminDashboardPage({
         activeSection !== "binaryCenter" &&
         activeSection !== "transactionCenter" &&
         activeSection !== "assetCenter" &&
-        activeSection !== "supportCenter"
+        activeSection !== "supportCenter" &&
+        activeSection !== "webContent"
           ? renderPlaceholder()
           : null}
       </section>

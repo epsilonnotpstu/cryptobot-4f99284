@@ -539,6 +539,20 @@ function buildSupportCenterModel(summaryPayload, ticketsPayload, auditPayload) {
   };
 }
 
+function buildWebContentModel(payload) {
+  const content = payload?.content || {};
+  return {
+    content,
+    updatedAt: String(payload?.updatedAt || ""),
+    updatedBy: String(payload?.updatedBy || ""),
+    summary: {
+      features: Array.isArray(content?.sections?.features?.items) ? content.sections.features.items.length : 0,
+      faqs: Array.isArray(content?.sections?.faq?.items) ? content.sections.faq.items.length : 0,
+      assets: Array.isArray(content?.market?.assets) ? content.market.assets.length : 0,
+    },
+  };
+}
+
 const DEFAULT_DASHBOARD = {
   metrics: [
     { key: "users", label: "Total Users", value: 0, icon: "fa-users", growth: "No pending KYC", tone: "blue", format: "number" },
@@ -741,6 +755,17 @@ const DEFAULT_SUPPORT_CENTER = {
   auditLogs: { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
 };
 
+const DEFAULT_WEB_CONTENT = {
+  content: {},
+  updatedAt: "",
+  updatedBy: "",
+  summary: {
+    features: 0,
+    faqs: 0,
+    assets: 0,
+  },
+};
+
 export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth, requireFreshLogin = false }) {
   const [mode, setMode] = useState("login");
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -762,6 +787,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [transactionCenter, setTransactionCenter] = useState(DEFAULT_TRANSACTION_CENTER);
   const [assetCenter, setAssetCenter] = useState(DEFAULT_ASSET_CENTER);
   const [supportCenter, setSupportCenter] = useState(DEFAULT_SUPPORT_CENTER);
+  const [webContent, setWebContent] = useState(DEFAULT_WEB_CONTENT);
 
   const clearAuthFeedback = () => {
     setAuthError("");
@@ -1021,6 +1047,13 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
         );
       } catch {
         setSupportCenter(DEFAULT_SUPPORT_CENTER);
+      }
+
+      try {
+        const webContentPayload = await authService.adminGetHomeContent({ sessionToken: snapshot.sessionToken });
+        setWebContent(buildWebContentModel(webContentPayload));
+      } catch {
+        setWebContent(DEFAULT_WEB_CONTENT);
       }
     } catch (error) {
       setDashboardError(error.message || "Could not load admin dashboard data.");
@@ -1694,6 +1727,19 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const saveHomeContent = useCallback(async (content) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveHomeContent({
+      sessionToken: snapshot.sessionToken,
+      content,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
   useEffect(() => {
     refreshAdminSession();
   }, [refreshAdminSession]);
@@ -1772,6 +1818,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       setTransactionCenter(DEFAULT_TRANSACTION_CENTER);
       setAssetCenter(DEFAULT_ASSET_CENTER);
       setSupportCenter(DEFAULT_SUPPORT_CENTER);
+      setWebContent(DEFAULT_WEB_CONTENT);
       clearAuthFeedback();
     }
   };
@@ -1814,6 +1861,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       transactionCenter={transactionCenter}
       assetCenter={assetCenter}
       supportCenter={supportCenter}
+      webContent={webContent}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
       onRefresh={loadAdminData}
@@ -1869,6 +1917,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onLoadSupportTicketDetail={loadSupportTicketDetail}
       onReplySupportTicket={replySupportTicket}
       onUpdateSupportTicket={updateSupportTicket}
+      onSaveHomeContent={saveHomeContent}
     />
   );
 }

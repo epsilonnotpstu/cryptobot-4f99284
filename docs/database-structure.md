@@ -91,6 +91,17 @@ Columns:
 - `created_at` TEXT
 - `updated_at` TEXT
 
+### `home_page_configs`
+Stores admin-managed dynamic website home page content as JSON snapshot.
+
+Columns:
+- `id` INTEGER PK
+- `config_json` TEXT
+- `is_active` INTEGER (`0/1`)
+- `created_at` TEXT
+- `updated_at` TEXT
+- `updated_by` TEXT
+
 ### `deposit_assets`
 Admin-configured crypto deposit assets/chains.
 

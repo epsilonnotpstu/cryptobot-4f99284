@@ -2441,6 +2441,54 @@
   max-width: 340px;
 }
 
+.adminx-web-content-root {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.adminx-web-content-meta .adminx-simple-list p strong {
+  color: #f8fbff;
+}
+
+.adminx-web-content-editor {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.adminx-web-content-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.adminx-web-content-textarea-wrap {
+  display: grid;
+}
+
+.adminx-web-content-textarea-wrap textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(3, 10, 20, 0.64);
+  color: #deedff;
+  padding: 0.78rem;
+  font-family: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 420px;
+}
+
+.adminx-web-content-textarea-wrap textarea:focus {
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: var(--adminx-focus-ring);
+  outline: none;
+}
+
+.adminx-web-content-local-search {
+  max-width: 360px;
+}
+
 @media (max-width: 1360px) {
   .adminx-support-kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
