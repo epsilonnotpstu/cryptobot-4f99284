@@ -74,7 +74,7 @@ const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
 const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
 const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
 const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
-  import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "cryptobotprime://auth-callback",
+  import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "rampxtrading://auth-callback",
 );
 
 const initialAssets = [
@@ -141,7 +141,7 @@ const steps = [
 
 const faqs = [
   {
-    question: "Is CryptoByte Pro safe and secure?",
+    question: "Is RampXTrading safe and secure?",
     answer:
       "Yes, we use bank-level security, email verification, encrypted password storage, and protected account recovery.",
   },
@@ -176,10 +176,10 @@ const footerSections = [
 
 const DEFAULT_HOME_PAGE_CONTENT = {
   brand: {
-    name: "CryptoByte Pro",
+    name: "RampXTrading",
     footerDescription:
       "The world's most trusted cryptocurrency trading platform with advanced security and professional tools.",
-    copyrightText: "© 2024 CryptoByte Pro. All rights reserved.",
+    copyrightText: "© 2024 RampXTrading. All rights reserved.",
   },
   nav: {
     loginText: "Login",
@@ -218,7 +218,7 @@ const DEFAULT_HOME_PAGE_CONTENT = {
   },
   sections: {
     features: {
-      title: "Why Choose CryptoByte Pro?",
+      title: "Why Choose RampXTrading?",
       description: "Advanced features designed for both beginners and professional traders",
       items: features,
     },
@@ -648,14 +648,14 @@ function isDevOrLocalBrowserContext() {
 
 function buildFetchErrorMessage() {
   if (isNativeAppRuntime()) {
-    return "API reach করা যাচ্ছে না. Mobile app-এ real device হলে `localhost/127.0.0.1` কাজ করে না. .env-এ `VITE_API_BASE_URL`-এ PC/LAN IP বা public HTTPS URL দাও; emulator হলে `10.0.2.2` ব্যবহার করা যায়. তারপর npm run cap:sync করে app rebuild করো.";
+    return "Cannot reach API. On a real mobile device, `localhost/127.0.0.1` will not work. Set `VITE_API_BASE_URL` in .env to your PC/LAN IP or a public HTTPS URL; on emulator you can use `10.0.2.2`. Then run `npm run cap:sync` and rebuild the app.";
   }
 
   if (typeof window !== "undefined" && !isDevOrLocalBrowserContext()) {
-    return "Backend reach করা যাচ্ছে না. Vercel deploy হলে একই project-এর `/api` function live আছে কিনা check করো. যদি external backend ব্যবহার করো, `VITE_API_BASE_URL`-এ public HTTPS URL দিয়ে frontend redeploy করো.";
+    return "Cannot reach backend. If deployed on Vercel, check whether `/api` functions are live in the same project. If you use an external backend, set `VITE_API_BASE_URL` to a public HTTPS URL and redeploy the frontend.";
   }
 
-  return "Backend server reach করা যাচ্ছে না. npm run server:start বা npm run dev:all চালু আছে কিনা check করো.";
+  return "Cannot reach backend server. Check whether `npm run server:start` or `npm run dev:all` is running.";
 }
 
 function isLocalBrowserHost() {
@@ -926,15 +926,15 @@ async function openExternalAuthUrl(url) {
 function normalizeAuthErrorMessage(message = "") {
   if (/could not find an api backend at\s*`?\/api`?/i.test(message)) {
     if (isDevOrLocalBrowserContext()) {
-      return "Local frontend `/api` backend পায়নি. `npm run dev:all` চালাও (বা আলাদা করে `npm run server:start`), এবং `.env.local`-এ `VITE_API_BASE_URL` local backend URL দাও.";
+      return "Local frontend could not reach backend at `/api`. Run `npm run dev:all` (or `npm run server:start` separately), and set `VITE_API_BASE_URL` in `.env.local` to your local backend URL.";
     }
     return "This deployed frontend could not find an API backend at `/api`. Make sure your Vercel deployment includes the `api/auth/...` function files and `api/health.js`, then redeploy.";
   }
   if (/the page could not be found|not_found/i.test(message)) {
-    return "Auth API route পাওয়া যায়নি. Vercel deploy-এ `api/auth/...` files include হয়েছে কিনা check করে redeploy করো.";
+    return "Auth API route was not found. Check whether `api/auth/...` files are included in the Vercel deployment and redeploy.";
   }
   if (/smtp|invalid login|535|sender/i.test(message)) {
-    return "OTP email service configured হয়নি. SMTP login/key বা verified sender ঠিক করতে হবে, তারপর আবার চেষ্টা করো.";
+    return "OTP email service is not configured correctly. Fix SMTP login/key or verified sender, then try again.";
   }
   return message || "Request failed.";
 }
@@ -942,7 +942,7 @@ function normalizeAuthErrorMessage(message = "") {
 function buildOtpNotice(data, defaultMessage) {
   if (data?.delivery === "dev-fallback" && data?.devOtp) {
     const emailIssue = data.emailError ? ` Email issue: ${data.emailError}` : "";
-    return `Email delivery failed, so dev OTP auto-filled করা হয়েছে: ${data.devOtp}.${emailIssue}`;
+    return `Email delivery failed, so a dev OTP was auto-filled: ${data.devOtp}.${emailIssue}`;
   }
   return data?.message || defaultMessage;
 }
@@ -1033,7 +1033,7 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken, timeo
   if (lastNetworkError) {
     if (lastNetworkError?.name === "AbortError") {
       throw new Error(
-        "OTP request timeout হয়েছে. Backend server URL check করো. Browser এ হলে `npm run dev:all` চালিয়ে `/api` proxy use করাই best.",
+        "OTP request timed out. Check backend server URL. In browser, running `npm run dev:all` with `/api` proxy is recommended.",
       );
     }
     throw new Error(buildFetchErrorMessage());
@@ -2459,18 +2459,18 @@ function useAuthFlow({ initialView, authSnapshot, onAuthenticated }) {
 
     if (!PUBLIC_AUTH_BASE_URL) {
       setError(
-        "Mobile Google sign-in-এর জন্য .env-এ VITE_PUBLIC_AUTH_BASE_URL এ public HTTPS tunnel/domain দাও, তারপর app rebuild করো.",
+        "For mobile Google sign-in, set `VITE_PUBLIC_AUTH_BASE_URL` in .env to a public HTTPS tunnel/domain, then rebuild the app.",
       );
       return;
     }
 
     if (!hasValidHttpsPublicAuthBase()) {
-      setError("VITE_PUBLIC_AUTH_BASE_URL অবশ্যই https:// URL হতে হবে (Google secure browser flow). ");
+      setError("`VITE_PUBLIC_AUTH_BASE_URL` must be an `https://` URL (Google secure browser flow).");
       return;
     }
 
     if (!hasValidNativeCallbackUrl()) {
-      setError("VITE_NATIVE_AUTH_CALLBACK_URL invalid. Example: cryptobotprime://auth-callback");
+      setError("VITE_NATIVE_AUTH_CALLBACK_URL invalid. Example: rampxtrading://auth-callback");
       return;
     }
 
@@ -2482,12 +2482,12 @@ function useAuthFlow({ initialView, authSnapshot, onAuthenticated }) {
 
     const opened = await openExternalAuthUrl(publicUrl);
     if (!opened) {
-      setError("Secure browser open করা যায়নি. Public auth URL manually browser-এ খুলো.");
+      setError("Could not open secure browser. Open the public auth URL manually in browser.");
       return;
     }
 
     setNotice(
-      "Google sign-in secure browser-এ open হয়েছে. সেখানে sign-in complete করো. Native WebView-এ Google login supported না.",
+      "Google sign-in opened in a secure browser. Complete sign-in there. Native WebView Google login is not supported.",
     );
   };
 
@@ -2620,7 +2620,7 @@ function AuthForms({ flow, classes }) {
       window.location.href = callbackUrl.toString();
       return true;
     } catch {
-      flow.setError("Native callback URL invalid. App config check করে আবার চেষ্টা করো.");
+      flow.setError("Native callback URL is invalid. Check app configuration and try again.");
       return false;
     }
   };
@@ -2635,8 +2635,8 @@ function AuthForms({ flow, classes }) {
         <p className="auth-social-copy">
           {isNativeRuntime
             ? hasNativeGoogleUrl
-              ? "Native app-এ Google sign-in secure browser-এ open হবে."
-              : "Native app-এ Google sign-in secure browser-এ চলবে. Public HTTPS tunnel/domain লাগবে."
+              ? "Google sign-in will open in a secure browser on native app."
+              : "Native app Google sign-in runs in secure browser and requires a public HTTPS tunnel/domain."
             : "Use your verified Google account for instant access."}
         </p>
         {isNativeRuntime ? (
@@ -2653,7 +2653,7 @@ function AuthForms({ flow, classes }) {
               <GoogleAuthRenderBoundary
                 fallback={
                   <p className="mobile-auth-notice">
-                    Google sign-in temporarily unavailable. Email/Password login use করো, অথবা page refresh করে আবার try করো।
+                    Google sign-in is temporarily unavailable. Use Email/Password login, or refresh the page and try again.
                   </p>
                 }
               >
@@ -2692,7 +2692,7 @@ function AuthForms({ flow, classes }) {
               </GoogleAuthRenderBoundary>
             ) : (
               <p className="mobile-auth-notice">
-                Google sign-in is বর্তমানে disabled. `VITE_GOOGLE_CLIENT_ID` সেট করে redeploy করলে button show করবে।
+                Google sign-in is currently disabled. Set `VITE_GOOGLE_CLIENT_ID` and redeploy to show this button.
               </p>
             )}
           </div>
@@ -2964,7 +2964,7 @@ function AuthPage({ mode, authSnapshot, onAuthenticated, onBackHome }) {
       <header className="auth-topbar">
         <button type="button" className="auth-brand" onClick={onBackHome}>
           <i className="fas fa-cube" />
-          <span>CryptoByte Pro</span>
+          <span>RampXTrading</span>
         </button>
 
         <div className="auth-topbar-actions">
@@ -3044,7 +3044,7 @@ function MobileAuthPage({ authSnapshot, onAuthenticated }) {
       <section className="mobile-auth-card">
         <div className="mobile-auth-brand">
           <i className="fas fa-coins" />
-          <span>CryptoByte</span>
+          <span>RampXTrading</span>
         </div>
 
         <div className="mobile-auth-copy">
@@ -3081,7 +3081,7 @@ function MobileLoadingPage() {
       <section className="mobile-auth-card mobile-auth-loading">
         <div className="mobile-auth-brand">
           <i className="fas fa-coins" />
-          <span>CryptoByte</span>
+          <span>RampXTrading</span>
         </div>
         <div className="mobile-auth-copy">
           <p className="mobile-auth-kicker">Secure Session</p>
@@ -3775,7 +3775,7 @@ function HomePage({
           <div className="nav-brand">
             <div className="logo">
               <i className="fas fa-cube" />
-              <span>{homeContent?.brand?.name || "CryptoByte Pro"}</span>
+              <span>{homeContent?.brand?.name || "RampXTrading"}</span>
             </div>
           </div>
 
@@ -3901,7 +3901,7 @@ function HomePage({
       <section id="features" className="features">
         <div className="container">
           <div className="section-header">
-            <h2 className="section-title">{homeContent?.sections?.features?.title || "Why Choose CryptoByte Pro?"}</h2>
+            <h2 className="section-title">{homeContent?.sections?.features?.title || "Why Choose RampXTrading?"}</h2>
             <p className="section-description">{homeContent?.sections?.features?.description || ""}</p>
           </div>
 
@@ -3975,7 +3975,7 @@ function HomePage({
                 <div className="phone-screen">
                   <div className="app-interface">
                     <div className="app-header">
-                      <div className="app-title">CryptoByte Pro</div>
+                      <div className="app-title">RampXTrading</div>
                       <div className="app-balance">$45,678.90</div>
                     </div>
                     <div className="app-chart" />
@@ -4021,7 +4021,7 @@ function HomePage({
             <div className="footer-brand">
               <div className="logo">
                 <i className="fas fa-cube" />
-                <span>{homeContent?.brand?.name || "CryptoByte Pro"}</span>
+                <span>{homeContent?.brand?.name || "RampXTrading"}</span>
               </div>
               <p className="footer-description">{homeContent?.brand?.footerDescription || ""}</p>
               <div className="social-links">
@@ -4047,7 +4047,7 @@ function HomePage({
 
           <div className="footer-bottom">
             <div className="footer-copyright">
-              <p>{homeContent?.brand?.copyrightText || "© 2024 CryptoByte Pro. All rights reserved."}</p>
+              <p>{homeContent?.brand?.copyrightText || "© 2024 RampXTrading. All rights reserved."}</p>
             </div>
             <div className="footer-legal">
               {footerLegalLinks.map((link) => (
@@ -4161,7 +4161,7 @@ function App() {
       const expectedState = consumeNativeGoogleState();
       const receivedState = parsedUrl.searchParams.get("state") || "";
       if (expectedState && receivedState !== expectedState) {
-        persistTransientAuthFeedback({ error: "Google sign-in state mismatch হয়েছে. আবার চেষ্টা করো." });
+        persistTransientAuthFeedback({ error: "Google sign-in state mismatch. Please try again." });
         goToRoute(ROUTES.login);
         setRoute(ROUTES.login);
         return;
@@ -4177,7 +4177,7 @@ function App() {
 
       const token = parsedUrl.searchParams.get("token") || "";
       if (!token) {
-        persistTransientAuthFeedback({ error: "Google token পাওয়া যায়নি. আবার চেষ্টা করো." });
+        persistTransientAuthFeedback({ error: "Google token was not found. Please try again." });
         goToRoute(ROUTES.login);
         setRoute(ROUTES.login);
         return;

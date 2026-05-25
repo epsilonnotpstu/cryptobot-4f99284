@@ -740,7 +740,9 @@ export default function PremiumDashboardPage({
     }
 
     if (file.size > KYC_TEST_FILE_MAX_BYTES) {
-      setKycError("Testing phase: upload smaller file now. Premium backend DB হলে বড় সাইজ enable হবে.");
+      setKycError(
+        "Testing phase: upload a smaller file now. Larger file size support will be enabled with premium backend database upgrades.",
+      );
       return;
     }
 
@@ -1072,7 +1074,7 @@ export default function PremiumDashboardPage({
           </button>
 
           <div className="prodash-brand-block">
-            <p>CryptoByte Prime</p>
+            <p>RampXTrading</p>
             <strong>
               {showProfile
                 ? "Profile Settings"
@@ -1156,7 +1158,7 @@ export default function PremiumDashboardPage({
                         </div>
                       ) : null}
                       {!isUserKycAuthenticated ? (
-                        <p className="prodash-lock-note">KYC authenticated না হলে deposit এবং premium actions lock থাকবে.</p>
+                        <p className="prodash-lock-note">Deposit and premium actions stay locked until KYC is authenticated.</p>
                       ) : null}
                     </div>
 

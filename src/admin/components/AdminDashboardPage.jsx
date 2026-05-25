@@ -521,7 +521,7 @@ export default function AdminDashboardPage({
             <i className="fas fa-bolt" />
           </span>
           <div>
-            <strong>CryptoBot</strong>
+            <strong>RampXTrading</strong>
             <small>Admin Platform</small>
           </div>
         </div>

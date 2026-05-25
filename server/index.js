@@ -1372,7 +1372,7 @@ app.use(express.json({ limit: "20mb" }));
 
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
-const APP_NAME = process.env.APP_NAME || "CryptoBot Prime";
+const APP_NAME = process.env.APP_NAME || "RampXTrading";
 const shouldServeStaticAssets =
   (
     String(process.env.SERVE_STATIC || "")
@@ -1735,8 +1735,8 @@ function getOtpEmailTemplate({ email, otp, purpose, name }) {
   const title = purpose === "signup" ? "Your signup verification code" : "Your password reset code";
   const intro =
     purpose === "signup"
-      ? "Use this code to complete your CryptoBot Prime signup."
-      : "Use this code to continue your CryptoBot Prime password reset.";
+      ? "Use this code to complete your RampXTrading signup."
+      : "Use this code to continue your RampXTrading password reset.";
 
   return {
     to: email,
@@ -2519,10 +2519,10 @@ function buildNoticePayload(row) {
 function buildDefaultHomePageContentConfig() {
   return {
     brand: {
-      name: "CryptoByte Pro",
+      name: "RampXTrading",
       footerDescription:
         "The world's most trusted cryptocurrency trading platform with advanced security and professional tools.",
-      copyrightText: "© 2024 CryptoByte Pro. All rights reserved.",
+      copyrightText: "© 2024 RampXTrading. All rights reserved.",
     },
     nav: {
       loginText: "Login",
@@ -2565,7 +2565,7 @@ function buildDefaultHomePageContentConfig() {
     },
     sections: {
       features: {
-        title: "Why Choose CryptoByte Pro?",
+        title: "Why Choose RampXTrading?",
         description: "Advanced features designed for both beginners and professional traders",
         items: [
           {
@@ -2641,7 +2641,7 @@ function buildDefaultHomePageContentConfig() {
         description: "Get answers to the most common questions about our platform",
         items: [
           {
-            question: "Is CryptoByte Pro safe and secure?",
+            question: "Is RampXTrading safe and secure?",
             answer:
               "Yes, we use bank-level security, email verification, encrypted password storage, and protected account recovery.",
           },
@@ -4268,7 +4268,7 @@ async function handleKycSubmit(req, res) {
 
     if (frontFileInfo.bytes > TEST_KYC_FILE_MAX_BYTES || backFileInfo.bytes > TEST_KYC_FILE_MAX_BYTES) {
       throw new Error(
-        "Testing phase: upload a smaller file. Premium backend DB হলে বড় সাইজ upload enable করা হবে.",
+        "Testing phase: upload a smaller file now. Larger upload sizes will be enabled with premium backend database upgrades.",
       );
     }
 

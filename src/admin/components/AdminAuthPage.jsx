@@ -58,7 +58,7 @@ export default function AdminAuthPage({
             <i className="fas fa-bolt" />
           </span>
           <span>
-            CryptoBot
+            RampXTrading
             <small>Admin Platform</small>
           </span>
         </button>
@@ -105,7 +105,7 @@ export default function AdminAuthPage({
                 type="text"
                 value={loginForm.email}
                 onChange={(event) => setLoginForm((prev) => ({ ...prev, email: event.target.value }))}
-                placeholder="admin@cryptobot.com or 6-digit user ID"
+                placeholder="admin@rampxtrading.com or 6-digit user ID"
                 required
               />
             </label>
@@ -154,7 +154,7 @@ export default function AdminAuthPage({
                 type="email"
                 value={signupForm.email}
                 onChange={(event) => setSignupForm((prev) => ({ ...prev, email: event.target.value }))}
-                placeholder="admin@cryptobot.com"
+                placeholder="admin@rampxtrading.com"
                 required
               />
             </label>

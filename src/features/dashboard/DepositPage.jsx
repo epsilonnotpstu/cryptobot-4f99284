@@ -472,7 +472,7 @@ export default function DepositPage({
           </button>
 
           <div className="prodash-brand-block">
-            <p>CryptoByte Prime</p>
+            <p>RampXTrading</p>
             <strong>
               {step === "asset-select"
                 ? "Select Deposit Crypto"
