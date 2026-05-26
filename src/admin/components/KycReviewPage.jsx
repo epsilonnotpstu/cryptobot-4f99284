@@ -125,6 +125,7 @@ export default function KycReviewPage({
   onSearchChange,
   onRefresh,
   onReviewRequest,
+  onFetchRequestDetail,
 }) {
   const [requestTab, setRequestTab] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -174,9 +175,25 @@ export default function KycReviewPage({
     });
   }, [certificationFilter, requestTab, requests, searchValue]);
 
-  const openDetailModal = (request) => {
+  const openDetailModal = async (request) => {
     setDetailRequest(request || null);
     setDetailModalOpen(true);
+
+    const requestId = Number(request?.requestId || 0);
+    const hasMedia = Boolean(String(request?.frontFileData || "").trim() || String(request?.backFileData || "").trim());
+    if (!requestId || hasMedia || typeof onFetchRequestDetail !== "function") {
+      return;
+    }
+
+    try {
+      const detailResponse = await onFetchRequestDetail(requestId);
+      const detail = detailResponse?.request || null;
+      if (detail?.requestId === requestId) {
+        setDetailRequest(detail);
+      }
+    } catch {
+      // Keep modal usable with lightweight row data even if detail fetch fails.
+    }
   };
 
   const openReviewModal = (request, decision) => {

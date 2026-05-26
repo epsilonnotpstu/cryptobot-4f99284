@@ -74,6 +74,7 @@ export default function DepositManagementPage({
   onUpsertAsset,
   onDeleteAsset,
   onReviewRequest,
+  onFetchRequestDetail,
 }) {
   const [sectionTab, setSectionTab] = useState("assets");
   const [requestStatusFilter, setRequestStatusFilter] = useState("all");
@@ -256,9 +257,25 @@ export default function DepositManagementPage({
     }
   };
 
-  const openRequestDetail = (request) => {
+  const openRequestDetail = async (request) => {
     setDetailRequest(request || null);
     setDetailModalOpen(true);
+
+    const requestId = Number(request?.requestId || 0);
+    const hasMedia = Boolean(String(request?.screenshotFileData || "").trim());
+    if (!requestId || hasMedia || typeof onFetchRequestDetail !== "function") {
+      return;
+    }
+
+    try {
+      const detailResponse = await onFetchRequestDetail(requestId);
+      const detail = detailResponse?.request || null;
+      if (detail?.requestId === requestId) {
+        setDetailRequest(detail);
+      }
+    } catch {
+      // Keep modal usable with lightweight row data even if detail fetch fails.
+    }
   };
 
   const openReviewModal = (request, decision) => {

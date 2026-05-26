@@ -98,9 +98,11 @@ export default function AdminDashboardPage({
   onUpdateUser,
   onDeleteUser,
   onReviewKycRequest,
+  onFetchKycRequestDetail,
   onUpsertDepositAsset,
   onDeleteDepositAsset,
   onReviewDepositRequest,
+  onFetchDepositRequestDetail,
   onCreateLumPlan,
   onUpdateLumPlan,
   onDeleteLumPlan,
@@ -654,6 +656,7 @@ export default function AdminDashboardPage({
             onSearchChange={setAdminSearch}
             onRefresh={onRefresh}
             onReviewRequest={onReviewKycRequest}
+            onFetchRequestDetail={onFetchKycRequestDetail}
           />
         ) : null}
         {activeSection === "depositCenter" ? (
@@ -668,6 +671,7 @@ export default function AdminDashboardPage({
             onUpsertAsset={onUpsertDepositAsset}
             onDeleteAsset={onDeleteDepositAsset}
             onReviewRequest={onReviewDepositRequest}
+            onFetchRequestDetail={onFetchDepositRequestDetail}
           />
         ) : null}
         {activeSection === "lumCenter" ? (

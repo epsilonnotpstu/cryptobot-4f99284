@@ -917,12 +917,23 @@ const findKycSubmissionWithUserByIdStatement = db.prepare(`
   WHERE k.id = ?
   LIMIT 1
 `);
-const listLatestKycSubmissionsStatement = db.prepare(`
+const findKycSubmissionWithUserMediaByIdStatement = db.prepare(`
   SELECT k.id, k.user_id, k.full_name, k.certification, k.ssn, k.front_file_name, k.front_file_data,
-    k.back_file_name, k.back_file_data,
+         k.back_file_name, k.back_file_data,
          k.status, k.note, k.submitted_at, k.reviewed_at, k.reviewed_by,
          u.name AS account_name, u.email AS account_email, u.kyc_status AS account_kyc_status,
-    u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
+         u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
+  FROM kyc_submissions k
+  JOIN platform_users u ON u.user_id = k.user_id
+  WHERE k.id = ?
+  LIMIT 1
+`);
+const listLatestKycSubmissionsStatement = db.prepare(`
+  SELECT k.id, k.user_id, k.full_name, k.certification, k.ssn, k.front_file_name,
+         k.back_file_name,
+         k.status, k.note, k.submitted_at, k.reviewed_at, k.reviewed_by,
+         u.name AS account_name, u.email AS account_email, u.kyc_status AS account_kyc_status,
+         u.auth_tag AS account_auth_tag, u.avatar_url AS account_avatar_url
   FROM kyc_submissions k
   JOIN platform_users u ON u.user_id = k.user_id
   WHERE k.id IN (
@@ -1097,7 +1108,7 @@ const listDepositRequestsByUserStatement = db.prepare(`
 `);
 const listAdminDepositRequestsStatement = db.prepare(`
   SELECT d.id, d.user_id, d.asset_id, d.asset_symbol, d.asset_name, d.chain_name,
-    d.recharge_address_snapshot, d.amount_usd, d.screenshot_file_name, d.screenshot_file_data,
+    d.recharge_address_snapshot, d.amount_usd, d.screenshot_file_name,
          d.status, d.note, d.submitted_at, d.reviewed_at, d.reviewed_by,
     u.name AS account_name, u.email AS account_email, u.avatar_url AS account_avatar_url
   FROM deposit_requests d
@@ -1112,9 +1123,19 @@ const listAdminDepositRequestsStatement = db.prepare(`
     d.id DESC
   LIMIT 400
 `);
-const findAdminDepositRequestByIdStatement = db.prepare(`
+const findAdminDepositRequestWithMediaByIdStatement = db.prepare(`
   SELECT d.id, d.user_id, d.asset_id, d.asset_symbol, d.asset_name, d.chain_name,
          d.recharge_address_snapshot, d.amount_usd, d.screenshot_file_name, d.screenshot_file_data,
+         d.status, d.note, d.submitted_at, d.reviewed_at, d.reviewed_by,
+         u.name AS account_name, u.email AS account_email, u.avatar_url AS account_avatar_url
+  FROM deposit_requests d
+  JOIN users u ON u.user_id = d.user_id
+  WHERE d.id = ?
+  LIMIT 1
+`);
+const findAdminDepositRequestByIdStatement = db.prepare(`
+  SELECT d.id, d.user_id, d.asset_id, d.asset_symbol, d.asset_name, d.chain_name,
+         d.recharge_address_snapshot, d.amount_usd, d.screenshot_file_name,
          d.status, d.note, d.submitted_at, d.reviewed_at, d.reviewed_by,
          u.name AS account_name, u.email AS account_email, u.avatar_url AS account_avatar_url
   FROM deposit_requests d
@@ -4782,9 +4803,13 @@ async function handleKycSubmit(req, res) {
   }
 }
 
-function handleAdminKycList(_req, res) {
+function handleAdminKycList(req, res) {
   try {
     cleanupExpiredRecords();
+    const includeSensitiveMedia = normalizeBoolean(
+      req.body?.includeSensitiveMedia ?? req.query?.includeSensitiveMedia,
+      false,
+    );
     const rows = listLatestKycSubmissionsStatement.all();
     const totalAccounts = countUsersStatement.get()?.total || 0;
     const totalUsers = countPlatformUsersStatement.get()?.total || 0;
@@ -4811,10 +4836,32 @@ function handleAdminKycList(_req, res) {
         authenticatedKycRequests,
         rejectedKycRequests,
       },
-      requests: rows.map((row) => buildKycAdminPayload(row, { includeSensitiveMedia: true })),
+      requests: rows.map((row) => buildKycAdminPayload(row, { includeSensitiveMedia })),
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not load KYC requests." });
+  }
+}
+
+function handleAdminKycRequestDetail(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const requestId = Number(req.body?.requestId || req.query?.requestId || req.params?.requestId || 0);
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      throw new Error("Valid requestId is required.");
+    }
+
+    const row = findKycSubmissionWithUserMediaByIdStatement.get(requestId);
+    if (!row) {
+      res.status(404).json({ error: "KYC request not found." });
+      return;
+    }
+
+    res.json({
+      request: buildKycAdminPayload(row, { includeSensitiveMedia: true }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load KYC request detail." });
   }
 }
 
@@ -5664,10 +5711,14 @@ async function handleAdminDepositAssetDelete(req, res) {
   }
 }
 
-async function handleAdminDepositRequestsList(_req, res) {
+async function handleAdminDepositRequestsList(req, res) {
   try {
     await syncDepositStateFromBlobSafe({ context: "admin.deposit.requests.list.pre" });
     cleanupExpiredRecords();
+    const includeSensitiveMedia = normalizeBoolean(
+      req.body?.includeSensitiveMedia ?? req.query?.includeSensitiveMedia,
+      false,
+    );
     const rows = listAdminDepositRequestsStatement.all();
     res.json({
       stats: {
@@ -5677,11 +5728,36 @@ async function handleAdminDepositRequestsList(_req, res) {
         rejectedRequests: countDepositRequestsByStatusStatement.get("rejected")?.total || 0,
       },
       requests: rows
-        .map((row) => buildDepositRequestPayload(row, { includeAdminFields: true, includeSensitiveMedia: true }))
+        .map((row) => buildDepositRequestPayload(row, { includeAdminFields: true, includeSensitiveMedia }))
         .filter(Boolean),
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not load deposit requests." });
+  }
+}
+
+function handleAdminDepositRequestDetail(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const requestId = Number(req.body?.requestId || req.query?.requestId || req.params?.requestId || 0);
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      throw new Error("Valid requestId is required.");
+    }
+
+    const row = findAdminDepositRequestWithMediaByIdStatement.get(requestId);
+    if (!row) {
+      res.status(404).json({ error: "Deposit request not found." });
+      return;
+    }
+
+    res.json({
+      request: buildDepositRequestPayload(row, {
+        includeAdminFields: true,
+        includeSensitiveMedia: true,
+      }),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load deposit request detail." });
   }
 }
 
@@ -5862,7 +5938,7 @@ async function handleAdminDepositRequestReview(req, res) {
     reviewTransaction();
     await persistDbToBlobSafe("admin.deposit.request.review");
 
-    const reviewedRequest = findAdminDepositRequestByIdStatement.get(requestId);
+    const reviewedRequest = findAdminDepositRequestWithMediaByIdStatement.get(requestId);
     if (decision === "approved" || decision === "rejected") {
       const requestPayload = buildDepositRequestPayload(reviewedRequest, {
         includeAdminFields: true,
@@ -6196,6 +6272,9 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.kyc.list":
       requireAdminSession(req, res, () => handleAdminKycList(req, res));
       return;
+    case "admin.kyc.request.detail":
+      requireAdminSession(req, res, () => handleAdminKycRequestDetail(req, res));
+      return;
     case "admin.users.list":
       requireAdminSession(req, res, () => handleAdminUsersList(req, res));
       return;
@@ -6234,6 +6313,9 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.deposit.requests.list":
       requireAdminSession(req, res, () => handleAdminDepositRequestsList(req, res));
+      return;
+    case "admin.deposit.request.detail":
+      requireAdminSession(req, res, () => handleAdminDepositRequestDetail(req, res));
       return;
     case "admin.deposit.request.review":
       requireAdminSession(req, res, () => handleAdminDepositRequestReview(req, res));
@@ -6481,6 +6563,7 @@ app.post("/api/admin/auth/login", handleAdminLogin);
 app.get("/api/admin/auth/session", requireAdminSession, handleAdminSession);
 app.post("/api/admin/auth/logout", requireAdminSession, handleAdminLogout);
 app.get("/api/admin/kyc", requireAdminSession, handleAdminKycList);
+app.get("/api/admin/kyc/:requestId", requireAdminSession, handleAdminKycRequestDetail);
 app.post("/api/admin/kyc/review", requireAdminSession, handleAdminKycReview);
 app.get("/api/admin/users", requireAdminSession, handleAdminUsersList);
 app.post("/api/admin/users/list", requireAdminSession, handleAdminUsersList);
@@ -6494,6 +6577,7 @@ app.get("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAsse
 app.post("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAssetUpsert);
 app.post("/api/admin/deposit/assets/delete", requireAdminSession, handleAdminDepositAssetDelete);
 app.get("/api/admin/deposit/requests", requireAdminSession, handleAdminDepositRequestsList);
+app.get("/api/admin/deposit/requests/:requestId", requireAdminSession, handleAdminDepositRequestDetail);
 app.post("/api/admin/deposit/requests/review", requireAdminSession, handleAdminDepositRequestReview);
 app.get("/api/admin/lum/plans", requireAdminSession, handleAdminLumPlansList);
 app.post("/api/admin/lum/plans/create", requireAdminSession, handleAdminLumPlanCreate);

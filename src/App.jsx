@@ -70,7 +70,7 @@ const AUTH_STORAGE_KEYS = {
   transientNotice: "cryptobot2_auth_transient_notice",
 };
 
-const AUTH_REQUEST_TIMEOUT_MS = 12000;
+const AUTH_REQUEST_TIMEOUT_MS = 20000;
 const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
 const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
 const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
@@ -1312,7 +1312,7 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken, timeo
   if (lastNetworkError) {
     if (lastNetworkError?.name === "AbortError") {
       throw new Error(
-        "OTP request timed out. Check backend server URL. In browser, running `npm run dev:all` with `/api` proxy is recommended.",
+        "Request timed out. Check backend server health and API URL.",
       );
     }
     throw new Error(buildFetchErrorMessage());
@@ -1912,10 +1912,18 @@ const remoteAuthService = {
       payload: { assetId },
     });
   },
-  async adminListDepositRequests({ sessionToken }) {
+  async adminListDepositRequests({ sessionToken, includeSensitiveMedia = false }) {
     return this.requestGatewayAction({
       action: "admin.deposit.requests.list",
       sessionToken,
+      payload: { includeSensitiveMedia },
+    });
+  },
+  async adminGetDepositRequestDetail({ sessionToken, requestId }) {
+    return this.requestGatewayAction({
+      action: "admin.deposit.request.detail",
+      sessionToken,
+      payload: { requestId },
     });
   },
   async adminReviewDepositRequest({ sessionToken, requestId, decision, note, approvedAmountUsd }) {
@@ -2487,10 +2495,18 @@ const remoteAuthService = {
       payload: { threadRef, status, assignedAdminUserId, assignedAdminEmail, note },
     });
   },
-  async adminListKycRequests({ sessionToken }) {
+  async adminListKycRequests({ sessionToken, includeSensitiveMedia = false }) {
     return this.requestGatewayAction({
       action: "admin.kyc.list",
       sessionToken,
+      payload: { includeSensitiveMedia },
+    });
+  },
+  async adminGetKycRequestDetail({ sessionToken, requestId }) {
+    return this.requestGatewayAction({
+      action: "admin.kyc.request.detail",
+      sessionToken,
+      payload: { requestId },
     });
   },
   async adminListUsers({ sessionToken, kycStatus, includeAdmins } = {}) {

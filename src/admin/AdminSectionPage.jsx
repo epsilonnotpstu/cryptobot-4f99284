@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdminAuthPage from "./components/AdminAuthPage";
 import AdminDashboardPage from "./components/AdminDashboardPage";
 import { clearAdminSession, readAdminSnapshot, storeAdminSession } from "./utils/storage";
@@ -774,6 +774,8 @@ const DEFAULT_WEB_CONTENT = {
   },
 };
 
+const ADMIN_AUTO_REFRESH_MS = 120000;
+
 export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth, requireFreshLogin = false }) {
   const [mode, setMode] = useState("login");
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -796,6 +798,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [assetCenter, setAssetCenter] = useState(DEFAULT_ASSET_CENTER);
   const [supportCenter, setSupportCenter] = useState(DEFAULT_SUPPORT_CENTER);
   const [webContent, setWebContent] = useState(DEFAULT_WEB_CONTENT);
+  const loadInFlightRef = useRef(false);
 
   const clearAuthFeedback = () => {
     setAuthError("");
@@ -835,27 +838,68 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     }
   }, [authService]);
 
-  const loadAdminData = useCallback(async () => {
+  const loadAdminData = useCallback(async ({ force = false } = {}) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       return;
     }
+    if (loadInFlightRef.current && !force) {
+      return;
+    }
 
+    loadInFlightRef.current = true;
     setDashboardLoading(true);
     setDashboardError("");
     try {
-      const [usersPayload, assetsPayload, depositPayload, kycPayload] = await Promise.all([
+      const [usersPayload, assetsPayload, depositPayload, kycPayload, baseSupportSummaryPayload] = await Promise.all([
         authService.adminListUsers({ sessionToken: snapshot.sessionToken, kycStatus: "", includeAdmins: false }),
         authService.adminListDepositAssets({ sessionToken: snapshot.sessionToken }),
-        authService.adminListDepositRequests({ sessionToken: snapshot.sessionToken }),
-        authService.adminListKycRequests({ sessionToken: snapshot.sessionToken }),
+        authService.adminListDepositRequests({ sessionToken: snapshot.sessionToken, includeSensitiveMedia: false }),
+        authService.adminListKycRequests({ sessionToken: snapshot.sessionToken, includeSensitiveMedia: false }),
+        authService.adminGetSupportDashboardSummary({ sessionToken: snapshot.sessionToken }),
       ]);
-      setDashboard(buildDashboardModel(usersPayload, depositPayload, kycPayload));
+      setDashboard(
+        buildDashboardModel(
+          usersPayload,
+          depositPayload,
+          kycPayload,
+          baseSupportSummaryPayload?.summary || baseSupportSummaryPayload || {},
+        ),
+      );
       setUserDirectory(buildUserDirectoryModel(usersPayload));
       setKycQueue(buildKycQueueModel(kycPayload));
       setDepositCenter(buildDepositCenterModel(assetsPayload, depositPayload));
+      setSupportCenter((prev) => ({
+        ...prev,
+        summary: baseSupportSummaryPayload?.summary || baseSupportSummaryPayload || {},
+      }));
 
-      try {
+      if (activeSection === "kycReview") {
+        try {
+          const kycDetailPayload = await authService.adminListKycRequests({
+            sessionToken: snapshot.sessionToken,
+            includeSensitiveMedia: true,
+          });
+          setKycQueue(buildKycQueueModel(kycDetailPayload));
+        } catch {
+          // Keep lightweight queue payload.
+        }
+      }
+
+      if (activeSection === "depositCenter") {
+        try {
+          const depositDetailPayload = await authService.adminListDepositRequests({
+            sessionToken: snapshot.sessionToken,
+            includeSensitiveMedia: true,
+          });
+          setDepositCenter(buildDepositCenterModel(assetsPayload, depositDetailPayload));
+        } catch {
+          // Keep lightweight request payload.
+        }
+      }
+
+      if (activeSection === "lumCenter") {
+        try {
         const [lumSummaryPayload, lumPlansPayload, lumInvestmentsPayload] = await Promise.all([
           authService.adminGetLumDashboardSummary({ sessionToken: snapshot.sessionToken }),
           authService.adminListLumPlans({ sessionToken: snapshot.sessionToken, category: "all", status: "all" }),
@@ -864,7 +908,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             status: "all",
             category: "all",
             page: 1,
-            limit: 300,
+            limit: 120,
             keyword: "",
           }),
         ]);
@@ -872,8 +916,10 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setLumCenter(DEFAULT_LUM_CENTER);
       }
+      }
 
-      try {
+      if (activeSection === "binaryCenter") {
+        try {
         const [binarySummaryPayload, binaryCategoriesPayload, binaryPairsPayload, binaryRulesPayload, binaryTradesPayload, binarySettingsPayload] = await Promise.all([
           authService.adminGetBinaryDashboardSummary({ sessionToken: snapshot.sessionToken }),
           authService.adminListBinaryCategories({ sessionToken: snapshot.sessionToken }),
@@ -885,7 +931,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             pairId: 0,
             keyword: "",
             page: 1,
-            limit: 500,
+            limit: 150,
           }),
           authService.adminGetBinaryEngineSettings({ sessionToken: snapshot.sessionToken }),
         ]);
@@ -902,8 +948,10 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setBinaryCenter(DEFAULT_BINARY_CENTER);
       }
+      }
 
-      try {
+      if (activeSection === "transactionCenter") {
+        try {
         const [
           transactionSummaryPayload,
           transactionSettingsPayload,
@@ -924,7 +972,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             fromDate: "",
             toDate: "",
             page: 1,
-            limit: 500,
+            limit: 150,
           }),
           authService.adminListTransactionSpotPairs({ sessionToken: snapshot.sessionToken }),
           authService.adminListTransactionSpotOrders({
@@ -937,9 +985,9 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             fromDate: "",
             toDate: "",
             page: 1,
-            limit: 800,
+            limit: 200,
           }),
-          authService.adminListTransactionAuditLogs({ sessionToken: snapshot.sessionToken, page: 1, limit: 800 }),
+          authService.adminListTransactionAuditLogs({ sessionToken: snapshot.sessionToken, page: 1, limit: 200 }),
         ]);
 
         setTransactionCenter(
@@ -956,8 +1004,10 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setTransactionCenter(DEFAULT_TRANSACTION_CENTER);
       }
+      }
 
-      try {
+      if (activeSection === "assetCenter") {
+        try {
         const [
           assetDashboardPayload,
           assetWalletsPayload,
@@ -973,7 +1023,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             wallet: "all",
             userKeyword: "",
             page: 1,
-            limit: 300,
+            limit: 120,
           }),
           authService.adminListAssetsWithdrawals({
             sessionToken: snapshot.sessionToken,
@@ -983,7 +1033,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             wallet: "all",
             userKeyword: "",
             page: 1,
-            limit: 500,
+            limit: 150,
           }),
           authService.adminListAssetsTransfers({
             sessionToken: snapshot.sessionToken,
@@ -992,7 +1042,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             wallet: "all",
             userKeyword: "",
             page: 1,
-            limit: 500,
+            limit: 150,
           }),
           authService.adminListAssetsConversions({
             sessionToken: snapshot.sessionToken,
@@ -1002,7 +1052,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             toAsset: "all",
             userKeyword: "",
             page: 1,
-            limit: 500,
+            limit: 150,
           }),
           authService.adminGetAssetsSettings({ sessionToken: snapshot.sessionToken }),
           authService.adminListAssetsAuditLogs({
@@ -1010,7 +1060,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             actionType: "all",
             keyword: "",
             page: 1,
-            limit: 500,
+            limit: 150,
           }),
         ]);
 
@@ -1028,10 +1078,12 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setAssetCenter(DEFAULT_ASSET_CENTER);
       }
+      }
 
-      try {
+      if (activeSection === "supportCenter") {
+        try {
         const [supportSummaryPayload, supportTicketsPayload, supportAuditPayload, supportLivePayload] = await Promise.all([
-          authService.adminGetSupportDashboardSummary({ sessionToken: snapshot.sessionToken }),
+          Promise.resolve(baseSupportSummaryPayload),
           authService.adminListSupportTickets({
             sessionToken: snapshot.sessionToken,
             status: "all",
@@ -1039,20 +1091,20 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             assigned: "all",
             keyword: "",
             page: 1,
-            limit: 500,
+            limit: 120,
           }),
           authService.adminListSupportAuditLogs({
             sessionToken: snapshot.sessionToken,
             keyword: "",
             page: 1,
-            limit: 500,
+            limit: 120,
           }),
           authService.adminListSupportLiveThreads({
             sessionToken: snapshot.sessionToken,
             status: "all",
             keyword: "",
             page: 1,
-            limit: 500,
+            limit: 120,
           }),
         ]);
 
@@ -1067,19 +1119,23 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setSupportCenter(DEFAULT_SUPPORT_CENTER);
       }
+      }
 
-      try {
+      if (activeSection === "webContent") {
+        try {
         const webContentPayload = await authService.adminGetHomeContent({ sessionToken: snapshot.sessionToken });
         setWebContent(buildWebContentModel(webContentPayload));
       } catch {
         setWebContent(DEFAULT_WEB_CONTENT);
       }
+      }
     } catch (error) {
       setDashboardError(error.message || "Could not load admin dashboard data.");
     } finally {
+      loadInFlightRef.current = false;
       setDashboardLoading(false);
     }
-  }, [authService]);
+  }, [activeSection, authService]);
 
   const fetchUserDetail = useCallback(async (userId) => {
     const snapshot = readAdminSnapshot();
@@ -1128,6 +1184,14 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const fetchKycRequestDetail = useCallback(async (requestId) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    return authService.adminGetKycRequestDetail({ sessionToken: snapshot.sessionToken, requestId });
+  }, [authService]);
+
   const upsertDepositAsset = useCallback(async (payload) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -1166,6 +1230,14 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     await loadAdminData();
     return data;
   }, [authService, loadAdminData]);
+
+  const fetchDepositRequestDetail = useCallback(async (requestId) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    return authService.adminGetDepositRequestDetail({ sessionToken: snapshot.sessionToken, requestId });
+  }, [authService]);
 
   const createLumPlan = useCallback(async (payload) => {
     const snapshot = readAdminSnapshot();
@@ -1817,14 +1889,18 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       return undefined;
     }
 
+    if (activeSection !== "dashboard") {
+      return undefined;
+    }
+
     const refreshInterval = window.setInterval(() => {
       loadAdminData();
-    }, 30000);
+    }, ADMIN_AUTO_REFRESH_MS);
 
     return () => {
       window.clearInterval(refreshInterval);
     };
-  }, [adminSnapshot.isLoggedIn, adminSnapshot.sessionToken, authReady, loadAdminData]);
+  }, [activeSection, adminSnapshot.isLoggedIn, adminSnapshot.sessionToken, authReady, loadAdminData]);
 
   const handleSignup = async ({ name, email, phone, password, adminSignupKey }) => {
     clearAuthFeedback();
@@ -1934,9 +2010,11 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onUpdateUser={updateUserById}
       onDeleteUser={deleteUserById}
       onReviewKycRequest={reviewKycRequest}
+      onFetchKycRequestDetail={fetchKycRequestDetail}
       onUpsertDepositAsset={upsertDepositAsset}
       onDeleteDepositAsset={deleteDepositAsset}
       onReviewDepositRequest={reviewDepositRequest}
+      onFetchDepositRequestDetail={fetchDepositRequestDetail}
       onCreateLumPlan={createLumPlan}
       onUpdateLumPlan={updateLumPlan}
       onDeleteLumPlan={deleteLumPlan}
