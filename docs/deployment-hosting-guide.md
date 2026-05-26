@@ -79,6 +79,25 @@ So Render Free is not suitable for this OTP + SQLite architecture.
 3. Confirm volume mount path equals `AUTH_DATA_DIR`.
 4. Ensure `BLOB_READ_WRITE_TOKEN` is unset when using persistent disk hosting.
 
+## Google Login hardening (important)
+
+If you see `Error 400: origin_mismatch` on Google login:
+
+1. In Google Cloud Console (`APIs & Services -> Credentials -> OAuth 2.0 Client IDs -> Web client`):
+   - Add all web origins to **Authorized JavaScript origins**:
+     - `https://rampxtrading.com`
+     - `https://www.rampxtrading.com` (if used)
+     - `https://cryptobot-prime-production.up.railway.app`
+2. Keep app/frontend env aligned:
+   - `VITE_GOOGLE_CLIENT_ID=<same_web_client_id>`
+   - `GOOGLE_CLIENT_ID=<same_web_client_id>`
+3. Set callback allowlist env for secure bridge fallback:
+   - `VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS=https://rampxtrading.com,https://www.rampxtrading.com,https://cryptobot-prime-production.up.railway.app`
+4. Redeploy after env changes.
+5. Verify on production:
+   - `GET /api/auth/public-config` returns expected `googleClientId`
+   - Google login works from each public origin above.
+
 ## References
 
 - Vercel Blob pricing/limits: https://vercel.com/docs/vercel-blob/usage-and-pricing

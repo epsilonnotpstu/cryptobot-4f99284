@@ -65,6 +65,7 @@ const AUTH_STORAGE_KEYS = {
   session: "cryptobot2_auth_session",
   apiBase: "cryptobot2_api_base",
   nativeGoogleState: "cryptobot2_native_google_state",
+  webGoogleBridgeState: "cryptobot2_web_google_bridge_state",
   transientError: "cryptobot2_auth_transient_error",
   transientNotice: "cryptobot2_auth_transient_notice",
 };
@@ -73,6 +74,9 @@ const AUTH_REQUEST_TIMEOUT_MS = 12000;
 const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
 const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
 const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
+const GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS = sanitizeEnvValue(
+  import.meta.env.VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS || "",
+);
 const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
   import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "rampxtrading://auth-callback",
 );
@@ -752,6 +756,23 @@ function consumeNativeGoogleState() {
   return value;
 }
 
+function createWebGoogleBridgeState(view) {
+  const payload = `${view}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(AUTH_STORAGE_KEYS.webGoogleBridgeState, payload);
+  }
+  return payload;
+}
+
+function consumeWebGoogleBridgeState() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const value = window.localStorage.getItem(AUTH_STORAGE_KEYS.webGoogleBridgeState) || "";
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.webGoogleBridgeState);
+  return value;
+}
+
 function pushCandidate(list, value, options = {}) {
   const allowEmpty = Boolean(options.allowEmpty);
   const normalized = (value || "").trim().replace(/\/+$/, "");
@@ -875,6 +896,70 @@ function getPublicGoogleAuthUrl(view, { callbackUrl, state } = {}) {
 
 function hasValidHttpsPublicAuthBase() {
   return /^https:\/\//i.test(PUBLIC_AUTH_BASE_URL);
+}
+
+function getAllowedWebGoogleCallbackOrigins() {
+  const origins = new Set();
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    origins.add(window.location.origin);
+  }
+
+  const publicAuthOrigin = (() => {
+    try {
+      return PUBLIC_AUTH_BASE_URL ? new URL(PUBLIC_AUTH_BASE_URL).origin : "";
+    } catch {
+      return "";
+    }
+  })();
+  if (publicAuthOrigin) {
+    origins.add(publicAuthOrigin);
+  }
+
+  GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .forEach((item) => {
+      try {
+        origins.add(new URL(item).origin);
+      } catch {
+        // Ignore malformed configured origins.
+      }
+    });
+
+  return origins;
+}
+
+function isAllowedWebGoogleCallbackUrl(value = "") {
+  if (!value) {
+    return false;
+  }
+  try {
+    const parsed = new URL(value);
+    if (!/^https:$/i.test(parsed.protocol)) {
+      return false;
+    }
+    return getAllowedWebGoogleCallbackOrigins().has(parsed.origin);
+  } catch {
+    return false;
+  }
+}
+
+function buildWebGoogleBridgeCallbackUrl(view, state = "") {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const callback = new URL(window.location.href);
+  const route = view === "signup" ? ROUTES.signup : ROUTES.login;
+  const hashParams = new URLSearchParams();
+  hashParams.set("provider", "google");
+  hashParams.set("google_bridge", "1");
+  if (state) {
+    hashParams.set("state", state);
+  }
+  callback.hash = `${route}?${hashParams.toString()}`;
+  return callback.toString();
 }
 
 function hasValidNativeCallbackUrl() {
@@ -2614,6 +2699,43 @@ function AuthForms({ flow, classes }) {
   const googleErrorText = isSignup ? "Google signup failed." : "Google login failed.";
 
   useEffect(() => {
+    if (isNativeRuntime) {
+      return;
+    }
+    if (query.get("provider") !== "google" || query.get("google_bridge") !== "1") {
+      return;
+    }
+
+    const callbackError = query.get("error") || "";
+    const callbackToken = query.get("token") || "";
+    const callbackState = query.get("state") || "";
+    const expectedState = consumeWebGoogleBridgeState();
+    const fallbackRoute = flow.view === "signup" ? ROUTES.signup : ROUTES.login;
+
+    if (expectedState && callbackState !== expectedState) {
+      flow.setError("Google sign-in state mismatch. Please try again.");
+      goToRoute(fallbackRoute);
+      return;
+    }
+
+    if (callbackError) {
+      flow.setError(callbackError);
+      goToRoute(fallbackRoute);
+      return;
+    }
+
+    if (!callbackToken) {
+      flow.setError("Google token was not found. Please try again.");
+      goToRoute(fallbackRoute);
+      return;
+    }
+
+    goToRoute(fallbackRoute);
+    flow.handleGoogleAuth(callbackToken);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNativeRuntime, query]);
+
+  useEffect(() => {
     let isDisposed = false;
 
     if (isNativeRuntime || GOOGLE_WEB_CLIENT_ID) {
@@ -2647,9 +2769,34 @@ function AuthForms({ flow, classes }) {
     }
     try {
       const callbackUrl = new URL(nativeBridgeCallback);
-      if (/^https?:$/i.test(callbackUrl.protocol)) {
+      const isHttpCallback = /^https?:$/i.test(callbackUrl.protocol);
+
+      if (isHttpCallback && !isAllowedWebGoogleCallbackUrl(callbackUrl.toString())) {
+        flow.setError(
+          "Google callback URL is not allowed. Set `VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS` and rebuild.",
+        );
         return false;
       }
+
+      if (isHttpCallback) {
+        const hashContent = callbackUrl.hash.replace(/^#/, "");
+        const [hashRouteRaw, hashQueryRaw = ""] = hashContent.split("?");
+        const hashRoute = hashRouteRaw || (flow.view === "signup" ? ROUTES.signup : ROUTES.login);
+        const hashParams = new URLSearchParams(hashQueryRaw);
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value) {
+            hashParams.set(key, value);
+          }
+        });
+        if (nativeBridgeState) {
+          hashParams.set("state", nativeBridgeState);
+        }
+        hashParams.set("google_bridge", "1");
+        callbackUrl.hash = `${hashRoute}?${hashParams.toString()}`;
+        window.location.assign(callbackUrl.toString());
+        return true;
+      }
+
       Object.entries(payload).forEach(([key, value]) => {
         if (value) {
           callbackUrl.searchParams.set(key, value);
@@ -2664,6 +2811,40 @@ function AuthForms({ flow, classes }) {
       flow.setError("Native callback URL is invalid. Check app configuration and try again.");
       return false;
     }
+  };
+
+  const openWebGoogleBridge = async () => {
+    if (isNativeRuntime) {
+      return false;
+    }
+    if (isNativeBridgeRequest) {
+      return false;
+    }
+    if (!PUBLIC_AUTH_BASE_URL || !hasValidHttpsPublicAuthBase()) {
+      return false;
+    }
+
+    const state = createWebGoogleBridgeState(flow.view);
+    const callbackUrl = buildWebGoogleBridgeCallbackUrl(flow.view, state);
+    if (!isAllowedWebGoogleCallbackUrl(callbackUrl)) {
+      flow.setError(
+        "Google web callback origin is not allowlisted. Set `VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS` and rebuild.",
+      );
+      return false;
+    }
+
+    const publicUrl = getPublicGoogleAuthUrl(flow.view, {
+      callbackUrl,
+      state,
+    });
+    const opened = await openExternalAuthUrl(publicUrl);
+    if (!opened) {
+      flow.setError("Could not open secure Google sign-in window. Please try again.");
+      return false;
+    }
+
+    flow.setNotice("Secure Google sign-in opened in a new browser window. Complete the login there.");
+    return true;
   };
 
   const renderGoogleAction = () => (
@@ -2717,7 +2898,10 @@ function AuthForms({ flow, classes }) {
                       }
                       flow.handleGoogleAuth(token);
                     }}
-                    onError={() => {
+                    onError={async () => {
+                      if (await openWebGoogleBridge()) {
+                        return;
+                      }
                       if (
                         returnNativeGoogleResult({
                           provider: "google",
