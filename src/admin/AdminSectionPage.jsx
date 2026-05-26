@@ -206,16 +206,20 @@ function buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSu
 
 function buildUserDirectoryModel(usersPayload) {
   const stats = usersPayload?.stats || {};
-  const users = (Array.isArray(usersPayload?.users) ? usersPayload.users : [])
-    .filter((user) => {
-      const role = String(user?.accountRole || "").toLowerCase();
-      return role !== "admin" && role !== "super_admin";
-    })
+  const allUsers = (Array.isArray(usersPayload?.users) ? usersPayload.users : [])
     .map((user) => ({
       ...user,
       totalBalanceUsd: toNumber(user.totalBalanceUsd, 0),
       isActiveSession: Boolean(user.isActiveSession),
     }));
+  const admins = allUsers.filter((user) => {
+    const role = String(user?.accountRole || "").toLowerCase();
+    return role === "admin" || role === "super_admin";
+  });
+  const users = allUsers.filter((user) => {
+    const role = String(user?.accountRole || "").toLowerCase();
+    return role !== "admin" && role !== "super_admin";
+  });
 
   return {
     stats: {
@@ -229,6 +233,7 @@ function buildUserDirectoryModel(usersPayload) {
       rejectedUsers: toNumber(stats.rejectedUsers, 0),
     },
     users,
+    admins,
   };
 }
 
@@ -852,7 +857,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     setDashboardError("");
     try {
       const [usersPayload, assetsPayload, depositPayload, kycPayload, baseSupportSummaryPayload] = await Promise.all([
-        authService.adminListUsers({ sessionToken: snapshot.sessionToken, kycStatus: "", includeAdmins: false }),
+        authService.adminListUsers({ sessionToken: snapshot.sessionToken, kycStatus: "", includeAdmins: true }),
         authService.adminListDepositAssets({ sessionToken: snapshot.sessionToken }),
         authService.adminListDepositRequests({ sessionToken: snapshot.sessionToken, includeSensitiveMedia: false }),
         authService.adminListKycRequests({ sessionToken: snapshot.sessionToken, includeSensitiveMedia: false }),

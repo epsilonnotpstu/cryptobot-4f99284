@@ -95,6 +95,7 @@ export const STATIC_STRATEGY_DISTRIBUTION = [
 
 export const USER_MANAGEMENT_TABS = [
   { key: "all", label: "All Users" },
+  { key: "admins", label: "Admins" },
   { key: "active", label: "Active" },
   { key: "suspended", label: "Suspended" },
   { key: "pendingKyc", label: "Pending KYC" },

@@ -1201,6 +1201,15 @@ const listAllUsersForAdminStatement = db.prepare(`
   ORDER BY u.created_at DESC, u.id DESC
   LIMIT 1000
 `);
+const listAdminNotificationEmailsStatement = db.prepare(`
+  SELECT LOWER(TRIM(email)) AS email
+  FROM users
+  WHERE TRIM(COALESCE(email, '')) <> ''
+    AND LOWER(TRIM(COALESCE(account_role, ''))) IN ('admin', 'super_admin')
+    AND LOWER(TRIM(COALESCE(account_status, ''))) = 'active'
+  ORDER BY id DESC
+  LIMIT 200
+`);
 const findAdminUserByUserIdStatement = db.prepare(`
   SELECT u.user_id, u.name, u.first_name, u.last_name, u.mobile, u.avatar_url,
          u.account_role, u.account_status, u.kyc_status, u.auth_tag, u.kyc_updated_at,
@@ -1720,10 +1729,17 @@ function resolveNotificationFromHeader() {
 
 function resolveAdminNotificationRecipients() {
   const configured = parseEmailList(sanitizeEnv(process.env.ADMIN_NOTIFICATION_EMAILS || ""));
-  if (configured.length > 0) {
-    return dedupeEmails(configured);
+  const seedRecipients = configured.length > 0 ? configured : ADMIN_NOTIFICATION_DEFAULT_EMAILS;
+  let adminAccountRecipients = [];
+  try {
+    adminAccountRecipients = listAdminNotificationEmailsStatement
+      .all()
+      .map((row) => normalizeEmailAddress(row?.email || ""))
+      .filter((email) => isValidEmailAddress(email));
+  } catch {
+    adminAccountRecipients = [];
   }
-  return dedupeEmails(ADMIN_NOTIFICATION_DEFAULT_EMAILS);
+  return dedupeEmails([...seedRecipients, ...adminAccountRecipients]);
 }
 
 function maskAddress(value = "") {
@@ -1998,7 +2014,10 @@ async function sendEmailWithFallback({ to, subject, text, html, fromOverride = "
     try {
       if (method === "resend") {
         await sendEmailViaResend({ to: recipients, subject, text, html, fromOverride });
-        return;
+        return {
+          method: "resend",
+          recipients,
+        };
       }
 
       const smtpFrom = sanitizeEnv(fromOverride || getSmtpConfig().from);
@@ -2012,7 +2031,10 @@ async function sendEmailWithFallback({ to, subject, text, html, fromOverride = "
             text,
             html,
           });
-          return;
+          return {
+            method: `smtp:${port}`,
+            recipients,
+          };
         } catch (smtpPortError) {
           errors.push(`smtp:${port} ${smtpPortError?.message || smtpPortError}`);
         }
@@ -2027,13 +2049,17 @@ async function sendEmailWithFallback({ to, subject, text, html, fromOverride = "
 
 async function dispatchNotificationEmail({ to, subject, text, html, metaLabel = "notification" }) {
   try {
-    await sendEmailWithFallback({
+    const result = await sendEmailWithFallback({
       to,
       subject,
       text,
       html,
       fromOverride: resolveNotificationFromHeader(),
     });
+    const method = String(result?.method || "unknown");
+    const recipientCount = Array.isArray(result?.recipients) ? result.recipients.length : 0;
+    // eslint-disable-next-line no-console
+    console.log(`[email:${metaLabel}] delivered via ${method} to ${recipientCount} recipient(s).`);
   } catch (error) {
     // Non-blocking by design: action succeeds even if email fails.
     console.error(`[email:${metaLabel}]`, error?.message || error);

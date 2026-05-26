@@ -143,6 +143,7 @@ function buildDetailFormFromPayload(payload = null) {
 
 export default function UserManagementPage({
   users,
+  admins,
   userStats,
   loading,
   searchValue,
@@ -172,16 +173,22 @@ export default function UserManagementPage({
   const [rowOutcomeSaving, setRowOutcomeSaving] = useState({});
   const [actionNotice, setActionNotice] = useState("");
   const [actionError, setActionError] = useState("");
+  const platformUsers = Array.isArray(users) ? users : [];
+  const adminUsers = Array.isArray(admins) ? admins : [];
+  const scopedUsers = userTab === "admins" ? adminUsers : platformUsers;
 
   const filteredUsers = useMemo(() => {
     const keyword = normalizeText(searchValue);
 
-    return users.filter((user) => {
+    return scopedUsers.filter((user) => {
       const accountStatus = normalizeText(user.accountStatus);
       const kycStage = normalizeText(user.kycStage);
       const isActiveSession = Boolean(user.isActiveSession);
 
       const tabMatch = (() => {
+        if (userTab === "admins") {
+          return true;
+        }
         if (userTab === "active") {
           return isActiveSession;
         }
@@ -227,7 +234,7 @@ export default function UserManagementPage({
         .map((value) => normalizeText(value))
         .some((value) => value.includes(keyword));
     });
-  }, [activityFilter, kycFilter, searchValue, statusFilter, userTab, users]);
+  }, [activityFilter, kycFilter, scopedUsers, searchValue, statusFilter, userTab]);
 
   const openUserDetail = async (user) => {
     const userId = String(user?.userId || "").trim();
@@ -418,7 +425,9 @@ export default function UserManagementPage({
             </button>
           </div>
 
-          <span className="adminx-user-count">{filteredUsers.length} users</span>
+          <span className="adminx-user-count">
+            {filteredUsers.length} {userTab === "admins" ? "admins" : "users"}
+          </span>
         </div>
 
         {filterOpen ? (
@@ -544,9 +553,13 @@ export default function UserManagementPage({
 
         <footer className="adminx-user-footer">
           <span>
-            Showing {filteredUsers.length} of {users.length} users
+            Showing {filteredUsers.length} of {scopedUsers.length} {userTab === "admins" ? "admins" : "users"}
           </span>
-          <span>Total platform users: {formatCompactNumber(userStats.totalUsers || users.length)}</span>
+          <span>
+            {userTab === "admins"
+              ? `Total admin accounts: ${formatCompactNumber(userStats.totalAdminUsers || adminUsers.length)}`
+              : `Total platform users: ${formatCompactNumber(userStats.totalUsers || platformUsers.length)}`}
+          </span>
           <span>Active now: {formatCompactNumber(userStats.activeUsers || 0)}</span>
         </footer>
       </section>
