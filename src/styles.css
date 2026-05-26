@@ -1252,6 +1252,10 @@
   transform: translateY(-1px);
 }
 
+.nav-mobile-actions {
+  display: none;
+}
+
 .hero-homepage-photo {
   width: 100%;
   max-width: 610px;
@@ -1608,5 +1612,19 @@
 
   .hero-coin i {
     font-size: 2.65rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-links.active .nav-mobile-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    margin-top: 0.35rem;
+  }
+
+  .nav-links.active .nav-mobile-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }

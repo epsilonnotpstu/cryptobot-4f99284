@@ -1,6 +1,8 @@
-export default function BinaryPeriodSelector({ periods, selectedPeriod, onSelect }) {
+export default function BinaryPeriodSelector({ periods, selectedPeriod, onSelect, directionMode = "long" }) {
+  const modeClass = directionMode === "short" ? "is-short" : "is-long";
+
   return (
-    <section className="binary-period-section">
+    <section className={`binary-period-section ${modeClass}`}>
       <header>
         <h3>Choose Period</h3>
       </header>

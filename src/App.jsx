@@ -4255,6 +4255,28 @@ function HomePage({
                 {item.label}
               </a>
             ))}
+            <div className="nav-mobile-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  goToRoute(ROUTES.login);
+                }}
+              >
+                {homeContent?.nav?.loginText || "Login"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  goToRoute(ROUTES.signup);
+                }}
+              >
+                {homeContent?.nav?.signupText || "Start Trading"}
+              </button>
+            </div>
           </div>
 
           <div className="nav-actions">
@@ -4430,7 +4452,7 @@ function HomePage({
             <div className={`market-education-visual ${activeMarketTab}`}>
               <img
                 className="market-education-photo"
-                src="/homepagephoto.png"
+                src="/homepage2.jpg"
                 alt="Gold, silver and bitcoin visual"
                 loading="lazy"
               />

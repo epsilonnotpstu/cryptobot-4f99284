@@ -648,3 +648,178 @@
   border-color: rgba(125, 211, 252, 0.45);
   background: rgba(12, 24, 44, 0.9);
 }
+
+/* Telegram-like streamlined live/ticket chat layout */
+.supportchat-modal {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 0.56rem;
+}
+
+.supportchat-live-shell,
+.supportchat-layout {
+  min-height: 0;
+}
+
+.supportchat-live-thread,
+.supportchat-layout .supportchat-thread {
+  height: 100%;
+  min-height: 0;
+}
+
+.supportchat-live-shell {
+  display: grid;
+  min-height: 0;
+}
+
+.supportchat-feedback {
+  min-height: 1.25rem;
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.supportchat-error,
+.supportchat-notice {
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0.46rem 0.62rem;
+  background: rgba(9, 17, 31, 0.66);
+  position: relative;
+  z-index: 5;
+}
+
+.supportchat-error {
+  border-color: rgba(244, 114, 182, 0.35);
+  background: rgba(58, 21, 36, 0.52);
+}
+
+.supportchat-notice {
+  border-color: rgba(56, 189, 248, 0.34);
+  background: rgba(8, 36, 54, 0.44);
+}
+
+.supportchat-layout {
+  display: grid;
+  grid-template-columns: minmax(290px, 330px) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.supportchat-ticket-list {
+  display: grid;
+  align-content: start;
+  gap: 0.45rem;
+}
+
+.supportchat-ticket-tools {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(140deg, rgba(8, 16, 30, 0.92), rgba(9, 18, 33, 0.88));
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.supportchat-ticket-tools-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.supportchat-ticket-tools-head strong {
+  color: #eff8ff;
+  font-size: 0.82rem;
+}
+
+.supportchat-ticket-tools-head small {
+  color: #9ec0df;
+  font-size: 0.72rem;
+}
+
+.supportchat-ticket-tools-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+}
+
+.supportchat-ticket-tools-actions .supportchat-primary-btn,
+.supportchat-ticket-tools-actions select {
+  min-height: 40px;
+}
+
+.supportchat-inline-composer {
+  margin-top: 0.12rem;
+}
+
+.supportchat-telegram-thread .supportchat-thread-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(45, 212, 191, 0.14), transparent 42%),
+    linear-gradient(145deg, rgba(8, 17, 31, 0.95), rgba(9, 18, 34, 0.88));
+}
+
+.supportchat-messages {
+  padding: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.52rem;
+}
+
+.supportchat-message {
+  max-width: min(74%, 560px);
+  border-radius: 12px;
+}
+
+.supportchat-message.is-user {
+  align-self: flex-end;
+  border-color: rgba(45, 212, 191, 0.42);
+  background: linear-gradient(140deg, rgba(20, 184, 166, 0.22), rgba(8, 145, 178, 0.2));
+}
+
+.supportchat-message.is-admin {
+  align-self: flex-start;
+}
+
+.supportchat-message header {
+  gap: 0.75rem;
+}
+
+.supportchat-thread-footer {
+  grid-template-columns: 1fr auto;
+}
+
+.supportchat-thread-footer .supportchat-primary-btn {
+  min-width: 92px;
+}
+
+.supportchat-thread {
+  overflow: hidden;
+}
+
+.supportchat-thread-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46rem;
+}
+
+@media (max-width: 980px) {
+  .supportchat-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .supportchat-message {
+    max-width: 100%;
+  }
+
+  .supportchat-ticket-tools-actions {
+    grid-template-columns: 1fr;
+  }
+}

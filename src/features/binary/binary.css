@@ -460,6 +460,74 @@
   font-size: 0.72rem;
 }
 
+.binary-summary-dropdown {
+  display: none;
+  border-radius: 16px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(10, 18, 34, 0.78);
+}
+
+.binary-summary-dropdown summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.72rem 0.76rem;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.binary-summary-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.binary-summary-dropdown summary span {
+  color: #8fa9c5;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.binary-summary-dropdown summary strong {
+  color: #e8f7ff;
+  font-size: 0.96rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.binary-summary-dropdown-grid {
+  display: grid;
+  gap: 0.52rem;
+  padding: 0 0.72rem 0.72rem;
+}
+
+.binary-summary-dropdown-grid article {
+  border-radius: 12px;
+  border: 1px solid var(--prodash-soft-border);
+  background: rgba(11, 21, 37, 0.72);
+  padding: 0.62rem;
+}
+
+.binary-summary-dropdown-grid span {
+  display: block;
+  color: #89a2bd;
+  font-size: 0.73rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.binary-summary-dropdown-grid strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #e8f7ff;
+  font-size: 0.92rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.binary-summary-dropdown-grid small {
+  display: block;
+  margin-top: 0.18rem;
+  color: #66edb3;
+  font-size: 0.72rem;
+}
+
 .binary-notice,
 .binary-error,
 .binary-empty {
@@ -1583,6 +1651,14 @@
     grid-column: auto;
   }
 
+  .binary-summary-desktop {
+    display: none;
+  }
+
+  .binary-summary-dropdown {
+    display: block;
+  }
+
   .binary-shell {
     border-radius: 22px;
   }
@@ -1609,4 +1685,52 @@
   .binary-chart-last-pulse {
     animation: none;
   }
+}
+
+/* Direction-aware premium surfaces */
+.binary-period-section,
+.binary-amount-card {
+  position: relative;
+  overflow: hidden;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.binary-period-section::before,
+.binary-amount-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%);
+}
+
+.binary-period-section.is-long,
+.binary-amount-card.is-long {
+  background: linear-gradient(140deg, rgba(20, 184, 166, 0.24), rgba(14, 165, 233, 0.2));
+  border-color: rgba(45, 212, 191, 0.36);
+  box-shadow: inset 0 1px 0 rgba(220, 252, 231, 0.1), 0 16px 32px rgba(6, 182, 212, 0.16);
+}
+
+.binary-period-section.is-short,
+.binary-amount-card.is-short {
+  background: linear-gradient(140deg, rgba(185, 28, 28, 0.26), rgba(239, 68, 68, 0.2));
+  border-color: rgba(248, 113, 113, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 228, 230, 0.1), 0 16px 32px rgba(185, 28, 28, 0.18);
+}
+
+.binary-period-section.is-long .binary-period-grid button.active {
+  border-color: rgba(94, 234, 212, 0.62);
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.28);
+}
+
+.binary-period-section.is-short .binary-period-grid button.active {
+  border-color: rgba(248, 113, 113, 0.66);
+  background: linear-gradient(130deg, rgba(248, 113, 113, 0.24), rgba(220, 38, 38, 0.21));
+  color: #ffe8eb;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.22);
+}
+
+.binary-period-section.is-short .binary-period-grid button.active span {
+  color: #fecdd3;
 }

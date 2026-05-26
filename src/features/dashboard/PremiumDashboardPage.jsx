@@ -1053,7 +1053,7 @@ export default function PremiumDashboardPage({
           </div>
           <div>
             <strong>{user.name || "Trader"}</strong>
-            <p>{user.email}</p>
+            {/* <p>{user.email}</p> */}
             <span>ID: {user.userId || "------"}</span>
             <div className="prodash-drawer-kyc-row">
               <span className={`prodash-kyc-chip ${kycMeta.className}`}>KYC: {kycMeta.label}</span>

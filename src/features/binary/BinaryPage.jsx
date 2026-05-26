@@ -573,6 +573,16 @@ export default function BinaryPage({
     };
   }, [periods, selectedPair, selectedPeriod, summary?.activeTradeCount]);
 
+  const mobileOverviewCards = useMemo(
+    () => [
+      { label: "Selected Pair", value: binaryOverview.pairName, hint: "Live chart synced" },
+      { label: "Period / Payout", value: `${binaryOverview.periodLabel} • ${binaryOverview.payoutLabel}`, hint: "Current rule view" },
+      { label: "Open Positions", value: String(binaryOverview.activeTradeCount), hint: "Active trades right now" },
+      ...summaryCards,
+    ],
+    [binaryOverview, summaryCards],
+  );
+
   const selectedCategory = useMemo(
     () => categories.find((item) => Number(item.categoryId) === Number(selectedCategoryId)) || null,
     [categories, selectedCategoryId],
@@ -632,7 +642,7 @@ export default function BinaryPage({
         <div className="binary-user-strip">
           <div>
             <strong>{user?.name || "Trader"}</strong>
-            <p>{user?.email || ""}</p>
+            {/* <p>{user?.email || ""}</p> */}
           </div>
           <span>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</span>
         </div>
@@ -682,44 +692,67 @@ export default function BinaryPage({
           </section>
         ) : (
           <>
-            <section className="binary-summary-grid">
-              <article className="binary-summary-highlight">
+            <div className="binary-summary-desktop">
+              <section className="binary-summary-grid">
+                <article className="binary-summary-highlight">
+                  <span>Trade Desk Overview</span>
+                  <strong>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</strong>
+                  <small>Ready balance for new trade positions</small>
+                </article>
+                <article>
+                  <span>Selected Pair</span>
+                  <strong>{binaryOverview.pairName}</strong>
+                  <small>Live chart synced</small>
+                </article>
+                <article>
+                  <span>Period / Payout</span>
+                  <strong>
+                    {binaryOverview.periodLabel} • {binaryOverview.payoutLabel}
+                  </strong>
+                  <small>Current rule view</small>
+                </article>
+                <article>
+                  <span>Open Positions</span>
+                  <strong>{binaryOverview.activeTradeCount}</strong>
+                  <small>Active trades right now</small>
+                </article>
+
+                {summaryCards.map((card) => (
+                  <article key={card.label}>
+                    <span>{card.label}</span>
+                    <strong>{card.value}</strong>
+                    {card.hint ? <small>{card.hint}</small> : null}
+                  </article>
+                ))}
+              </section>
+            </div>
+
+            <details className="binary-summary-dropdown" open>
+              <summary>
                 <span>Trade Desk Overview</span>
                 <strong>{formatMoney(autoTransferFromSpot ? tradableBalance : binaryWallet, walletAsset)}</strong>
-                <small>Ready balance for new trade positions</small>
-              </article>
-              <article>
-                <span>Selected Pair</span>
-                <strong>{binaryOverview.pairName}</strong>
-                <small>Live chart synced</small>
-              </article>
-              <article>
-                <span>Period / Payout</span>
-                <strong>
-                  {binaryOverview.periodLabel} • {binaryOverview.payoutLabel}
-                </strong>
-                <small>Current rule view</small>
-              </article>
-              <article>
-                <span>Open Positions</span>
-                <strong>{binaryOverview.activeTradeCount}</strong>
-                <small>Active trades right now</small>
-              </article>
-
-              {summaryCards.map((card) => (
-                <article key={card.label}>
-                  <span>{card.label}</span>
-                  <strong>{card.value}</strong>
-                  {card.hint ? <small>{card.hint}</small> : null}
-                </article>
-              ))}
-            </section>
+              </summary>
+              <div className="binary-summary-dropdown-grid">
+                {mobileOverviewCards.map((card) => (
+                  <article key={`mobile-${card.label}`}>
+                    <span>{card.label}</span>
+                    <strong>{card.value}</strong>
+                    {card.hint ? <small>{card.hint}</small> : null}
+                  </article>
+                ))}
+              </div>
+            </details>
 
             <BinaryChartCard pair={selectedPair} ticks={ticks} engineMode={config?.settings?.engineMode} />
 
             <BinaryDirectionToggle value={direction} onChange={setDirection} />
 
-            <BinaryPeriodSelector periods={periods} selectedPeriod={selectedPeriod} onSelect={setSelectedPeriod} />
+            <BinaryPeriodSelector
+              periods={periods}
+              selectedPeriod={selectedPeriod}
+              onSelect={setSelectedPeriod}
+              directionMode={direction}
+            />
 
             <BinaryAmountCard
               currency={walletAsset}
@@ -737,6 +770,7 @@ export default function BinaryPage({
               onAmountBlur={handleAmountBlur}
               onPercentChange={handlePercentChange}
               onQuickPercent={handleQuickPercent}
+              directionMode={direction}
             />
 
             <button

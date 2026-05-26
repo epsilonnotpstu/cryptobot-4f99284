@@ -18,11 +18,13 @@ export default function BinaryAmountCard({
   onAmountBlur,
   onPercentChange,
   onQuickPercent,
+  directionMode = "long",
 }) {
   const maxLabel = maxStake === null || maxStake === undefined ? "No max" : Number(maxStake).toFixed(2);
+  const modeClass = directionMode === "short" ? "is-short" : "is-long";
 
   return (
-    <section className="binary-amount-card">
+    <section className={`binary-amount-card ${modeClass}`}>
       <div className="binary-amount-head">
         <p>
           Min {Number(minStake).toFixed(2)} / Max {maxLabel}

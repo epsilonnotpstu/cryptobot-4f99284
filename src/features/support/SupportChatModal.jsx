@@ -412,103 +412,27 @@ export default function SupportChatModal({
           </button>
         </div>
 
-        <div className="supportchat-topbar">
-          {activeMode === "live" ? (
-            <div className="supportchat-stats">
-              <span>Thread: {liveThread?.threadRef || "-"}</span>
-              <span>Status: {statusLabel(liveThread?.status || "open")}</span>
-              <span>Unread: {toNumber(liveThread?.userUnreadCount, 0)}</span>
-              <span>{liveChatEnabled ? "Live: connected" : "Live: paused"}</span>
-              <span>Synced: {lastSyncAt ? formatDateTime(lastSyncAt) : "-"}</span>
-            </div>
-          ) : (
-            <div className="supportchat-stats">
-              <span>Tickets: {toNumber(summary?.totalTickets, 0)}</span>
-              <span>Unread: {toNumber(summary?.unreadMessages, 0)}</span>
-              <span>Pending Admin: {toNumber(summary?.pendingAdminTickets, 0)}</span>
-              <span>{liveChatEnabled ? "Live: connected" : "Live: paused"}</span>
-              <span>Synced: {lastSyncAt ? formatDateTime(lastSyncAt) : "-"}</span>
-            </div>
-          )}
-          <div className="supportchat-topbar-actions">
-            {activeMode === "tickets" ? (
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">All</option>
-                <option value="open">Open</option>
-                <option value="pending_admin">Pending Admin</option>
-                <option value="pending_user">Pending User</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-            ) : null}
-            <button type="button" className="supportchat-ghost-btn" onClick={() => setLiveChatEnabled((prev) => !prev)}>
-              <i className={`fas ${liveChatEnabled ? "fa-wave-square" : "fa-pause"}`} /> {liveChatEnabled ? "Live ON" : "Live OFF"}
-            </button>
-            {activeMode === "tickets" ? (
-              <button type="button" className="supportchat-primary-btn" onClick={() => setComposerOpen((prev) => !prev)}>
-                <i className="fas fa-plus" /> New Ticket
-              </button>
-            ) : null}
-          </div>
+        <div className="supportchat-feedback" aria-live="polite">
+          {error ? <p className="supportchat-error">{error}</p> : null}
+          {notice ? <p className="supportchat-notice">{notice}</p> : null}
         </div>
-
-        {activeMode === "tickets" && composerOpen ? (
-          <section className="supportchat-composer">
-            <h3>Create New Ticket</h3>
-            <div className="supportchat-composer-grid">
-              <label>
-                Subject
-                <input
-                  type="text"
-                  value={newSubject}
-                  onChange={(event) => setNewSubject(event.target.value)}
-                  placeholder="Briefly describe your issue"
-                />
-              </label>
-              <label>
-                Category
-                <select value={newCategory} onChange={(event) => setNewCategory(event.target.value)}>
-                  <option value="general">General</option>
-                  <option value="deposit">Deposit</option>
-                  <option value="withdraw">Withdraw</option>
-                  <option value="assets">Assets</option>
-                  <option value="trading">Trading</option>
-                  <option value="security">Security</option>
-                </select>
-              </label>
-              <label className="supportchat-field-span-2">
-                Message
-                <textarea
-                  rows={3}
-                  value={newMessage}
-                  onChange={(event) => setNewMessage(event.target.value)}
-                  placeholder="Explain details so support can help faster"
-                />
-              </label>
-            </div>
-            <div className="supportchat-composer-actions">
-              <button type="button" className="supportchat-ghost-btn" onClick={() => setComposerOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" className="supportchat-primary-btn" onClick={submitNewTicket} disabled={busyAction === "create-ticket"}>
-                {busyAction === "create-ticket" ? "Creating..." : "Create Ticket"}
-              </button>
-            </div>
-          </section>
-        ) : null}
-
-        {error ? <p className="supportchat-error">{error}</p> : null}
-        {notice ? <p className="supportchat-notice">{notice}</p> : null}
 
         {activeMode === "live" ? (
           <div className="supportchat-live-shell">
-            <section className="supportchat-thread supportchat-live-thread">
+            <section className="supportchat-thread supportchat-live-thread supportchat-telegram-thread">
               <div className="supportchat-thread-head">
                 <div>
                   <strong>Live Chat with Support Team</strong>
-                  <p>{liveThread?.threadRef || "Loading thread..."}</p>
+                  <p>
+                    {/* {liveThread?.threadRef || "Loading thread..."}  */}
+                    • Synced {lastSyncAt ? formatDateTime(lastSyncAt) : "-"}</p>
                 </div>
-                <span className={`supportchat-chip ${statusClass(liveThread?.status)}`}>{statusLabel(liveThread?.status || "open")}</span>
+                <div className="supportchat-thread-actions">
+                  {/* <span className={`supportchat-chip ${statusClass(liveThread?.status)}`}>{statusLabel(liveThread?.status || "open")}</span> */}
+                  <button type="button" className="supportchat-ghost-btn" onClick={() => setLiveChatEnabled((prev) => !prev)}>
+                    <i className={`fas ${liveChatEnabled ? "fa-wave-square" : "fa-pause"}`} /> {liveChatEnabled ? "Live ON" : "Live OFF"}
+                  </button>
+                </div>
               </div>
 
               <div className="supportchat-messages" ref={liveMessagesRef}>
@@ -554,6 +478,71 @@ export default function SupportChatModal({
         ) : (
           <div className="supportchat-layout">
             <aside className="supportchat-ticket-list">
+              <div className="supportchat-ticket-tools">
+                <div className="supportchat-ticket-tools-head">
+                  <strong>Ticket Threads</strong>
+                  <small>{toNumber(summary?.totalTickets, 0)} total</small>
+                </div>
+                <div className="supportchat-ticket-tools-actions">
+                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="open">Open</option>
+                    <option value="pending_admin">Pending Admin</option>
+                    <option value="pending_user">Pending User</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                  <button type="button" className="supportchat-primary-btn" onClick={() => setComposerOpen((prev) => !prev)}>
+                    <i className="fas fa-plus" /> New Ticket
+                  </button>
+                </div>
+              </div>
+
+              {composerOpen ? (
+                <section className="supportchat-composer supportchat-inline-composer">
+                  <h3>Create New Ticket</h3>
+                  <div className="supportchat-composer-grid">
+                    <label>
+                      Subject
+                      <input
+                        type="text"
+                        value={newSubject}
+                        onChange={(event) => setNewSubject(event.target.value)}
+                        placeholder="Briefly describe your issue"
+                      />
+                    </label>
+                    <label>
+                      Category
+                      <select value={newCategory} onChange={(event) => setNewCategory(event.target.value)}>
+                        <option value="general">General</option>
+                        <option value="deposit">Deposit</option>
+                        <option value="withdraw">Withdraw</option>
+                        <option value="assets">Assets</option>
+                        <option value="trading">Trading</option>
+                        <option value="security">Security</option>
+                      </select>
+                    </label>
+                    <label className="supportchat-field-span-2">
+                      Message
+                      <textarea
+                        rows={3}
+                        value={newMessage}
+                        onChange={(event) => setNewMessage(event.target.value)}
+                        placeholder="Explain details so support can help faster"
+                      />
+                    </label>
+                  </div>
+                  <div className="supportchat-composer-actions">
+                    <button type="button" className="supportchat-ghost-btn" onClick={() => setComposerOpen(false)}>
+                      Cancel
+                    </button>
+                    <button type="button" className="supportchat-primary-btn" onClick={submitNewTicket} disabled={busyAction === "create-ticket"}>
+                      {busyAction === "create-ticket" ? "Creating..." : "Create Ticket"}
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               {visibleTickets.map((ticket) => (
                 <button
                   key={ticket.ticketRef}
