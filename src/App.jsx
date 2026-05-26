@@ -1521,6 +1521,19 @@ const remoteAuthService = {
       payload: { ticketRef, status },
     });
   },
+  async getSupportLiveThread({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "support.live.thread",
+      sessionToken,
+    });
+  },
+  async sendSupportLiveMessage({ sessionToken, message }) {
+    return this.requestGatewayAction({
+      action: "support.live.send",
+      sessionToken,
+      payload: { message },
+    });
+  },
   async getHomeContent() {
     return this.requestGatewayAction({
       action: "home.content.get",
@@ -2165,6 +2178,34 @@ const remoteAuthService = {
       action: "admin.support.audit-logs",
       sessionToken,
       payload: { keyword, page, limit },
+    });
+  },
+  async adminListSupportLiveThreads({ sessionToken, status = "all", keyword = "", page = 1, limit = 80 }) {
+    return this.requestGatewayAction({
+      action: "admin.support.live.threads",
+      sessionToken,
+      payload: { status, keyword, page, limit },
+    });
+  },
+  async adminGetSupportLiveThreadDetail({ sessionToken, threadRef }) {
+    return this.requestGatewayAction({
+      action: "admin.support.live.thread.detail",
+      sessionToken,
+      payload: { threadRef },
+    });
+  },
+  async adminReplySupportLiveThread({ sessionToken, threadRef, message }) {
+    return this.requestGatewayAction({
+      action: "admin.support.live.reply",
+      sessionToken,
+      payload: { threadRef, message },
+    });
+  },
+  async adminUpdateSupportLiveThread({ sessionToken, threadRef, status, assignedAdminUserId, assignedAdminEmail, note = "" }) {
+    return this.requestGatewayAction({
+      action: "admin.support.live.update",
+      sessionToken,
+      payload: { threadRef, status, assignedAdminUserId, assignedAdminEmail, note },
     });
   },
   async adminListKycRequests({ sessionToken }) {
@@ -3532,6 +3573,19 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleSupportLiveThreadLoad = async () => {
+    return authService.getSupportLiveThread({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleSupportLiveMessageSend = async ({ message }) => {
+    return authService.sendSupportLiveMessage({
+      sessionToken: authSnapshot.sessionToken,
+      message,
+    });
+  };
+
   if (!authReady) {
     return <MobileLoadingPage />;
   }
@@ -3728,6 +3782,8 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onCreateSupportTicket={handleSupportTicketCreate}
         onSendSupportTicketMessage={handleSupportTicketMessageSend}
         onUpdateSupportTicketStatus={handleSupportTicketStatusUpdate}
+        onLoadLiveThread={handleSupportLiveThreadLoad}
+        onSendLiveMessage={handleSupportLiveMessageSend}
       />
     );
   }
@@ -3773,9 +3829,15 @@ function HomePage({
       <nav className="navbar">
         <div className="container">
           <div className="nav-brand">
-            <div className="logo">
-              <i className="fas fa-cube" />
-              <span>{homeContent?.brand?.name || "RampXTrading"}</span>
+            <div className="nav-logo-mark" aria-label={homeContent?.brand?.name || "RampXTrading"}>
+              <span className="nav-logo-word">
+                Ramp<span>X</span>
+              </span>
+              <span className="nav-logo-subline">
+                <i />
+                TRADING
+                <i />
+              </span>
             </div>
           </div>
 

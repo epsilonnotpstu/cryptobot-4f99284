@@ -2494,11 +2494,17 @@ const {
   handleSupportTicketCreate,
   handleSupportTicketMessageSend,
   handleSupportTicketStatusUpdate,
+  handleSupportLiveThread,
+  handleSupportLiveSend,
   handleAdminSupportDashboardSummary,
   handleAdminSupportTickets,
   handleAdminSupportTicketDetail,
   handleAdminSupportReply,
   handleAdminSupportTicketUpdate,
+  handleAdminSupportLiveThreads,
+  handleAdminSupportLiveThreadDetail,
+  handleAdminSupportLiveReply,
+  handleAdminSupportLiveUpdate,
   handleAdminSupportAuditLogs,
 } = supportModule;
 
@@ -4238,6 +4244,11 @@ function handleKycStatus(req, res) {
 async function handleKycSubmit(req, res) {
   try {
     cleanupExpiredRecords();
+    const existingUser = findUserByUserIdStatement.get(req.currentUser.userId);
+    const currentKycStatus = normalizeKycStatus(existingUser?.kyc_status || req.currentUser?.kycStatus || "");
+    if (currentKycStatus === "authenticated") {
+      throw new Error("KYC is already approved. New submission is not allowed.");
+    }
 
     const fullName = normalizePersonName(req.body.fullName || "");
     const certification = normalizeCertification(req.body.certification || "");
@@ -5602,6 +5613,12 @@ app.post("/api/auth/gateway", async (req, res) => {
       req.params = { ...(req.params || {}), ticketRef: String(req.body?.ticketRef || req.query?.ticketRef || "") };
       requireSession(req, res, () => handleSupportTicketStatusUpdate(req, res));
       return;
+    case "support.live.thread":
+      requireSession(req, res, () => handleSupportLiveThread(req, res));
+      return;
+    case "support.live.send":
+      requireSession(req, res, () => handleSupportLiveSend(req, res));
+      return;
     case "admin.assets.dashboard-summary":
       requireAdminSession(req, res, () => handleAdminAssetsDashboardSummary(req, res));
       return;
@@ -5659,6 +5676,19 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.support.audit-logs":
       requireAdminSession(req, res, () => handleAdminSupportAuditLogs(req, res));
+      return;
+    case "admin.support.live.threads":
+      requireAdminSession(req, res, () => handleAdminSupportLiveThreads(req, res));
+      return;
+    case "admin.support.live.thread.detail":
+      req.params = { ...(req.params || {}), threadRef: String(req.body?.threadRef || req.query?.threadRef || "") };
+      requireAdminSession(req, res, () => handleAdminSupportLiveThreadDetail(req, res));
+      return;
+    case "admin.support.live.reply":
+      requireAdminSession(req, res, () => handleAdminSupportLiveReply(req, res));
+      return;
+    case "admin.support.live.update":
+      requireAdminSession(req, res, () => handleAdminSupportLiveUpdate(req, res));
       return;
     case "admin.kyc.list":
       requireAdminSession(req, res, () => handleAdminKycList(req, res));
@@ -5918,6 +5948,8 @@ app.get("/api/support/tickets/:ticketRef", requireSession, handleSupportTicketDe
 app.post("/api/support/tickets", requireSession, handleSupportTicketCreate);
 app.post("/api/support/tickets/:ticketRef/messages", requireSession, handleSupportTicketMessageSend);
 app.post("/api/support/tickets/:ticketRef/status", requireSession, handleSupportTicketStatusUpdate);
+app.get("/api/support/live/thread", requireSession, handleSupportLiveThread);
+app.post("/api/support/live/send", requireSession, handleSupportLiveSend);
 app.get("/api/admin/assets/dashboard-summary", requireAdminSession, handleAdminAssetsDashboardSummary);
 app.get("/api/admin/assets/wallets", requireAdminSession, handleAdminAssetsWallets);
 app.get("/api/admin/assets/wallets/:userId", requireAdminSession, handleAdminAssetsWalletDetail);
@@ -5937,6 +5969,10 @@ app.get("/api/admin/support/tickets/:ticketRef", requireAdminSession, handleAdmi
 app.post("/api/admin/support/tickets/reply", requireAdminSession, handleAdminSupportReply);
 app.post("/api/admin/support/tickets/update", requireAdminSession, handleAdminSupportTicketUpdate);
 app.get("/api/admin/support/audit-logs", requireAdminSession, handleAdminSupportAuditLogs);
+app.get("/api/admin/support/live/threads", requireAdminSession, handleAdminSupportLiveThreads);
+app.get("/api/admin/support/live/threads/:threadRef", requireAdminSession, handleAdminSupportLiveThreadDetail);
+app.post("/api/admin/support/live/reply", requireAdminSession, handleAdminSupportLiveReply);
+app.post("/api/admin/support/live/update", requireAdminSession, handleAdminSupportLiveUpdate);
 app.post("/api/admin/auth/signup", handleAdminSignup);
 app.post("/api/admin/auth/login", handleAdminLogin);
 app.get("/api/admin/auth/session", requireAdminSession, handleAdminSession);

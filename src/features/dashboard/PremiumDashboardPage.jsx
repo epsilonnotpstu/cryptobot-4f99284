@@ -64,7 +64,7 @@ function normalizeKycStatus(value) {
   return "pending";
 }
 
-function getKycStatusMeta(status) {
+function getKycStatusMeta(status, { notSubmitted = false } = {}) {
   const normalized = normalizeKycStatus(status);
   if (normalized === "authenticated") {
     return { label: "Authenticated", className: "is-authenticated" };
@@ -72,7 +72,7 @@ function getKycStatusMeta(status) {
   if (normalized === "rejected") {
     return { label: "Rejected", className: "is-rejected" };
   }
-  return { label: "Pending", className: "is-pending" };
+  return { label: notSubmitted ? "Please submit KYC" : "Pending", className: "is-pending" };
 }
 
 function deriveAuthTagFromStatus(status) {
@@ -290,6 +290,8 @@ export default function PremiumDashboardPage({
   onCreateSupportTicket,
   onSendSupportTicketMessage,
   onUpdateSupportTicketStatus,
+  onLoadLiveThread,
+  onSendLiveMessage,
 }) {
   const [assetVisible, setAssetVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -573,8 +575,15 @@ export default function PremiumDashboardPage({
     !showDepositForm &&
     !showDepositConfirm &&
     !showDepositRecords;
-  const kycMeta = getKycStatusMeta(kycStatus);
+  const isKycNotSubmitted = kycStatus === "pending" && !String(user?.kycUpdatedAt || "").trim();
+  const kycMeta = getKycStatusMeta(kycStatus, { notSubmitted: isKycNotSubmitted });
   const isUserKycAuthenticated = kycStatus === "authenticated";
+  const isKycSubmissionLocked = isUserKycAuthenticated;
+  const authTagLabel = isKycNotSubmitted
+    ? "Please submit KYC"
+    : String(kycAuthTag || deriveAuthTagFromStatus(kycStatus))
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
 
   const openDrawerRoute = (route) => {
     setDrawerOpen(false);
@@ -777,6 +786,11 @@ export default function PremiumDashboardPage({
     setKycError("");
     setKycNotice("");
 
+    if (isKycSubmissionLocked) {
+      setKycError("KYC is already approved. New submission is not allowed.");
+      return;
+    }
+
     const normalizedFullName = kycForm.fullName.trim();
     const normalizedSsn = kycForm.ssn.trim();
 
@@ -842,10 +856,6 @@ export default function PremiumDashboardPage({
   };
 
   const openDepositAssetSelector = () => {
-    if (!isUserKycAuthenticated) {
-      setProfileNotice("KYC authentication pending. Complete authentication before depositing.");
-      return;
-    }
     if (onOpenDepositPage) {
       onOpenDepositPage();
       return;
@@ -1142,11 +1152,7 @@ export default function PremiumDashboardPage({
                         Welcome back, {user.name || "Trader"} • ID {user.userId || "------"}
                       </small>
                       <div className="prodash-wallet-tags">
-                        <span className="prodash-auth-tag">
-                          {String(kycAuthTag || deriveAuthTagFromStatus(kycStatus))
-                            .replace(/[_-]+/g, " ")
-                            .replace(/\b\w/g, (char) => char.toUpperCase())}
-                        </span>
+                        <span className="prodash-auth-tag">{authTagLabel}</span>
                       </div>
                       {walletBalances.length ? (
                         <div className="prodash-wallet-balance-strip">
@@ -1157,18 +1163,11 @@ export default function PremiumDashboardPage({
                           ))}
                         </div>
                       ) : null}
-                      {!isUserKycAuthenticated ? (
-                        <p className="prodash-lock-note">Deposit and premium actions stay locked until KYC is authenticated.</p>
-                      ) : null}
+                      {!isUserKycAuthenticated ? <p className="prodash-lock-note">Complete KYC to unlock premium actions.</p> : null}
                     </div>
 
                     <div className="prodash-wallet-actions">
-                      <button
-                        type="button"
-                        className="prodash-deposit-btn"
-                        disabled={!isUserKycAuthenticated}
-                        onClick={openDepositAssetSelector}
-                      >
+                      <button type="button" className="prodash-deposit-btn" onClick={openDepositAssetSelector}>
                         Deposit
                       </button>
                     </div>
@@ -1180,8 +1179,8 @@ export default function PremiumDashboardPage({
                         type="button"
                         key={action.id}
                         className="prodash-quick-item"
-                        disabled={!isUserKycAuthenticated}
-                        title={!isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
+                        disabled={action.id !== "recharge" && !isUserKycAuthenticated}
+                        title={action.id !== "recharge" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
                         onClick={
                           action.id === "lum"
                             ? openLumPage
@@ -1502,6 +1501,7 @@ export default function PremiumDashboardPage({
                     value={kycForm.fullName}
                     onChange={(event) => handleKycFieldChange("fullName", event.target.value)}
                     placeholder="Same as NID/Passport/Driving License"
+                    disabled={isKycSubmissionLocked || kycSubmitting}
                   />
                 </label>
 
@@ -1510,6 +1510,7 @@ export default function PremiumDashboardPage({
                   <select
                     value={kycForm.certification}
                     onChange={(event) => handleKycFieldChange("certification", event.target.value)}
+                    disabled={isKycSubmissionLocked || kycSubmitting}
                   >
                     {KYC_CERTIFICATION_OPTIONS.map((option) => (
                       <option key={option.value || "empty"} value={option.value}>
@@ -1521,14 +1522,24 @@ export default function PremiumDashboardPage({
 
                 <label>
                   Front Part Photo
-                  <input type="file" accept={KYC_ACCEPT_ATTR} onChange={(event) => handleKycFileSelect("front", event)} />
+                  <input
+                    type="file"
+                    accept={KYC_ACCEPT_ATTR}
+                    onChange={(event) => handleKycFileSelect("front", event)}
+                    disabled={isKycSubmissionLocked || kycSubmitting}
+                  />
                   <small className="prodash-kyc-hint">Supported mimes: jpg, jpeg, png, pdf, doc, docx</small>
                   <span className="prodash-file-name">{kycForm.frontFileName || "No file chosen"}</span>
                 </label>
 
                 <label>
                   Back Part Photo
-                  <input type="file" accept={KYC_ACCEPT_ATTR} onChange={(event) => handleKycFileSelect("back", event)} />
+                  <input
+                    type="file"
+                    accept={KYC_ACCEPT_ATTR}
+                    onChange={(event) => handleKycFileSelect("back", event)}
+                    disabled={isKycSubmissionLocked || kycSubmitting}
+                  />
                   <small className="prodash-kyc-hint">Supported mimes: jpg, jpeg, png, pdf, doc, docx</small>
                   <span className="prodash-file-name">{kycForm.backFileName || "No file chosen"}</span>
                 </label>
@@ -1540,14 +1551,16 @@ export default function PremiumDashboardPage({
                     value={kycForm.ssn}
                     onChange={(event) => handleKycFieldChange("ssn", event.target.value)}
                     placeholder="Serial number"
+                    disabled={isKycSubmissionLocked || kycSubmitting}
                   />
                 </label>
 
                 {kycError ? <p className="prodash-form-error">{kycError}</p> : null}
+                {isKycSubmissionLocked ? <p className="prodash-form-notice">KYC is already approved. New submission is disabled.</p> : null}
                 {kycNotice ? <p className="prodash-form-notice">{kycNotice}</p> : null}
 
-                <button type="submit" className="prodash-submit-btn" disabled={kycSubmitting}>
-                  {kycSubmitting ? "Submitting..." : "Submit"}
+                <button type="submit" className="prodash-submit-btn" disabled={isKycSubmissionLocked || kycSubmitting}>
+                  {isKycSubmissionLocked ? "Already Approved" : kycSubmitting ? "Submitting..." : "Submit"}
                 </button>
               </form>
             </section>
@@ -1763,6 +1776,8 @@ export default function PremiumDashboardPage({
         onCreateTicket={onCreateSupportTicket}
         onSendTicketMessage={onSendSupportTicketMessage}
         onUpdateTicketStatus={onUpdateSupportTicketStatus}
+        onLoadLiveThread={onLoadLiveThread}
+        onSendLiveMessage={onSendLiveMessage}
       />
 
       {whitepaperOpen ? (

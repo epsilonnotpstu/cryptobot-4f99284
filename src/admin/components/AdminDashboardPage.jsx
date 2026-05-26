@@ -143,6 +143,9 @@ export default function AdminDashboardPage({
   onLoadSupportTicketDetail,
   onReplySupportTicket,
   onUpdateSupportTicket,
+  onLoadSupportLiveThreadDetail,
+  onReplySupportLiveThread,
+  onUpdateSupportLiveThread,
   onSaveHomeContent,
 }) {
   const [showProfile, setShowProfile] = useState(false);
@@ -768,6 +771,8 @@ export default function AdminDashboardPage({
             tickets={supportCenter?.tickets || {}}
             ticketDetail={supportCenter?.ticketDetail || {}}
             auditLogs={supportCenter?.auditLogs || {}}
+            live={supportCenter?.live || {}}
+            liveDetail={supportCenter?.liveDetail || {}}
             loading={loading}
             searchValue={adminSearch}
             onSearchChange={setAdminSearch}
@@ -775,6 +780,9 @@ export default function AdminDashboardPage({
             onLoadTicketDetail={onLoadSupportTicketDetail}
             onReplyTicket={onReplySupportTicket}
             onUpdateTicket={onUpdateSupportTicket}
+            onLoadLiveThreadDetail={onLoadSupportLiveThreadDetail}
+            onReplyLiveThread={onReplySupportLiveThread}
+            onUpdateLiveThread={onUpdateSupportLiveThread}
             adminUser={adminUser}
           />
         ) : null}

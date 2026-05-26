@@ -530,12 +530,18 @@ function buildAssetCenterModel(
   };
 }
 
-function buildSupportCenterModel(summaryPayload, ticketsPayload, auditPayload) {
+function buildSupportCenterModel(summaryPayload, ticketsPayload, auditPayload, livePayload) {
   return {
     summary: summaryPayload?.summary || {},
     tickets: ticketsPayload || { rows: [], pagination: { page: 1, limit: 30, total: 0, hasMore: false } },
     ticketDetail: {},
     auditLogs: auditPayload || { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+    live: livePayload || {
+      summary: {},
+      rows: [],
+      pagination: { page: 1, limit: 80, total: 0, hasMore: false },
+    },
+    liveDetail: {},
   };
 }
 
@@ -753,6 +759,8 @@ const DEFAULT_SUPPORT_CENTER = {
   tickets: { rows: [], pagination: { page: 1, limit: 30, total: 0, hasMore: false } },
   ticketDetail: {},
   auditLogs: { rows: [], pagination: { page: 1, limit: 50, total: 0, hasMore: false } },
+  live: { summary: {}, rows: [], pagination: { page: 1, limit: 80, total: 0, hasMore: false } },
+  liveDetail: {},
 };
 
 const DEFAULT_WEB_CONTENT = {
@@ -1022,7 +1030,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       }
 
       try {
-        const [supportSummaryPayload, supportTicketsPayload, supportAuditPayload] = await Promise.all([
+        const [supportSummaryPayload, supportTicketsPayload, supportAuditPayload, supportLivePayload] = await Promise.all([
           authService.adminGetSupportDashboardSummary({ sessionToken: snapshot.sessionToken }),
           authService.adminListSupportTickets({
             sessionToken: snapshot.sessionToken,
@@ -1039,9 +1047,20 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
             page: 1,
             limit: 500,
           }),
+          authService.adminListSupportLiveThreads({
+            sessionToken: snapshot.sessionToken,
+            status: "all",
+            keyword: "",
+            page: 1,
+            limit: 500,
+          }),
         ]);
 
-        setSupportCenter(buildSupportCenterModel(supportSummaryPayload, supportTicketsPayload, supportAuditPayload));
+        setSupportCenter((prev) => ({
+          ...buildSupportCenterModel(supportSummaryPayload, supportTicketsPayload, supportAuditPayload, supportLivePayload),
+          ticketDetail: prev?.ticketDetail || {},
+          liveDetail: prev?.liveDetail || {},
+        }));
         setDashboard(
           buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSummaryPayload?.summary || supportSummaryPayload || {}),
         );
@@ -1699,6 +1718,22 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService]);
 
+  const loadSupportLiveThreadDetail = useCallback(async ({ threadRef }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminGetSupportLiveThreadDetail({
+      sessionToken: snapshot.sessionToken,
+      threadRef,
+    });
+    setSupportCenter((prev) => ({
+      ...prev,
+      liveDetail: data || {},
+    }));
+    return data;
+  }, [authService]);
+
   const replySupportTicket = useCallback(async ({ ticketRef, message, isInternalNote = false }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -1714,12 +1749,39 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const replySupportLiveThread = useCallback(async ({ threadRef, message }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminReplySupportLiveThread({
+      sessionToken: snapshot.sessionToken,
+      threadRef,
+      message,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
   const updateSupportTicket = useCallback(async (payload) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       throw new Error("Admin session expired. Please login again.");
     }
     const data = await authService.adminUpdateSupportTicket({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateSupportLiveThread = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateSupportLiveThread({
       sessionToken: snapshot.sessionToken,
       ...payload,
     });
@@ -1917,6 +1979,9 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onLoadSupportTicketDetail={loadSupportTicketDetail}
       onReplySupportTicket={replySupportTicket}
       onUpdateSupportTicket={updateSupportTicket}
+      onLoadSupportLiveThreadDetail={loadSupportLiveThreadDetail}
+      onReplySupportLiveThread={replySupportLiveThread}
+      onUpdateSupportLiveThread={updateSupportLiveThread}
       onSaveHomeContent={saveHomeContent}
     />
   );

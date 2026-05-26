@@ -49,6 +49,7 @@ function parseIsoMs(value = "") {
 
 const TICKET_STATUS_SET = new Set(["open", "pending_admin", "pending_user", "resolved", "closed"]);
 const TICKET_PRIORITY_SET = new Set(["low", "normal", "high", "urgent"]);
+const LIVE_CHAT_STATUS_SET = new Set(["open", "closed"]);
 
 function normalizeTicketStatus(value = "open", fallback = "open") {
   const normalized = normalizeLower(value);
@@ -72,6 +73,14 @@ function sanitizeMessageText(value = "", maxLen = 3000) {
     .replace(/\u0000/g, "")
     .trim()
     .slice(0, maxLen);
+}
+
+function normalizeLiveChatStatus(value = "open", fallback = "open") {
+  const normalized = normalizeLower(value);
+  if (LIVE_CHAT_STATUS_SET.has(normalized)) {
+    return normalized;
+  }
+  return fallback;
 }
 
 export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
@@ -123,6 +132,38 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS support_live_threads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      thread_ref TEXT NOT NULL UNIQUE,
+      user_id TEXT NOT NULL,
+      user_name TEXT,
+      user_email TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      assigned_admin_user_id TEXT,
+      assigned_admin_email TEXT,
+      last_message_preview TEXT NOT NULL DEFAULT '',
+      last_message_at TEXT NOT NULL,
+      user_unread_count INTEGER NOT NULL DEFAULT 0,
+      admin_unread_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      closed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS support_live_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      thread_id INTEGER NOT NULL,
+      thread_ref TEXT NOT NULL,
+      sender_role TEXT NOT NULL,
+      sender_user_id TEXT NOT NULL,
+      sender_name TEXT,
+      sender_email TEXT,
+      message_text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      read_by_user_at TEXT,
+      read_by_admin_at TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_support_tickets_user_updated
       ON support_tickets(user_id, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_support_tickets_status_updated
@@ -133,6 +174,12 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
       ON support_ticket_messages(ticket_id, created_at ASC, id ASC);
     CREATE INDEX IF NOT EXISTS idx_support_audit_created
       ON support_admin_audit_logs(created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_support_live_threads_user_updated
+      ON support_live_threads(user_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_support_live_threads_status_updated
+      ON support_live_threads(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_support_live_messages_thread_created
+      ON support_live_messages(thread_id, created_at ASC, id ASC);
   `);
 
   const insertTicketStatement = db.prepare(`
@@ -387,6 +434,164 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
     WHERE created_at >= ?
   `);
 
+  const findLiveThreadByRefStatement = db.prepare(`SELECT * FROM support_live_threads WHERE thread_ref = ? LIMIT 1`);
+  const findLiveThreadByIdStatement = db.prepare(`SELECT * FROM support_live_threads WHERE id = ? LIMIT 1`);
+  const findOpenLiveThreadByUserStatement = db.prepare(`
+    SELECT * FROM support_live_threads
+    WHERE user_id = ?
+      AND status = 'open'
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+  `);
+
+  const insertLiveThreadStatement = db.prepare(`
+    INSERT INTO support_live_threads (
+      thread_ref,
+      user_id,
+      user_name,
+      user_email,
+      status,
+      assigned_admin_user_id,
+      assigned_admin_email,
+      last_message_preview,
+      last_message_at,
+      user_unread_count,
+      admin_unread_count,
+      created_at,
+      updated_at,
+      closed_at
+    ) VALUES (
+      @threadRef,
+      @userId,
+      @userName,
+      @userEmail,
+      @status,
+      @assignedAdminUserId,
+      @assignedAdminEmail,
+      @lastMessagePreview,
+      @lastMessageAt,
+      @userUnreadCount,
+      @adminUnreadCount,
+      @createdAt,
+      @updatedAt,
+      @closedAt
+    )
+  `);
+
+  const updateLiveThreadStatement = db.prepare(`
+    UPDATE support_live_threads
+    SET user_name = @userName,
+        user_email = @userEmail,
+        status = @status,
+        assigned_admin_user_id = @assignedAdminUserId,
+        assigned_admin_email = @assignedAdminEmail,
+        last_message_preview = @lastMessagePreview,
+        last_message_at = @lastMessageAt,
+        user_unread_count = @userUnreadCount,
+        admin_unread_count = @adminUnreadCount,
+        updated_at = @updatedAt,
+        closed_at = @closedAt
+    WHERE id = @id
+  `);
+
+  const listLiveThreadsForAdminStatement = db.prepare(`
+    SELECT *
+    FROM support_live_threads
+    WHERE (@statusFilter = 'all' OR status = @statusFilter)
+      AND (
+        @keyword = ''
+        OR thread_ref LIKE @keywordLike
+        OR user_id LIKE @keywordLike
+        OR user_name LIKE @keywordLike
+        OR user_email LIKE @keywordLike
+      )
+    ORDER BY updated_at DESC, id DESC
+    LIMIT @limit OFFSET @offset
+  `);
+
+  const countLiveThreadsForAdminStatement = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM support_live_threads
+    WHERE (@statusFilter = 'all' OR status = @statusFilter)
+      AND (
+        @keyword = ''
+        OR thread_ref LIKE @keywordLike
+        OR user_id LIKE @keywordLike
+        OR user_name LIKE @keywordLike
+        OR user_email LIKE @keywordLike
+      )
+  `);
+
+  const listLiveMessagesByThreadStatement = db.prepare(`
+    SELECT *
+    FROM support_live_messages
+    WHERE thread_id = @threadId
+    ORDER BY created_at ASC, id ASC
+    LIMIT @limit OFFSET @offset
+  `);
+
+  const countLiveMessagesByThreadStatement = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM support_live_messages
+    WHERE thread_id = ?
+  `);
+
+  const insertLiveMessageStatement = db.prepare(`
+    INSERT INTO support_live_messages (
+      thread_id,
+      thread_ref,
+      sender_role,
+      sender_user_id,
+      sender_name,
+      sender_email,
+      message_text,
+      created_at,
+      read_by_user_at,
+      read_by_admin_at
+    ) VALUES (
+      @threadId,
+      @threadRef,
+      @senderRole,
+      @senderUserId,
+      @senderName,
+      @senderEmail,
+      @messageText,
+      @createdAt,
+      @readByUserAt,
+      @readByAdminAt
+    )
+  `);
+
+  const markLiveMessagesReadByUserStatement = db.prepare(`
+    UPDATE support_live_messages
+    SET read_by_user_at = @readAt
+    WHERE thread_id = @threadId
+      AND sender_role = 'admin'
+      AND read_by_user_at IS NULL
+  `);
+
+  const markLiveMessagesReadByAdminStatement = db.prepare(`
+    UPDATE support_live_messages
+    SET read_by_admin_at = @readAt
+    WHERE thread_id = @threadId
+      AND sender_role = 'user'
+      AND read_by_admin_at IS NULL
+  `);
+
+  const countLiveThreadsByStatusStatement = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM support_live_threads
+    WHERE status = ?
+  `);
+
+  const countLiveThreadsTotalStatement = db.prepare(`SELECT COUNT(*) AS total FROM support_live_threads`);
+  const sumLiveAdminUnreadStatement = db.prepare(
+    `SELECT COALESCE(SUM(admin_unread_count), 0) AS total FROM support_live_threads`,
+  );
+  const sumLiveUserUnreadStatement = db.prepare(
+    `SELECT COALESCE(SUM(user_unread_count), 0) AS total FROM support_live_threads`,
+  );
+
   function parseRequestValue(req, key, fallback = null) {
     if (req?.body && Object.prototype.hasOwnProperty.call(req.body, key)) {
       return req.body[key];
@@ -468,6 +673,50 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
     };
   }
 
+  function mapLiveThreadRow(row) {
+    if (!row) {
+      return null;
+    }
+
+    return {
+      threadId: toNumber(row.id, 0),
+      threadRef: String(row.thread_ref || ""),
+      userId: String(row.user_id || ""),
+      userName: String(row.user_name || ""),
+      userEmail: String(row.user_email || ""),
+      status: normalizeLiveChatStatus(row.status || "open"),
+      assignedAdminUserId: String(row.assigned_admin_user_id || ""),
+      assignedAdminEmail: String(row.assigned_admin_email || ""),
+      lastMessagePreview: String(row.last_message_preview || ""),
+      lastMessageAt: String(row.last_message_at || ""),
+      userUnreadCount: toNumber(row.user_unread_count, 0),
+      adminUnreadCount: toNumber(row.admin_unread_count, 0),
+      createdAt: String(row.created_at || ""),
+      updatedAt: String(row.updated_at || ""),
+      closedAt: String(row.closed_at || ""),
+    };
+  }
+
+  function mapLiveMessageRow(row) {
+    if (!row) {
+      return null;
+    }
+
+    return {
+      messageId: toNumber(row.id, 0),
+      threadId: toNumber(row.thread_id, 0),
+      threadRef: String(row.thread_ref || ""),
+      senderRole: normalizeLower(row.sender_role || "user") || "user",
+      senderUserId: String(row.sender_user_id || ""),
+      senderName: String(row.sender_name || ""),
+      senderEmail: String(row.sender_email || ""),
+      messageText: String(row.message_text || ""),
+      createdAt: String(row.created_at || ""),
+      readByUserAt: String(row.read_by_user_at || ""),
+      readByAdminAt: String(row.read_by_admin_at || ""),
+    };
+  }
+
   function writeAdminAudit({ adminUserId, adminEmail, actionType, targetType, targetId, note = "", createdAt }) {
     insertAdminAuditStatement.run({
       adminUserId: sanitizeShortText(adminUserId || "admin", 80) || "admin",
@@ -534,6 +783,92 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
       updatedAt: nowIso,
       resolvedAt: ticket.resolved_at,
       closedAt: ticket.closed_at,
+    });
+  }
+
+  function buildLiveThreadRef() {
+    return buildSupportRef().replace(/^SUP-/, "LIVE-");
+  }
+
+  function getLiveMessages(threadId, page = 1, limit = 400) {
+    const { offset } = buildPagination(page, limit, 400, 1500);
+    return listLiveMessagesByThreadStatement.all({ threadId, limit, offset }).map((row) => mapLiveMessageRow(row));
+  }
+
+  function ensureLiveThreadForUser({ userId, userName = "", userEmail = "" }) {
+    const existing = findOpenLiveThreadByUserStatement.get(userId);
+    if (existing) {
+      return existing;
+    }
+
+    const nowIso = toIso(getNow());
+    const threadRef = buildLiveThreadRef();
+
+    insertLiveThreadStatement.run({
+      threadRef,
+      userId,
+      userName: sanitizeShortText(userName || "", 120),
+      userEmail: sanitizeShortText(userEmail || "", 180),
+      status: "open",
+      assignedAdminUserId: null,
+      assignedAdminEmail: null,
+      lastMessagePreview: "Live support chat opened.",
+      lastMessageAt: nowIso,
+      userUnreadCount: 0,
+      adminUnreadCount: 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      closedAt: null,
+    });
+
+    const created = findLiveThreadByRefStatement.get(threadRef);
+    if (!created) {
+      throw new Error("Could not start live chat thread.");
+    }
+    return created;
+  }
+
+  function touchLiveThreadAsUserRead(threadId, nowIso) {
+    markLiveMessagesReadByUserStatement.run({ threadId, readAt: nowIso });
+    const thread = findLiveThreadByIdStatement.get(threadId);
+    if (!thread) {
+      return;
+    }
+    updateLiveThreadStatement.run({
+      id: thread.id,
+      userName: thread.user_name,
+      userEmail: thread.user_email,
+      status: normalizeLiveChatStatus(thread.status || "open"),
+      assignedAdminUserId: thread.assigned_admin_user_id,
+      assignedAdminEmail: thread.assigned_admin_email,
+      lastMessagePreview: thread.last_message_preview,
+      lastMessageAt: thread.last_message_at,
+      userUnreadCount: 0,
+      adminUnreadCount: toNumber(thread.admin_unread_count, 0),
+      updatedAt: nowIso,
+      closedAt: thread.closed_at,
+    });
+  }
+
+  function touchLiveThreadAsAdminRead(threadId, nowIso) {
+    markLiveMessagesReadByAdminStatement.run({ threadId, readAt: nowIso });
+    const thread = findLiveThreadByIdStatement.get(threadId);
+    if (!thread) {
+      return;
+    }
+    updateLiveThreadStatement.run({
+      id: thread.id,
+      userName: thread.user_name,
+      userEmail: thread.user_email,
+      status: normalizeLiveChatStatus(thread.status || "open"),
+      assignedAdminUserId: thread.assigned_admin_user_id,
+      assignedAdminEmail: thread.assigned_admin_email,
+      lastMessagePreview: thread.last_message_preview,
+      lastMessageAt: thread.last_message_at,
+      userUnreadCount: toNumber(thread.user_unread_count, 0),
+      adminUnreadCount: 0,
+      updatedAt: nowIso,
+      closedAt: thread.closed_at,
     });
   }
 
@@ -828,6 +1163,163 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
     return findTicketByRefStatement.get(ticketRef);
   }
 
+  function sendLiveUserMessage({ userId, userName, userEmail, messageText }) {
+    const thread = ensureLiveThreadForUser({ userId, userName, userEmail });
+    const sanitizedMessage = sanitizeMessageText(messageText, 3000);
+    if (!sanitizedMessage) {
+      throw new Error("Message is required.");
+    }
+
+    const nowIso = toIso(getNow());
+
+    const tx = db.transaction(() => {
+      insertLiveMessageStatement.run({
+        threadId: thread.id,
+        threadRef: thread.thread_ref,
+        senderRole: "user",
+        senderUserId: userId,
+        senderName: sanitizeShortText(userName || "", 120),
+        senderEmail: sanitizeShortText(userEmail || "", 180),
+        messageText: sanitizedMessage,
+        createdAt: nowIso,
+        readByUserAt: nowIso,
+        readByAdminAt: null,
+      });
+
+      updateLiveThreadStatement.run({
+        id: thread.id,
+        userName: sanitizeShortText(userName || thread.user_name || "", 120),
+        userEmail: sanitizeShortText(userEmail || thread.user_email || "", 180),
+        status: "open",
+        assignedAdminUserId: thread.assigned_admin_user_id,
+        assignedAdminEmail: thread.assigned_admin_email,
+        lastMessagePreview: sanitizeShortText(sanitizedMessage, 200),
+        lastMessageAt: nowIso,
+        userUnreadCount: 0,
+        adminUnreadCount: Math.max(0, toNumber(thread.admin_unread_count, 0)) + 1,
+        updatedAt: nowIso,
+        closedAt: null,
+      });
+    });
+
+    tx();
+    return findLiveThreadByRefStatement.get(thread.thread_ref);
+  }
+
+  function sendLiveAdminMessage({ threadRef, messageText, adminUserId, adminEmail, senderName }) {
+    const thread = findLiveThreadByRefStatement.get(threadRef);
+    if (!thread) {
+      throw new Error("Live chat thread not found.");
+    }
+
+    const sanitizedMessage = sanitizeMessageText(messageText, 3000);
+    if (!sanitizedMessage) {
+      throw new Error("Reply message is required.");
+    }
+
+    const nowIso = toIso(getNow());
+    const nextAssignedUserId = sanitizeShortText(thread.assigned_admin_user_id || adminUserId || "", 80) || null;
+    const nextAssignedEmail = sanitizeShortText(thread.assigned_admin_email || adminEmail || "", 180) || null;
+
+    const tx = db.transaction(() => {
+      insertLiveMessageStatement.run({
+        threadId: thread.id,
+        threadRef: thread.thread_ref,
+        senderRole: "admin",
+        senderUserId: sanitizeShortText(adminUserId || "admin", 80) || "admin",
+        senderName: sanitizeShortText(senderName || "Support Admin", 120),
+        senderEmail: sanitizeShortText(adminEmail || "", 180),
+        messageText: sanitizedMessage,
+        createdAt: nowIso,
+        readByUserAt: null,
+        readByAdminAt: nowIso,
+      });
+
+      updateLiveThreadStatement.run({
+        id: thread.id,
+        userName: thread.user_name,
+        userEmail: thread.user_email,
+        status: "open",
+        assignedAdminUserId: nextAssignedUserId,
+        assignedAdminEmail: nextAssignedEmail,
+        lastMessagePreview: sanitizeShortText(sanitizedMessage, 200),
+        lastMessageAt: nowIso,
+        userUnreadCount: Math.max(0, toNumber(thread.user_unread_count, 0)) + 1,
+        adminUnreadCount: 0,
+        updatedAt: nowIso,
+        closedAt: null,
+      });
+
+      writeAdminAudit({
+        adminUserId,
+        adminEmail,
+        actionType: "live_chat_reply",
+        targetType: "support_live_thread",
+        targetId: thread.thread_ref,
+        note: sanitizeShortText(sanitizedMessage, 260),
+        createdAt: nowIso,
+      });
+    });
+
+    tx();
+    return findLiveThreadByRefStatement.get(threadRef);
+  }
+
+  function updateLiveThreadMeta({ threadRef, status, assignedAdminUserId, assignedAdminEmail, note, adminUserId, adminEmail }) {
+    const thread = findLiveThreadByRefStatement.get(threadRef);
+    if (!thread) {
+      throw new Error("Live chat thread not found.");
+    }
+
+    const nowIso = toIso(getNow());
+    const nextStatus = normalizeLiveChatStatus(status || thread.status || "open", thread.status || "open");
+    const nextAssignedUserId =
+      assignedAdminUserId === undefined
+        ? thread.assigned_admin_user_id
+        : sanitizeShortText(assignedAdminUserId || "", 80) || null;
+    const nextAssignedEmail =
+      assignedAdminEmail === undefined
+        ? thread.assigned_admin_email
+        : sanitizeShortText(assignedAdminEmail || "", 180) || null;
+
+    updateLiveThreadStatement.run({
+      id: thread.id,
+      userName: thread.user_name,
+      userEmail: thread.user_email,
+      status: nextStatus,
+      assignedAdminUserId: nextAssignedUserId,
+      assignedAdminEmail: nextAssignedEmail,
+      lastMessagePreview: thread.last_message_preview,
+      lastMessageAt: thread.last_message_at,
+      userUnreadCount: toNumber(thread.user_unread_count, 0),
+      adminUnreadCount: toNumber(thread.admin_unread_count, 0),
+      updatedAt: nowIso,
+      closedAt: nextStatus === "closed" ? nowIso : null,
+    });
+
+    writeAdminAudit({
+      adminUserId,
+      adminEmail,
+      actionType: "live_chat_update",
+      targetType: "support_live_thread",
+      targetId: thread.thread_ref,
+      note: sanitizeShortText(note || "live chat meta updated", 260),
+      createdAt: nowIso,
+    });
+
+    return findLiveThreadByRefStatement.get(threadRef);
+  }
+
+  function buildAdminLiveSummary() {
+    return {
+      totalThreads: toNumber(countLiveThreadsTotalStatement.get()?.total, 0),
+      openThreads: toNumber(countLiveThreadsByStatusStatement.get("open")?.total, 0),
+      closedThreads: toNumber(countLiveThreadsByStatusStatement.get("closed")?.total, 0),
+      unreadForAdmin: toNumber(sumLiveAdminUnreadStatement.get()?.total, 0),
+      unreadForUsers: toNumber(sumLiveUserUnreadStatement.get()?.total, 0),
+    };
+  }
+
   function buildUserTicketSummary(userId) {
     return {
       totalTickets: toNumber(countTicketsByUserStatement.get({ userId, statusFilter: "all" })?.total, 0),
@@ -984,6 +1476,48 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
     }
   }
 
+  function handleSupportLiveThread(req, res) {
+    try {
+      const nowIso = toIso(getNow());
+      const thread = ensureLiveThreadForUser({
+        userId: req.currentUser.userId,
+        userName: req.currentUser.name,
+        userEmail: req.currentUser.email,
+      });
+      touchLiveThreadAsUserRead(thread.id, nowIso);
+      const updatedThread = findLiveThreadByRefStatement.get(thread.thread_ref);
+      const totalMessages = toNumber(countLiveMessagesByThreadStatement.get(thread.id)?.total, 0);
+      res.json({
+        thread: mapLiveThreadRow(updatedThread),
+        messages: getLiveMessages(thread.id, 1, 500),
+        summary: {
+          unreadMessages: toNumber(updatedThread?.user_unread_count, 0),
+          totalMessages,
+        },
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not load live chat thread." });
+    }
+  }
+
+  function handleSupportLiveSend(req, res) {
+    try {
+      const updatedThread = sendLiveUserMessage({
+        userId: req.currentUser.userId,
+        userName: req.currentUser.name,
+        userEmail: req.currentUser.email,
+        messageText: parseRequestValue(req, "message", ""),
+      });
+
+      res.json({
+        message: "Message sent successfully.",
+        thread: mapLiveThreadRow(updatedThread),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not send live chat message." });
+    }
+  }
+
   function handleAdminSupportDashboardSummary(req, res) {
     try {
       res.json({ summary: buildAdminTicketSummary() });
@@ -1119,6 +1653,123 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
     }
   }
 
+  function handleAdminSupportLiveThreads(req, res) {
+    try {
+      const statusFilter = normalizeLower(parseRequestValue(req, "status", "all")) === "all"
+        ? "all"
+        : normalizeLiveChatStatus(parseRequestValue(req, "status", "open"), "open");
+      const keyword = sanitizeShortText(parseRequestValue(req, "keyword", ""), 120);
+      const { page, limit, offset } = buildPagination(parseRequestValue(req, "page", 1), parseRequestValue(req, "limit", 60), 60, 400);
+
+      const rows = listLiveThreadsForAdminStatement
+        .all({
+          statusFilter,
+          keyword,
+          keywordLike: keyword ? `%${keyword}%` : "",
+          limit,
+          offset,
+        })
+        .map((row) => mapLiveThreadRow(row));
+
+      const total = toNumber(
+        countLiveThreadsForAdminStatement.get({
+          statusFilter,
+          keyword,
+          keywordLike: keyword ? `%${keyword}%` : "",
+        })?.total,
+        0,
+      );
+
+      res.json({
+        summary: buildAdminLiveSummary(),
+        pagination: {
+          page,
+          limit,
+          total,
+          hasMore: offset + rows.length < total,
+        },
+        rows,
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not load live chat threads." });
+    }
+  }
+
+  function handleAdminSupportLiveThreadDetail(req, res) {
+    try {
+      const threadRef = sanitizeShortText(
+        req?.params?.threadRef || parseRequestValue(req, "threadRef", ""),
+        80,
+      );
+      if (!threadRef) {
+        throw new Error("Live thread reference is required.");
+      }
+      const thread = findLiveThreadByRefStatement.get(threadRef);
+      if (!thread) {
+        throw new Error("Live chat thread not found.");
+      }
+      const nowIso = toIso(getNow());
+      touchLiveThreadAsAdminRead(thread.id, nowIso);
+      const updatedThread = findLiveThreadByRefStatement.get(threadRef);
+      const totalMessages = toNumber(countLiveMessagesByThreadStatement.get(thread.id)?.total, 0);
+      res.json({
+        thread: mapLiveThreadRow(updatedThread),
+        messages: getLiveMessages(thread.id, 1, 1000),
+        meta: {
+          totalMessages,
+        },
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not load live chat thread detail." });
+    }
+  }
+
+  function handleAdminSupportLiveReply(req, res) {
+    try {
+      const threadRef = sanitizeShortText(parseRequestValue(req, "threadRef", ""), 80);
+      if (!threadRef) {
+        throw new Error("Live thread reference is required.");
+      }
+      const updatedThread = sendLiveAdminMessage({
+        threadRef,
+        messageText: parseRequestValue(req, "message", ""),
+        adminUserId: req.currentUser.userId,
+        adminEmail: req.currentUser.email,
+        senderName: req.currentUser.name,
+      });
+      res.json({
+        message: "Live chat reply sent successfully.",
+        thread: mapLiveThreadRow(updatedThread),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not send live chat reply." });
+    }
+  }
+
+  function handleAdminSupportLiveUpdate(req, res) {
+    try {
+      const threadRef = sanitizeShortText(parseRequestValue(req, "threadRef", ""), 80);
+      if (!threadRef) {
+        throw new Error("Live thread reference is required.");
+      }
+      const updatedThread = updateLiveThreadMeta({
+        threadRef,
+        status: parseRequestValue(req, "status", undefined),
+        assignedAdminUserId: parseRequestValue(req, "assignedAdminUserId", undefined),
+        assignedAdminEmail: parseRequestValue(req, "assignedAdminEmail", undefined),
+        note: parseRequestValue(req, "note", ""),
+        adminUserId: req.currentUser.userId,
+        adminEmail: req.currentUser.email,
+      });
+      res.json({
+        message: "Live chat thread updated successfully.",
+        thread: mapLiveThreadRow(updatedThread),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not update live chat thread." });
+    }
+  }
+
   function handleAdminSupportAuditLogs(req, res) {
     try {
       const keyword = sanitizeShortText(parseRequestValue(req, "keyword", ""), 120);
@@ -1231,11 +1882,17 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
     handleSupportTicketCreate,
     handleSupportTicketMessageSend,
     handleSupportTicketStatusUpdate,
+    handleSupportLiveThread,
+    handleSupportLiveSend,
     handleAdminSupportDashboardSummary,
     handleAdminSupportTickets,
     handleAdminSupportTicketDetail,
     handleAdminSupportReply,
     handleAdminSupportTicketUpdate,
+    handleAdminSupportLiveThreads,
+    handleAdminSupportLiveThreadDetail,
+    handleAdminSupportLiveReply,
+    handleAdminSupportLiveUpdate,
     handleAdminSupportAuditLogs,
   };
 }

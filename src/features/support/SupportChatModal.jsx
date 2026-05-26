@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./support.css";
 
 function toNumber(value, fallback = 0) {
@@ -51,7 +51,10 @@ export default function SupportChatModal({
   onCreateTicket,
   onSendTicketMessage,
   onUpdateTicketStatus,
+  onLoadLiveThread,
+  onSendLiveMessage,
 }) {
+  const [activeMode, setActiveMode] = useState("live");
   const [loading, setLoading] = useState(false);
   const [busyAction, setBusyAction] = useState("");
   const [error, setError] = useState("");
@@ -70,46 +73,97 @@ export default function SupportChatModal({
   const [newCategory, setNewCategory] = useState("general");
   const [newMessage, setNewMessage] = useState("");
 
-  const selectedTicket = ticketDetail?.ticket || null;
-  const messages = Array.isArray(ticketDetail?.messages) ? ticketDetail.messages : [];
+  const [liveChatEnabled, setLiveChatEnabled] = useState(true);
+  const [lastSyncAt, setLastSyncAt] = useState("");
+  const [liveThreadDetail, setLiveThreadDetail] = useState({});
+  const [liveMessageInput, setLiveMessageInput] = useState("");
 
-  const refreshTickets = async (nextStatus = statusFilter) => {
+  const ticketMessagesRef = useRef(null);
+  const liveMessagesRef = useRef(null);
+
+  const selectedTicket = ticketDetail?.ticket || null;
+  const ticketMessages = Array.isArray(ticketDetail?.messages) ? ticketDetail.messages : [];
+  const liveThread = liveThreadDetail?.thread || null;
+  const liveMessages = Array.isArray(liveThreadDetail?.messages) ? liveThreadDetail.messages : [];
+
+  const refreshTickets = async (nextStatus = statusFilter, options = {}) => {
+    const silent = Boolean(options?.silent);
     if (!onLoadTickets) {
       return;
     }
 
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const payload = await onLoadTickets({ status: nextStatus, page: 1, limit: 120 });
       setSummary(payload?.summary || {});
       const rows = Array.isArray(payload?.rows) ? payload.rows : [];
       setTickets(rows);
+      setLastSyncAt(new Date().toISOString());
 
       if (!selectedTicketRef && rows[0]?.ticketRef) {
         setSelectedTicketRef(rows[0].ticketRef);
       }
     } catch (loadError) {
-      setError(loadError.message || "Could not load support tickets.");
+      if (!silent) {
+        setError(loadError.message || "Could not load support tickets.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
-  const openTicket = async (ticketRef) => {
+  const openTicket = async (ticketRef, options = {}) => {
+    const silent = Boolean(options?.silent);
     if (!ticketRef || !onLoadTicketDetail) {
       return;
     }
 
-    setBusyAction(`open-${ticketRef}`);
-    setError("");
+    if (!silent) {
+      setBusyAction(`open-${ticketRef}`);
+      setError("");
+    }
     try {
       const payload = await onLoadTicketDetail({ ticketRef });
       setSelectedTicketRef(ticketRef);
       setTicketDetail(payload || {});
+      setLastSyncAt(new Date().toISOString());
     } catch (loadError) {
-      setError(loadError.message || "Could not load support thread.");
+      if (!silent) {
+        setError(loadError.message || "Could not load support thread.");
+      }
     } finally {
-      setBusyAction("");
+      if (!silent) {
+        setBusyAction("");
+      }
+    }
+  };
+
+  const loadLiveThread = async (options = {}) => {
+    const silent = Boolean(options?.silent);
+    if (!onLoadLiveThread) {
+      return;
+    }
+
+    if (!silent) {
+      setBusyAction("live-load");
+      setError("");
+    }
+    try {
+      const payload = await onLoadLiveThread();
+      setLiveThreadDetail(payload || {});
+      setLastSyncAt(new Date().toISOString());
+    } catch (loadError) {
+      if (!silent) {
+        setError(loadError.message || "Could not load live chat.");
+      }
+    } finally {
+      if (!silent) {
+        setBusyAction("");
+      }
     }
   };
 
@@ -120,25 +174,68 @@ export default function SupportChatModal({
 
     setError("");
     setNotice("");
-    refreshTickets(statusFilter);
+    if (activeMode === "tickets") {
+      refreshTickets(statusFilter, { silent: false });
+    } else {
+      loadLiveThread({ silent: false });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, activeMode]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || activeMode !== "tickets") {
       return;
     }
-    refreshTickets(statusFilter);
+    refreshTickets(statusFilter, { silent: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  }, [statusFilter, activeMode, open]);
 
   useEffect(() => {
-    if (!open || !selectedTicketRef) {
+    if (!open || activeMode !== "tickets" || !selectedTicketRef) {
       return;
     }
-    openTicket(selectedTicketRef);
+    openTicket(selectedTicketRef, { silent: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTicketRef]);
+  }, [selectedTicketRef, activeMode, open]);
+
+  useEffect(() => {
+    if (!open || !liveChatEnabled) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (activeMode === "live") {
+        loadLiveThread({ silent: true });
+        return;
+      }
+
+      refreshTickets(statusFilter, { silent: true });
+      if (selectedTicketRef) {
+        openTicket(selectedTicketRef, { silent: true });
+      }
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, liveChatEnabled, activeMode, statusFilter, selectedTicketRef]);
+
+  useEffect(() => {
+    const node = ticketMessagesRef.current;
+    if (!node || activeMode !== "tickets") {
+      return;
+    }
+    node.scrollTop = node.scrollHeight;
+  }, [ticketMessages.length, selectedTicketRef, activeMode]);
+
+  useEffect(() => {
+    const node = liveMessagesRef.current;
+    if (!node || activeMode !== "live") {
+      return;
+    }
+    node.scrollTop = node.scrollHeight;
+  }, [liveMessages.length, activeMode]);
 
   const submitNewTicket = async () => {
     if (!onCreateTicket) {
@@ -168,9 +265,9 @@ export default function SupportChatModal({
       setNewMessage("");
       setNewCategory("general");
       setNotice(payload?.message || "Support ticket created.");
-      await refreshTickets(statusFilter);
+      await refreshTickets(statusFilter, { silent: true });
       if (createdTicketRef) {
-        await openTicket(createdTicketRef);
+        await openTicket(createdTicketRef, { silent: true });
       }
     } catch (submitError) {
       setError(submitError.message || "Could not create support ticket.");
@@ -179,7 +276,7 @@ export default function SupportChatModal({
     }
   };
 
-  const sendMessage = async () => {
+  const sendTicketMessage = async () => {
     if (!selectedTicketRef) {
       setError("Select a ticket first.");
       return;
@@ -202,10 +299,34 @@ export default function SupportChatModal({
       });
       setMessageInput("");
       setNotice(payload?.message || "Message sent.");
-      await openTicket(selectedTicketRef);
-      await refreshTickets(statusFilter);
+      await openTicket(selectedTicketRef, { silent: true });
+      await refreshTickets(statusFilter, { silent: true });
     } catch (sendError) {
       setError(sendError.message || "Could not send support message.");
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const sendLiveChatMessage = async () => {
+    if (!onSendLiveMessage) {
+      return;
+    }
+    if (!liveMessageInput.trim()) {
+      setError("Message is required.");
+      return;
+    }
+
+    setBusyAction("live-send");
+    setError("");
+    setNotice("");
+    try {
+      const payload = await onSendLiveMessage({ message: liveMessageInput });
+      setLiveMessageInput("");
+      setNotice(payload?.message || "Message sent.");
+      await loadLiveThread({ silent: true });
+    } catch (sendError) {
+      setError(sendError.message || "Could not send live chat message.");
     } finally {
       setBusyAction("");
     }
@@ -222,8 +343,8 @@ export default function SupportChatModal({
     try {
       const payload = await onUpdateTicketStatus({ ticketRef: selectedTicketRef, status: nextStatus });
       setNotice(payload?.message || "Ticket status updated.");
-      await openTicket(selectedTicketRef);
-      await refreshTickets(statusFilter);
+      await openTicket(selectedTicketRef, { silent: true });
+      await refreshTickets(statusFilter, { silent: true });
     } catch (statusError) {
       setError(statusError.message || "Could not update ticket status.");
     } finally {
@@ -232,7 +353,7 @@ export default function SupportChatModal({
   };
 
   const visibleTickets = useMemo(() => {
-    return tickets.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return [...tickets].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [tickets]);
 
   if (!open) {
@@ -248,14 +369,25 @@ export default function SupportChatModal({
             <div>
               <strong>Customer Support</strong>
               <p>
-                <span className="supportchat-live-dot" /> Dedicated support desk
+                <span className="supportchat-live-dot" /> Live one-to-one assistance
               </p>
             </div>
           </div>
 
           <div className="supportchat-header-actions">
-            <button type="button" className="supportchat-icon-btn" onClick={() => refreshTickets(statusFilter)} title="Refresh tickets">
-              <i className={`fas ${loading ? "fa-spinner fa-spin" : "fa-rotate"}`} />
+            <button
+              type="button"
+              className="supportchat-icon-btn"
+              onClick={() => {
+                if (activeMode === "live") {
+                  loadLiveThread({ silent: false });
+                } else {
+                  refreshTickets(statusFilter, { silent: false });
+                }
+              }}
+              title="Refresh"
+            >
+              <i className={`fas ${loading || busyAction === "live-load" ? "fa-spinner fa-spin" : "fa-rotate"}`} />
             </button>
             <button type="button" className="supportchat-icon-btn" onClick={onClose} aria-label="Close support modal">
               <i className="fas fa-xmark" />
@@ -263,28 +395,64 @@ export default function SupportChatModal({
           </div>
         </header>
 
+        <div className="supportchat-mode-tabs">
+          <button
+            type="button"
+            className={activeMode === "live" ? "active" : ""}
+            onClick={() => setActiveMode("live")}
+          >
+            <i className="fas fa-comments" /> Live Chat
+          </button>
+          <button
+            type="button"
+            className={activeMode === "tickets" ? "active" : ""}
+            onClick={() => setActiveMode("tickets")}
+          >
+            <i className="fas fa-ticket" /> Ticket Support
+          </button>
+        </div>
+
         <div className="supportchat-topbar">
-          <div className="supportchat-stats">
-            <span>Tickets: {toNumber(summary?.totalTickets, 0)}</span>
-            <span>Unread: {toNumber(summary?.unreadMessages, 0)}</span>
-            <span>Pending Admin: {toNumber(summary?.pendingAdminTickets, 0)}</span>
-          </div>
+          {activeMode === "live" ? (
+            <div className="supportchat-stats">
+              <span>Thread: {liveThread?.threadRef || "-"}</span>
+              <span>Status: {statusLabel(liveThread?.status || "open")}</span>
+              <span>Unread: {toNumber(liveThread?.userUnreadCount, 0)}</span>
+              <span>{liveChatEnabled ? "Live: connected" : "Live: paused"}</span>
+              <span>Synced: {lastSyncAt ? formatDateTime(lastSyncAt) : "-"}</span>
+            </div>
+          ) : (
+            <div className="supportchat-stats">
+              <span>Tickets: {toNumber(summary?.totalTickets, 0)}</span>
+              <span>Unread: {toNumber(summary?.unreadMessages, 0)}</span>
+              <span>Pending Admin: {toNumber(summary?.pendingAdminTickets, 0)}</span>
+              <span>{liveChatEnabled ? "Live: connected" : "Live: paused"}</span>
+              <span>Synced: {lastSyncAt ? formatDateTime(lastSyncAt) : "-"}</span>
+            </div>
+          )}
           <div className="supportchat-topbar-actions">
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="all">All</option>
-              <option value="open">Open</option>
-              <option value="pending_admin">Pending Admin</option>
-              <option value="pending_user">Pending User</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
-            <button type="button" className="supportchat-primary-btn" onClick={() => setComposerOpen((prev) => !prev)}>
-              <i className="fas fa-plus" /> New Ticket
+            {activeMode === "tickets" ? (
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">All</option>
+                <option value="open">Open</option>
+                <option value="pending_admin">Pending Admin</option>
+                <option value="pending_user">Pending User</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            ) : null}
+            <button type="button" className="supportchat-ghost-btn" onClick={() => setLiveChatEnabled((prev) => !prev)}>
+              <i className={`fas ${liveChatEnabled ? "fa-wave-square" : "fa-pause"}`} /> {liveChatEnabled ? "Live ON" : "Live OFF"}
             </button>
+            {activeMode === "tickets" ? (
+              <button type="button" className="supportchat-primary-btn" onClick={() => setComposerOpen((prev) => !prev)}>
+                <i className="fas fa-plus" /> New Ticket
+              </button>
+            ) : null}
           </div>
         </div>
 
-        {composerOpen ? (
+        {activeMode === "tickets" && composerOpen ? (
           <section className="supportchat-composer">
             <h3>Create New Ticket</h3>
             <div className="supportchat-composer-grid">
@@ -332,103 +500,162 @@ export default function SupportChatModal({
         {error ? <p className="supportchat-error">{error}</p> : null}
         {notice ? <p className="supportchat-notice">{notice}</p> : null}
 
-        <div className="supportchat-layout">
-          <aside className="supportchat-ticket-list">
-            {visibleTickets.map((ticket) => (
-              <button
-                key={ticket.ticketRef}
-                type="button"
-                className={`supportchat-ticket-item ${ticket.ticketRef === selectedTicketRef ? "active" : ""}`}
-                onClick={() => setSelectedTicketRef(ticket.ticketRef)}
-              >
-                <div className="supportchat-ticket-head">
-                  <strong>{ticket.ticketRef}</strong>
-                  <span className={`supportchat-chip ${statusClass(ticket.status)}`}>{statusLabel(ticket.status)}</span>
+        {activeMode === "live" ? (
+          <div className="supportchat-live-shell">
+            <section className="supportchat-thread supportchat-live-thread">
+              <div className="supportchat-thread-head">
+                <div>
+                  <strong>Live Chat with Support Team</strong>
+                  <p>{liveThread?.threadRef || "Loading thread..."}</p>
                 </div>
-                <p>{ticket.subject}</p>
-                <small>{formatDateTime(ticket.updatedAt)}</small>
-                <div className="supportchat-ticket-foot">
-                  <span className={`supportchat-chip ${statusClass(ticket.priority)}`}>{ticket.priority}</span>
-                  <span>{toNumber(ticket.userUnreadCount, 0)} unread</span>
-                </div>
-              </button>
-            ))}
-            {!visibleTickets.length ? <p className="supportchat-muted">No support tickets found.</p> : null}
-          </aside>
-
-          <section className="supportchat-thread">
-            {selectedTicket ? (
-              <>
-                <div className="supportchat-thread-head">
-                  <div>
-                    <strong>{selectedTicket.subject}</strong>
-                    <p>{selectedTicket.ticketRef} • {selectedTicket.category}</p>
-                  </div>
-                  <div className="supportchat-thread-actions">
-                    {normalizeText(selectedTicket.status) === "closed" ? (
-                      <button
-                        type="button"
-                        className="supportchat-ghost-btn"
-                        onClick={() => updateTicketStatus("open")}
-                        disabled={busyAction === "status-open"}
-                      >
-                        Reopen
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="supportchat-ghost-btn"
-                        onClick={() => updateTicketStatus("closed")}
-                        disabled={busyAction === "status-closed"}
-                      >
-                        Close Ticket
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="supportchat-messages">
-                  {messages.map((message) => (
-                    <article
-                      key={`${message.messageId}-${message.createdAt}`}
-                      className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
-                    >
-                      <header>
-                        <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : "You"}</strong>
-                        <small>{formatDateTime(message.createdAt)}</small>
-                      </header>
-                      <p>{message.messageText}</p>
-                    </article>
-                  ))}
-                  {!messages.length ? <p className="supportchat-muted">No messages yet.</p> : null}
-                </div>
-
-                <footer className="supportchat-thread-footer">
-                  <input
-                    type="text"
-                    value={messageInput}
-                    onChange={(event) => setMessageInput(event.target.value)}
-                    placeholder={normalizeText(selectedTicket.status) === "closed" ? "Reopen ticket to send message" : "Write your message..."}
-                    disabled={normalizeText(selectedTicket.status) === "closed"}
-                  />
-                  <button
-                    type="button"
-                    className="supportchat-primary-btn"
-                    onClick={sendMessage}
-                    disabled={busyAction === "send-message" || normalizeText(selectedTicket.status) === "closed"}
-                  >
-                    {busyAction === "send-message" ? "Sending..." : "Send"}
-                  </button>
-                </footer>
-              </>
-            ) : (
-              <div className="supportchat-thread-empty">
-                <h3>Select a ticket</h3>
-                <p>Choose a ticket from the left list or create a new one to chat with support.</p>
+                <span className={`supportchat-chip ${statusClass(liveThread?.status)}`}>{statusLabel(liveThread?.status || "open")}</span>
               </div>
-            )}
-          </section>
-        </div>
+
+              <div className="supportchat-messages" ref={liveMessagesRef}>
+                {liveMessages.map((message) => (
+                  <article
+                    key={`${message.messageId}-${message.createdAt}`}
+                    className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
+                  >
+                    <header>
+                      <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : "You"}</strong>
+                      <small>{formatDateTime(message.createdAt)}</small>
+                    </header>
+                    <p>{message.messageText}</p>
+                  </article>
+                ))}
+                {!liveMessages.length ? <p className="supportchat-muted">Start the conversation with the support team.</p> : null}
+              </div>
+
+              <footer className="supportchat-thread-footer">
+                <input
+                  type="text"
+                  value={liveMessageInput}
+                  onChange={(event) => setLiveMessageInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      sendLiveChatMessage();
+                    }
+                  }}
+                  placeholder="Write your live message..."
+                />
+                <button
+                  type="button"
+                  className="supportchat-primary-btn"
+                  onClick={sendLiveChatMessage}
+                  disabled={busyAction === "live-send"}
+                >
+                  {busyAction === "live-send" ? "Sending..." : "Send"}
+                </button>
+              </footer>
+            </section>
+          </div>
+        ) : (
+          <div className="supportchat-layout">
+            <aside className="supportchat-ticket-list">
+              {visibleTickets.map((ticket) => (
+                <button
+                  key={ticket.ticketRef}
+                  type="button"
+                  className={`supportchat-ticket-item ${ticket.ticketRef === selectedTicketRef ? "active" : ""}`}
+                  onClick={() => setSelectedTicketRef(ticket.ticketRef)}
+                >
+                  <div className="supportchat-ticket-head">
+                    <strong>{ticket.ticketRef}</strong>
+                    <span className={`supportchat-chip ${statusClass(ticket.status)}`}>{statusLabel(ticket.status)}</span>
+                  </div>
+                  <p>{ticket.subject}</p>
+                  <small>{formatDateTime(ticket.updatedAt)}</small>
+                  <div className="supportchat-ticket-foot">
+                    <span className={`supportchat-chip ${statusClass(ticket.priority)}`}>{ticket.priority}</span>
+                    <span>{toNumber(ticket.userUnreadCount, 0)} unread</span>
+                  </div>
+                </button>
+              ))}
+              {!visibleTickets.length ? <p className="supportchat-muted">No support tickets found.</p> : null}
+            </aside>
+
+            <section className="supportchat-thread">
+              {selectedTicket ? (
+                <>
+                  <div className="supportchat-thread-head">
+                    <div>
+                      <strong>{selectedTicket.subject}</strong>
+                      <p>{selectedTicket.ticketRef} • {selectedTicket.category}</p>
+                    </div>
+                    <div className="supportchat-thread-actions">
+                      {normalizeText(selectedTicket.status) === "closed" ? (
+                        <button
+                          type="button"
+                          className="supportchat-ghost-btn"
+                          onClick={() => updateTicketStatus("open")}
+                          disabled={busyAction === "status-open"}
+                        >
+                          Reopen
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="supportchat-ghost-btn"
+                          onClick={() => updateTicketStatus("closed")}
+                          disabled={busyAction === "status-closed"}
+                        >
+                          Close Ticket
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="supportchat-messages" ref={ticketMessagesRef}>
+                    {ticketMessages.map((message) => (
+                      <article
+                        key={`${message.messageId}-${message.createdAt}`}
+                        className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
+                      >
+                        <header>
+                          <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : "You"}</strong>
+                          <small>{formatDateTime(message.createdAt)}</small>
+                        </header>
+                        <p>{message.messageText}</p>
+                      </article>
+                    ))}
+                    {!ticketMessages.length ? <p className="supportchat-muted">No messages yet.</p> : null}
+                  </div>
+
+                  <footer className="supportchat-thread-footer">
+                    <input
+                      type="text"
+                      value={messageInput}
+                      onChange={(event) => setMessageInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          sendTicketMessage();
+                        }
+                      }}
+                      placeholder={normalizeText(selectedTicket.status) === "closed" ? "Reopen ticket to send message" : "Write your message..."}
+                      disabled={normalizeText(selectedTicket.status) === "closed"}
+                    />
+                    <button
+                      type="button"
+                      className="supportchat-primary-btn"
+                      onClick={sendTicketMessage}
+                      disabled={busyAction === "send-message" || normalizeText(selectedTicket.status) === "closed"}
+                    >
+                      {busyAction === "send-message" ? "Sending..." : "Send"}
+                    </button>
+                  </footer>
+                </>
+              ) : (
+                <div className="supportchat-thread-empty">
+                  <h3>Select a ticket</h3>
+                  <p>Open a ticket from the left list or create a new one.</p>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
       </section>
     </div>
   );
