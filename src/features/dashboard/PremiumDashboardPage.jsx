@@ -1285,7 +1285,7 @@ export default function PremiumDashboardPage({
                       }
                     }}>
                       <div>
-                        <h3>Crypto Byte Whitepaper</h3>
+                        <h3>Rampx Trading Whitepaper</h3>
                         <button type="button" onClick={() => setWhitepaperOpen(true)}>Read</button>
                       </div>
                       <div className="prodash-paper-icon">
@@ -1784,16 +1784,16 @@ export default function PremiumDashboardPage({
         <div className="prodash-whitepaper-overlay" onClick={() => setWhitepaperOpen(false)}>
           <section className="prodash-whitepaper-modal" role="dialog" aria-modal="true" aria-label="Crypto Byte Whitepaper" onClick={(event) => event.stopPropagation()}>
             <header className="prodash-whitepaper-head">
-              <h3>Crypto Byte</h3>
+              <h3>Rampx Trading</h3>
               <button type="button" className="prodash-whitepaper-close" onClick={() => setWhitepaperOpen(false)} aria-label="Close whitepaper">
                 <i className="fas fa-xmark" />
               </button>
             </header>
 
             <article className="prodash-whitepaper-section">
-              <h4>About Crypto Byte</h4>
+              <h4>About Rampx Trading</h4>
               <p>
-                Crypto Byte is your all-in-one crypto platform for trading, portfolio tracking, staking, and ICO participation.
+                Rampx Trading is your all-in-one crypto platform for trading, portfolio tracking, staking, and ICO participation.
                 It&apos;s built for fast execution, clean UX, and secure wallet management so you can move from discovery to action in seconds.
               </p>
               <small>Updated</small>
