@@ -2695,6 +2695,23 @@ function AuthForms({ flow, classes }) {
   const nativeBridgeState = query.get("state") || "";
   const isNativeBridgeRequest =
     !isNativeRuntime && query.get("provider") === "google" && query.get("native") === "1" && Boolean(nativeBridgeCallback);
+  const publicAuthOrigin = (() => {
+    if (!hasValidHttpsPublicAuthBase()) {
+      return "";
+    }
+    try {
+      return new URL(PUBLIC_AUTH_BASE_URL).origin;
+    } catch {
+      return "";
+    }
+  })();
+  const currentWebOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const shouldPreferWebGoogleBridge =
+    !isNativeRuntime &&
+    !isNativeBridgeRequest &&
+    Boolean(publicAuthOrigin) &&
+    Boolean(currentWebOrigin) &&
+    publicAuthOrigin !== currentWebOrigin;
   const googleButtonText = isSignup ? "Sign up with Google" : "Continue with Google";
   const googleErrorText = isSignup ? "Google signup failed." : "Google login failed.";
 
@@ -2871,7 +2888,17 @@ function AuthForms({ flow, classes }) {
           </button>
         ) : (
           <div className="auth-google-button">
-            {canRenderGoogleWebButton ? (
+            {shouldPreferWebGoogleBridge ? (
+              <button
+                type="button"
+                className="btn btn-ghost auth-mobile-google-btn"
+                onClick={() => {
+                  openWebGoogleBridge();
+                }}
+              >
+                Open Secure Google Sign-In
+              </button>
+            ) : canRenderGoogleWebButton ? (
               <GoogleAuthRenderBoundary
                 fallback={
                   <p className="mobile-auth-notice">
