@@ -82,10 +82,105 @@ const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
 );
 
 const initialAssets = [
-  { name: "Bitcoin", symbol: "BTC", price: 67234.56, change: 2.34, iconClass: "btc" },
-  { name: "Ethereum", symbol: "ETH", price: 3456.78, change: 1.87, iconClass: "eth" },
-  { name: "Cardano", symbol: "ADA", price: 0.4567, change: -0.23, iconClass: "ada" },
+  { name: "Bitcoin", symbol: "BTC", price: 67234.56, change: 2.34, iconClass: "btc", icon: "fab fa-bitcoin" },
+  { name: "Ethereum", symbol: "ETH", price: 3456.78, change: 1.87, iconClass: "eth", icon: "fab fa-ethereum" },
+  { name: "BNB", symbol: "BNB", price: 612.2, change: 0.73, iconClass: "bnb", icon: "fas fa-coins" },
+  { name: "Solana", symbol: "SOL", price: 171.4, change: -0.28, iconClass: "sol", icon: "fas fa-sun" },
+  { name: "Ripple", symbol: "XRP", price: 0.58, change: 0.14, iconClass: "xrp", icon: "fas fa-wave-square" },
+  { name: "Gold", symbol: "XAU", price: 2368.45, change: 0.22, iconClass: "metal-gold", icon: "fas fa-medal" },
+  { name: "Silver", symbol: "XAG", price: 29.61, change: -0.07, iconClass: "metal-silver", icon: "fas fa-certificate" },
 ];
+
+const BINANCE_MARKET_TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr";
+const BINANCE_FUTURES_TICKER_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr";
+const LIVE_PORTFOLIO_SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"];
+const STATIC_METAL_ASSETS = [
+  { name: "Gold", symbol: "XAU", price: 2368.45, change: 0.22, iconClass: "metal-gold", icon: "fas fa-medal" },
+  { name: "Silver", symbol: "XAG", price: 29.61, change: -0.07, iconClass: "metal-silver", icon: "fas fa-certificate" },
+];
+const LIVE_METAL_MARKET_CONFIG = [
+  {
+    name: "Gold",
+    symbol: "XAU",
+    iconClass: "metal-gold",
+    icon: "fas fa-medal",
+    candidates: ["PAXGUSDT", "XAUTUSDT", "XAUUSDT"],
+  },
+  {
+    name: "Silver",
+    symbol: "XAG",
+    iconClass: "metal-silver",
+    icon: "fas fa-certificate",
+    candidates: ["XAGUSDT", "SILVERUSDT"],
+  },
+];
+
+const MARKET_EDUCATION_CONTENT = {
+  metals: {
+    title: "Gold and Silver explained",
+    points: [
+      {
+        icon: "fa-earth-europe",
+        heading: "Diversify your investment and manage risk",
+        copy: "Spot gold and silver can balance portfolio exposure during inflation and uncertain markets.",
+      },
+      {
+        icon: "fa-arrows-up-down",
+        heading: "Go long or short",
+        copy: "Trade metals in both rising and falling markets with clear entry and exit controls.",
+      },
+    ],
+    cards: [
+      {
+        title: "What are Gold and Silver?",
+        copy: "Everything you need to know about precious metals and their core market behavior.",
+        cta: "What is Gold and Silver trading?",
+      },
+      {
+        title: "Why trade Gold and Silver?",
+        copy: "Gold is historically viewed as a safe-haven asset in periods of market uncertainty.",
+        cta: "Why trade Gold and Silver?",
+      },
+      {
+        title: "How to trade Gold and Silver",
+        copy: "Learn the first-trade workflow including position size, stop-loss and risk controls.",
+        cta: "How to trade Gold and Silver",
+      },
+    ],
+  },
+  crypto: {
+    title: "Crypto market opportunities",
+    points: [
+      {
+        icon: "fa-bolt",
+        heading: "24/7 global market access",
+        copy: "Trade leading crypto pairs around the clock with real-time pricing and deep liquidity.",
+      },
+      {
+        icon: "fa-chart-line",
+        heading: "Momentum and range strategies",
+        copy: "Use trend and pullback setups across major pairs to capture short-term and swing moves.",
+      },
+    ],
+    cards: [
+      {
+        title: "What is Crypto trading?",
+        copy: "Understand spot crypto pair structures, quote assets, and market order behavior.",
+        cta: "What is Crypto trading?",
+      },
+      {
+        title: "Why trade Crypto?",
+        copy: "Crypto markets offer volatility and broad pair selection suitable for active traders.",
+        cta: "Why trade Crypto?",
+      },
+      {
+        title: "How to trade Crypto",
+        copy: "Set up your plan with entry rules, stop-loss, and disciplined risk-per-trade sizing.",
+        cta: "How to trade Crypto",
+      },
+    ],
+  },
+};
 
 const features = [
   {
@@ -390,6 +485,7 @@ function normalizeHomePageContent(payload) {
           price: Number.isFinite(Number(asset?.price)) ? Number(asset.price) : 0,
           change: Number.isFinite(Number(asset?.change)) ? Number(asset.change) : 0,
           iconClass: String(asset?.iconClass || "btc").trim() || "btc",
+          icon: String(asset?.icon || "fas fa-coins").trim() || "fas fa-coins",
         }))
         .filter((asset) => asset.name && asset.symbol),
     },
@@ -482,6 +578,104 @@ function formatPrice(price, symbol) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function formatPortfolioBalance(assets = []) {
+  const total = assets.reduce((sum, asset) => {
+    if (!Number.isFinite(asset?.price)) {
+      return sum;
+    }
+    return sum + Number(asset.price);
+  }, 0);
+
+  return `$${total.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+async function fetchBinanceLivePortfolioAssets() {
+  const readRows = async (url) => {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Binance request failed: HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    return Array.isArray(payload) ? payload : [];
+  };
+
+  const [spotResult, futuresResult] = await Promise.allSettled([
+    readRows(BINANCE_MARKET_TICKER_URL),
+    readRows(BINANCE_FUTURES_TICKER_URL),
+  ]);
+
+  const spotRows = spotResult.status === "fulfilled" ? spotResult.value : [];
+  const futuresRows = futuresResult.status === "fulfilled" ? futuresResult.value : [];
+  const mergedRows = [...spotRows, ...futuresRows];
+  const bySymbol = new Map(mergedRows.map((row) => [String(row?.symbol || ""), row]));
+
+  const iconBySymbol = {
+    BTC: { iconClass: "btc", icon: "fab fa-bitcoin" },
+    ETH: { iconClass: "eth", icon: "fab fa-ethereum" },
+    BNB: { iconClass: "bnb", icon: "fas fa-coins" },
+    SOL: { iconClass: "sol", icon: "fas fa-sun" },
+    XRP: { iconClass: "xrp", icon: "fas fa-wave-square" },
+  };
+
+  const cryptoAssets = LIVE_PORTFOLIO_SYMBOLS.map((symbolKey) => {
+    const row = bySymbol.get(symbolKey);
+    if (!row) {
+      return null;
+    }
+
+    const base = symbolKey.replace("USDT", "");
+    const price = Number(row.lastPrice);
+    const change = Number(row.priceChangePercent);
+
+    if (!Number.isFinite(price) || !Number.isFinite(change)) {
+      return null;
+    }
+
+    return {
+      name: base === "XRP" ? "Ripple" : base,
+      symbol: base,
+      price,
+      change,
+      iconClass: iconBySymbol[base]?.iconClass || "btc",
+      icon: iconBySymbol[base]?.icon || "fas fa-coins",
+    };
+  }).filter(Boolean);
+
+  const metalAssets = LIVE_METAL_MARKET_CONFIG.map((metalConfig, index) => {
+    const resolvedRow = metalConfig.candidates.map((candidate) => bySymbol.get(candidate)).find(Boolean);
+    if (!resolvedRow) {
+      return STATIC_METAL_ASSETS[index];
+    }
+
+    const price = Number(resolvedRow.lastPrice);
+    const change = Number(resolvedRow.priceChangePercent);
+    if (!Number.isFinite(price) || !Number.isFinite(change)) {
+      return STATIC_METAL_ASSETS[index];
+    }
+
+    return {
+      name: metalConfig.name,
+      symbol: metalConfig.symbol,
+      price,
+      change,
+      iconClass: metalConfig.iconClass,
+      icon: metalConfig.icon,
+    };
+  });
+
+  if (!cryptoAssets.length && !metalAssets.length) {
+    throw new Error("No market rows matched configured Binance symbols.");
+  }
+
+  return [...cryptoAssets, ...metalAssets];
 }
 
 function isNativeAppRuntime() {
@@ -4005,6 +4199,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
 function HomePage({
   homeContent,
   assets,
+  portfolioUpdatedAt,
   stats,
   activeFaq,
   onFaqToggle,
@@ -4020,6 +4215,8 @@ function HomePage({
   const footerSectionsList = Array.isArray(homeContent?.footer?.sections) ? homeContent.footer.sections : [];
   const footerSocialLinks = Array.isArray(homeContent?.footer?.socialLinks) ? homeContent.footer.socialLinks : [];
   const footerLegalLinks = Array.isArray(homeContent?.footer?.legalLinks) ? homeContent.footer.legalLinks : [];
+  const [activeMarketTab, setActiveMarketTab] = useState("metals");
+  const activeMarketContent = MARKET_EDUCATION_CONTENT[activeMarketTab] || MARKET_EDUCATION_CONTENT.metals;
   const adminPanelHref = String(homeContent?.footer?.adminPanelHref || ROUTES.admin).trim() || ROUTES.admin;
   const adminPanelText = String(homeContent?.footer?.adminPanelLinkText || "Admin Panel").trim() || "Admin Panel";
 
@@ -4093,23 +4290,33 @@ function HomePage({
           <div className="hero-content">
             <div className="hero-text">
               <h1 className="hero-title">
-                <span className="gradient-text">{homeContent?.hero?.titleLine1 || "Advanced Crypto Trading"}</span>
+                <span className="gradient-text">Advanced</span>
                 <br />
-                {homeContent?.hero?.titleLine2 || "Made Simple & Secure"}
+                <span className="hero-metal-line">Metal</span> & <span className="gradient-text">Crypto Trading</span>
+                <br />
+                Made Simple & Secure
               </h1>
 
               <p className="hero-description">{homeContent?.hero?.description || ""}</p>
 
-              <div className="hero-actions">
-                <button type="button" className="btn btn-primary btn-large" onClick={() => goToRoute(ROUTES.signup)}>
-                  <i className="fas fa-rocket" />
-                  {homeContent?.hero?.primaryCtaText || "Start Trading Now"}
+              {/* <div className="market-nav-tabs">
+                <button
+                  type="button"
+                  className={activeMarketTab === "metals" ? "active" : ""}
+                  onClick={() => setActiveMarketTab("metals")}
+                >
+                  <i className="fas fa-cubes-stacked" />
+                  Metals
                 </button>
-                <button type="button" className="btn btn-ghost btn-large" onClick={() => goToRoute(ROUTES.login)}>
-                  <i className="fas fa-play" />
-                  {homeContent?.hero?.secondaryCtaText || "Login"}
+                <button
+                  type="button"
+                  className={activeMarketTab === "crypto" ? "active" : ""}
+                  onClick={() => setActiveMarketTab("crypto")}
+                >
+                  <i className="fab fa-bitcoin" />
+                  Crypto
                 </button>
-              </div>
+              </div> */}
 
               <div className="hero-stats">
                 <div className="stat">
@@ -4137,36 +4344,110 @@ function HomePage({
             </div>
 
             <div className="hero-visual">
-              <div className="crypto-card">
-                <div className="card-header">
-                  <div className="card-title">{homeContent?.hero?.portfolioTitle || "Live Portfolio"}</div>
-                  <div className="card-balance">{homeContent?.hero?.portfolioBalance || "$124,567.89"}</div>
-                </div>
+              <img
+                className="hero-homepage-photo"
+                src="/homepagephoto.png"
+                alt="Gold, silver and bitcoin visual"
+                loading="lazy"
+              />
+            </div>
+          </div>
 
-                <div className="crypto-list">
-                  {assets.map((asset) => (
-                    <div className="crypto-item" key={asset.symbol}>
-                      <div className={`crypto-icon ${asset.iconClass}`} />
-                      <div className="crypto-info">
-                        <div className="crypto-name">{asset.name}</div>
-                        <div className="crypto-symbol">{asset.symbol}</div>
-                      </div>
-                      <div className="crypto-price">
-                        <div className="price">{formatPrice(asset.price, asset.symbol)}</div>
-                        <div className={`change ${asset.change >= 0 ? "positive" : "negative"}`}>
-                          {asset.change >= 0 ? "+" : ""}
-                          {asset.change.toFixed(2)}%
-                        </div>
+          <div className="hero-portfolio-wrap">
+            <div className="crypto-card">
+              <div className="card-header">
+                <div className="card-title">{homeContent?.hero?.portfolioTitle || "Live Portfolio"}</div>
+                {/* <div className="card-balance">{formatPortfolioBalance(assets)}</div> */}
+                <small className="hero-portfolio-sync">
+                  {portfolioUpdatedAt
+                    ? `Synced ${new Date(portfolioUpdatedAt).toLocaleTimeString()}`
+                    : "Waiting for live market feed..."}
+                </small>
+              </div>
+
+              <div className="crypto-list">
+                {assets.map((asset) => (
+                  <div className="crypto-item" key={asset.symbol}>
+                    <div className={`crypto-icon ${asset.iconClass}`}>
+                      <i className={asset.icon || "fas fa-coins"} />
+                    </div>
+                    <div className="crypto-info">
+                      <div className="crypto-name">{asset.name}</div>
+                      <div className="crypto-symbol">{asset.symbol}</div>
+                    </div>
+                    <div className="crypto-price">
+                      <div className="price">{formatPrice(asset.price, asset.symbol)}</div>
+                      <div className={`change ${asset.change >= 0 ? "positive" : "negative"}`}>
+                        {asset.change >= 0 ? "+" : ""}
+                        {asset.change.toFixed(2)}%
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
 
-                <div className="card-chart">
-                  <canvas id="portfolioChart" ref={canvasRef} />
-                </div>
+              <div className="card-chart">
+                <canvas id="portfolioChart" ref={canvasRef} />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="market-education">
+        <div className="container">
+          <div className="market-nav-tabs market-education-nav-tabs">
+            <button
+              type="button"
+              className={activeMarketTab === "metals" ? "active" : ""}
+              onClick={() => setActiveMarketTab("metals")}
+            >
+              <i className="fas fa-cubes-stacked" />
+              Metals
+            </button>
+            <button
+              type="button"
+              className={activeMarketTab === "crypto" ? "active" : ""}
+              onClick={() => setActiveMarketTab("crypto")}
+            >
+              <i className="fab fa-bitcoin" />
+              Crypto
+            </button>
+          </div>
+          <h2>{activeMarketContent.title}</h2>
+          <div className="market-education-top">
+            <div className="market-education-points">
+              {activeMarketContent.points.map((point) => (
+                <article key={point.heading}>
+                  <i className={`fas ${point.icon}`} />
+                  <div>
+                    <h3>{point.heading}</h3>
+                    <p>{point.copy}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className={`market-education-visual ${activeMarketTab}`}>
+              <img
+                className="market-education-photo"
+                src="/homepagephoto.png"
+                alt="Gold, silver and bitcoin visual"
+                loading="lazy"
+              />
+            </div>
+          </div>
+
+          <div className="market-education-cards">
+            {activeMarketContent.cards.map((card) => (
+              <article key={card.title}>
+                <h3>{card.title}</h3>
+                <p>{card.copy}</p>
+                <button type="button">
+                  {card.cta}
+                  <i className="fas fa-caret-right" />
+                </button>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -4346,6 +4627,7 @@ function App() {
   const [assets, setAssets] = useState(() =>
     cloneHomePageContent(DEFAULT_HOME_PAGE_CONTENT).market.assets,
   );
+  const [portfolioUpdatedAt, setPortfolioUpdatedAt] = useState("");
   const [activeFaq, setActiveFaq] = useState(0);
   const [stats, setStats] = useState({ volume: 0, users: 0, uptime: 0 });
   const canvasRef = useRef(null);
@@ -4397,6 +4679,7 @@ function App() {
         const normalized = normalizeHomePageContent(payload?.content);
         setHomeContent(normalized);
         setAssets(normalized.market.assets);
+        setPortfolioUpdatedAt("");
         setActiveFaq(0);
       } catch {
         // Keep default content when API is unavailable.
@@ -4547,6 +4830,7 @@ function App() {
 
   useEffect(() => {
     setAssets(homeContent?.market?.assets || []);
+    setPortfolioUpdatedAt("");
     setActiveFaq(0);
   }, [homeContent]);
 
@@ -4554,25 +4838,29 @@ function App() {
     if (route !== ROUTES.home) {
       return undefined;
     }
-    if (!homeContent?.market?.enableRandomMovement) {
-      return undefined;
-    }
 
-    const intervalId = window.setInterval(() => {
-      setAssets((current) =>
-        current.map((asset) => {
-          const changePercent = (Math.random() - 0.5) * 4;
-          return {
-            ...asset,
-            price: asset.price * (1 + changePercent / 100),
-            change: Number(changePercent.toFixed(2)),
-          };
-        }),
-      );
-    }, 3000);
+    let cancelled = false;
 
-    return () => window.clearInterval(intervalId);
-  }, [homeContent?.market?.enableRandomMovement, route]);
+    const syncPortfolio = async () => {
+      try {
+        const liveAssets = await fetchBinanceLivePortfolioAssets();
+        if (cancelled) {
+          return;
+        }
+        setAssets(liveAssets);
+        setPortfolioUpdatedAt(new Date().toISOString());
+      } catch {
+        // Keep configured fallback assets if Binance is unavailable.
+      }
+    };
+
+    syncPortfolio();
+    const intervalId = window.setInterval(syncPortfolio, 10000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [route]);
 
   useEffect(() => {
     if (route !== ROUTES.home) {
@@ -4678,6 +4966,7 @@ function App() {
     <HomePage
       homeContent={homeContent}
       assets={assets}
+      portfolioUpdatedAt={portfolioUpdatedAt}
       stats={stats}
       activeFaq={activeFaq}
       onFaqToggle={(index) => setActiveFaq(activeFaq === index ? -1 : index)}
