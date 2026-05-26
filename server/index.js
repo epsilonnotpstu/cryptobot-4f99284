@@ -1679,8 +1679,8 @@ function sanitizeEnv(value = "") {
 }
 
 const ADMIN_NOTIFICATION_DEFAULT_EMAILS = ["admin@rampxtrading.com", "support@rampxtrading.com"];
-const NOTIFICATION_FROM_EMAIL_DEFAULT = "admin@rampxtrading.com";
-const NOTIFICATION_FROM_NAME_DEFAULT = "RampXTrading Admin";
+const NOTIFICATION_FROM_EMAIL_DEFAULT = "support@rampxtrading.com";
+const NOTIFICATION_FROM_NAME_DEFAULT = "RampXTrading Support";
 
 function normalizeEmailAddress(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -1717,12 +1717,7 @@ function buildFromHeader(email = "", name = "") {
 }
 
 function resolveNotificationFromHeader() {
-  const configuredEmail = normalizeEmailAddress(
-    sanitizeEnv(process.env.NOTIFICATION_FROM_EMAIL || NOTIFICATION_FROM_EMAIL_DEFAULT),
-  );
-  const fromEmail = configuredEmail === NOTIFICATION_FROM_EMAIL_DEFAULT
-    ? configuredEmail
-    : NOTIFICATION_FROM_EMAIL_DEFAULT;
+  const fromEmail = NOTIFICATION_FROM_EMAIL_DEFAULT;
   const fromName = sanitizeEnv(process.env.NOTIFICATION_FROM_NAME || NOTIFICATION_FROM_NAME_DEFAULT);
   return buildFromHeader(fromEmail || NOTIFICATION_FROM_EMAIL_DEFAULT, fromName || NOTIFICATION_FROM_NAME_DEFAULT);
 }
@@ -2292,7 +2287,7 @@ function buildUserDepositDecisionMailPayload({ request, decision }) {
   ];
   const template = buildNotificationTemplate({
     heading: "Deposit Request Update",
-    intro: "Your deposit request has been reviewed by admin.",
+    intro: "Your deposit request has been reviewed by RampXTrading Support.",
     rows,
   });
   return {
@@ -2311,7 +2306,7 @@ function buildUserKycDecisionMailPayload({ request, decision }) {
   ];
   const template = buildNotificationTemplate({
     heading: "KYC Verification Update",
-    intro: "Your KYC verification request has been reviewed by admin.",
+    intro: "Your KYC verification request has been reviewed by RampXTrading Support.",
     rows,
   });
   return {
