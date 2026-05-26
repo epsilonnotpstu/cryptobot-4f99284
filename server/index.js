@@ -1648,6 +1648,123 @@ function sanitizeEnv(value = "") {
     .replace(/^['"]+|['"]+$/g, "");
 }
 
+const ADMIN_NOTIFICATION_DEFAULT_EMAILS = ["admin@rampxtrading.com", "support@rampxtrading.com"];
+const NOTIFICATION_FROM_EMAIL_DEFAULT = "admin@rampxtrading.com";
+const NOTIFICATION_FROM_NAME_DEFAULT = "RampXTrading Admin";
+
+function normalizeEmailAddress(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidEmailAddress(value = "") {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function parseEmailList(value = "") {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeEmailAddress(item))
+      .filter((item) => isValidEmailAddress(item));
+  }
+
+  return String(value || "")
+    .split(",")
+    .map((item) => normalizeEmailAddress(item))
+    .filter((item) => isValidEmailAddress(item));
+}
+
+function dedupeEmails(values = []) {
+  return Array.from(new Set((values || []).map((item) => normalizeEmailAddress(item)).filter(Boolean)));
+}
+
+function buildFromHeader(email = "", name = "") {
+  const cleanEmail = normalizeEmailAddress(email);
+  const cleanName = sanitizeEnv(name);
+  if (!cleanEmail) {
+    return "";
+  }
+  return cleanName ? `${cleanName} <${cleanEmail}>` : cleanEmail;
+}
+
+function resolveNotificationFromHeader() {
+  const configuredEmail = normalizeEmailAddress(
+    sanitizeEnv(process.env.NOTIFICATION_FROM_EMAIL || NOTIFICATION_FROM_EMAIL_DEFAULT),
+  );
+  const fromEmail = configuredEmail === NOTIFICATION_FROM_EMAIL_DEFAULT
+    ? configuredEmail
+    : NOTIFICATION_FROM_EMAIL_DEFAULT;
+  const fromName = sanitizeEnv(process.env.NOTIFICATION_FROM_NAME || NOTIFICATION_FROM_NAME_DEFAULT);
+  return buildFromHeader(fromEmail || NOTIFICATION_FROM_EMAIL_DEFAULT, fromName || NOTIFICATION_FROM_NAME_DEFAULT);
+}
+
+function resolveAdminNotificationRecipients() {
+  const configured = parseEmailList(sanitizeEnv(process.env.ADMIN_NOTIFICATION_EMAILS || ""));
+  if (configured.length > 0) {
+    return dedupeEmails(configured);
+  }
+  return dedupeEmails(ADMIN_NOTIFICATION_DEFAULT_EMAILS);
+}
+
+function maskAddress(value = "") {
+  const clean = String(value || "").trim();
+  if (!clean) {
+    return "";
+  }
+  if (clean.length <= 10) {
+    return `${clean.slice(0, 2)}***${clean.slice(-2)}`;
+  }
+  return `${clean.slice(0, 6)}...${clean.slice(-4)}`;
+}
+
+function formatUsd(value = 0) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric)) {
+    return "0.00";
+  }
+  return numeric.toFixed(2);
+}
+
+function escapeHtml(value = "") {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildInfoTableRows(rows = []) {
+  return rows
+    .filter((row) => row && row.label && row.value !== undefined && row.value !== null && String(row.value) !== "")
+    .map((row) => {
+      const label = escapeHtml(row.label);
+      const value = escapeHtml(String(row.value));
+      return `<tr><td style="padding:6px 10px;font-weight:600;color:#334155;">${label}</td><td style="padding:6px 10px;color:#0f172a;">${value}</td></tr>`;
+    })
+    .join("");
+}
+
+function buildNotificationTemplate({ heading, intro, rows = [], closing = "" }) {
+  const textRows = rows
+    .filter((row) => row && row.label && row.value !== undefined && row.value !== null && String(row.value) !== "")
+    .map((row) => `${row.label}: ${row.value}`)
+    .join("\n");
+
+  return {
+    text: `${intro}\n\n${textRows}${closing ? `\n\n${closing}` : ""}`.trim(),
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #0f172a;">
+        <h2 style="margin: 0 0 12px 0;">${escapeHtml(APP_NAME)} - ${escapeHtml(heading)}</h2>
+        <p style="margin: 0 0 14px 0;">${escapeHtml(intro)}</p>
+        <table style="border-collapse: collapse; width: 100%; background: #f8fafc; border: 1px solid #e2e8f0;">
+          ${buildInfoTableRows(rows)}
+        </table>
+        ${closing ? `<p style="margin-top: 14px; color: #475569;">${escapeHtml(closing)}</p>` : ""}
+      </div>
+    `,
+  };
+}
+
 function getSmtpConfig() {
   const host = sanitizeEnv(process.env.SMTP_HOST);
   const portRaw = sanitizeEnv(process.env.SMTP_PORT || "587");
@@ -1784,6 +1901,124 @@ async function sendOtpViaResend({ to, subject, text, html }) {
   }
 }
 
+async function sendEmailViaResend({ to, subject, text, html, fromOverride = "" }) {
+  const { apiKey, from } = getResendConfig();
+  const fromAddress = sanitizeEnv(fromOverride || from);
+  if (!apiKey || !fromAddress) {
+    throw new Error("Resend is not configured. Add RESEND_API_KEY and RESEND_FROM.");
+  }
+
+  const recipients = dedupeEmails(Array.isArray(to) ? to : parseEmailList(to));
+  if (!recipients.length) {
+    throw new Error("At least one valid recipient email is required.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: recipients,
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => "");
+    throw new Error(`Resend API error (${response.status}): ${raw || response.statusText || "Request failed"}`);
+  }
+}
+
+async function sendEmailWithFallback({ to, subject, text, html, fromOverride = "" }) {
+  const recipients = dedupeEmails(Array.isArray(to) ? to : parseEmailList(to));
+  if (!recipients.length) {
+    throw new Error("At least one valid recipient email is required.");
+  }
+
+  const emailProviderPreference = sanitizeEnv(process.env.EMAIL_PROVIDER || process.env.EMAIL_API_PROVIDER).toLowerCase();
+  const smtpReady = isSmtpConfigured();
+  const resendReady = isResendConfigured();
+
+  if (!smtpReady && !resendReady) {
+    throw new Error(
+      "No email provider configured. Set SMTP_* credentials or RESEND_API_KEY + RESEND_FROM in environment variables.",
+    );
+  }
+
+  const attempts = [];
+  if (emailProviderPreference === "resend") {
+    attempts.push("resend");
+    if (smtpReady) {
+      attempts.push("smtp");
+    }
+  } else if (emailProviderPreference === "smtp") {
+    attempts.push("smtp");
+    if (resendReady) {
+      attempts.push("resend");
+    }
+  } else {
+    if (resendReady) {
+      attempts.push("resend");
+    }
+    if (smtpReady) {
+      attempts.push("smtp");
+    }
+  }
+
+  const dedupedAttempts = Array.from(new Set(attempts));
+  const errors = [];
+
+  for (const method of dedupedAttempts) {
+    try {
+      if (method === "resend") {
+        await sendEmailViaResend({ to: recipients, subject, text, html, fromOverride });
+        return;
+      }
+
+      const smtpFrom = sanitizeEnv(fromOverride || getSmtpConfig().from);
+      const transporters = createSmtpTransporters();
+      for (const { port, transporter } of transporters) {
+        try {
+          await transporter.sendMail({
+            from: smtpFrom,
+            to: recipients,
+            subject,
+            text,
+            html,
+          });
+          return;
+        } catch (smtpPortError) {
+          errors.push(`smtp:${port} ${smtpPortError?.message || smtpPortError}`);
+        }
+      }
+    } catch (providerError) {
+      errors.push(`${method}: ${providerError?.message || providerError}`);
+    }
+  }
+
+  throw new Error(errors.join(" | "));
+}
+
+async function dispatchNotificationEmail({ to, subject, text, html, metaLabel = "notification" }) {
+  try {
+    await sendEmailWithFallback({
+      to,
+      subject,
+      text,
+      html,
+      fromOverride: resolveNotificationFromHeader(),
+    });
+  } catch (error) {
+    // Non-blocking by design: action succeeds even if email fails.
+    console.error(`[email:${metaLabel}]`, error?.message || error);
+  }
+}
+
 function normalizeEmailServiceError(error) {
   const message = error?.message || "";
 
@@ -1875,6 +2110,193 @@ async function sendOtpEmail({ email, otp, purpose, name }) {
   }
 
   throw new Error(errors.join(" | "));
+}
+
+function sendAdminNotificationEmail({ subject, text, html, metaLabel = "admin-notification" }) {
+  const recipients = resolveAdminNotificationRecipients();
+  if (!recipients.length) {
+    return;
+  }
+  void dispatchNotificationEmail({
+    to: recipients,
+    subject,
+    text,
+    html,
+    metaLabel,
+  });
+}
+
+function sendUserNotificationEmail({ toEmail, subject, text, html, metaLabel = "user-notification" }) {
+  const email = normalizeEmailAddress(toEmail);
+  if (!isValidEmailAddress(email)) {
+    return;
+  }
+  void dispatchNotificationEmail({
+    to: [email],
+    subject,
+    text,
+    html,
+    metaLabel,
+  });
+}
+
+function buildAdminDepositRequestMailPayload({ request, user }) {
+  const rows = [
+    { label: "User ID", value: request?.userId || user?.userId || "" },
+    { label: "User Name", value: user?.name || "" },
+    { label: "User Email", value: user?.email || "" },
+    { label: "Request ID", value: request?.requestId || "" },
+    { label: "Asset", value: request?.assetSymbol || "" },
+    { label: "Chain", value: request?.chainName || "" },
+    { label: "Amount (USD)", value: formatUsd(request?.amountUsd || 0) },
+    { label: "Submitted At", value: request?.submittedAt || "" },
+    { label: "Status", value: request?.status || "pending" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "New Deposit Request",
+    intro: "A user submitted a new deposit request and it is waiting for admin review.",
+    rows,
+  });
+  return {
+    subject: `${APP_NAME}: New Deposit Request (${request?.requestId || "N/A"})`,
+    ...template,
+  };
+}
+
+function buildAdminKycSubmissionMailPayload({ submission, user }) {
+  const rows = [
+    { label: "User ID", value: submission?.userId || user?.userId || "" },
+    { label: "User Name", value: user?.name || "" },
+    { label: "User Email", value: user?.email || "" },
+    { label: "KYC Request ID", value: submission?.requestId || "" },
+    { label: "Document Type", value: submission?.certification || "" },
+    { label: "Document Serial", value: maskAddress(submission?.ssn || "") },
+    { label: "Submitted At", value: submission?.submittedAt || "" },
+    { label: "Status", value: submission?.status || "pending" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "New KYC Submission",
+    intro: "A user submitted KYC documents and this request is waiting for admin review.",
+    rows,
+    closing: "Sensitive files are available in admin dashboard only.",
+  });
+  return {
+    subject: `${APP_NAME}: New KYC Submission (${submission?.requestId || "N/A"})`,
+    ...template,
+  };
+}
+
+function buildAdminWithdrawalRequestMailPayload({ withdrawal, user }) {
+  const rows = [
+    { label: "User ID", value: withdrawal?.userId || user?.userId || "" },
+    { label: "User Name", value: user?.name || "" },
+    { label: "User Email", value: user?.email || "" },
+    { label: "Withdrawal Ref", value: withdrawal?.withdrawalRef || "" },
+    { label: "Wallet", value: withdrawal?.walletSymbol || "" },
+    { label: "Asset", value: withdrawal?.assetSymbol || "" },
+    { label: "Network", value: withdrawal?.networkType || "" },
+    { label: "Amount (USD)", value: formatUsd(withdrawal?.amountUsd || 0) },
+    { label: "Net Amount (USD)", value: formatUsd(withdrawal?.netAmountUsd || 0) },
+    { label: "Destination", value: maskAddress(withdrawal?.destinationAddress || "") },
+    { label: "Submitted At", value: withdrawal?.submittedAt || "" },
+    { label: "Status", value: withdrawal?.status || "pending" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "New Withdrawal Request",
+    intro: "A user submitted a new withdrawal request and it is waiting for admin review.",
+    rows,
+  });
+  return {
+    subject: `${APP_NAME}: New Withdrawal Request (${withdrawal?.withdrawalRef || "N/A"})`,
+    ...template,
+  };
+}
+
+function buildAdminLiveChatMailPayload({ thread, user, messageText }) {
+  const rows = [
+    { label: "User ID", value: user?.userId || thread?.userId || "" },
+    { label: "User Name", value: user?.name || thread?.userName || "" },
+    { label: "User Email", value: user?.email || thread?.userEmail || "" },
+    { label: "Thread Ref", value: thread?.threadRef || "" },
+    { label: "Message", value: sanitizeShortText(messageText || "", 260) },
+    { label: "Sent At", value: thread?.lastMessageAt || "" },
+    { label: "Status", value: thread?.status || "open" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "Live Chat Message",
+    intro: "A user sent a new live support chat message.",
+    rows,
+  });
+  return {
+    subject: `${APP_NAME}: Live Chat Message (${thread?.threadRef || "N/A"})`,
+    ...template,
+  };
+}
+
+function buildUserDepositDecisionMailPayload({ request, decision }) {
+  const rows = [
+    { label: "Request ID", value: request?.requestId || "" },
+    { label: "Asset", value: request?.assetSymbol || "" },
+    { label: "Submitted Amount (USD)", value: formatUsd(request?.submittedAmountUsd || request?.amountUsd || 0) },
+    { label: "Credited Amount (USD)", value: formatUsd(request?.creditedAmountUsd || 0) },
+    { label: "Decision", value: decision || request?.status || "" },
+    { label: "Reviewed At", value: request?.reviewedAt || "" },
+    { label: "Admin Note", value: request?.note || "" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "Deposit Request Update",
+    intro: "Your deposit request has been reviewed by admin.",
+    rows,
+  });
+  return {
+    subject: `${APP_NAME}: Deposit ${decision === "approved" ? "Approved" : "Rejected"} (${request?.requestId || "N/A"})`,
+    ...template,
+  };
+}
+
+function buildUserKycDecisionMailPayload({ request, decision }) {
+  const rows = [
+    { label: "KYC Request ID", value: request?.requestId || "" },
+    { label: "Document Type", value: request?.certification || "" },
+    { label: "Decision", value: decision || request?.status || "" },
+    { label: "Reviewed At", value: request?.reviewedAt || "" },
+    { label: "Admin Note", value: request?.note || "" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "KYC Verification Update",
+    intro: "Your KYC verification request has been reviewed by admin.",
+    rows,
+  });
+  return {
+    subject: `${APP_NAME}: KYC ${decision === "authenticated" ? "Approved" : "Rejected"}`,
+    ...template,
+  };
+}
+
+function buildUserWithdrawalFinalMailPayload({ withdrawal, decision }) {
+  const rows = [
+    { label: "Withdrawal Ref", value: withdrawal?.withdrawalRef || "" },
+    { label: "Wallet", value: withdrawal?.walletSymbol || "" },
+    { label: "Asset", value: withdrawal?.assetSymbol || "" },
+    { label: "Network", value: withdrawal?.networkType || "" },
+    { label: "Amount (USD)", value: formatUsd(withdrawal?.amountUsd || 0) },
+    { label: "Fee (USD)", value: formatUsd(withdrawal?.feeAmountUsd || 0) },
+    { label: "Net Amount (USD)", value: formatUsd(withdrawal?.netAmountUsd || 0) },
+    { label: "Destination", value: maskAddress(withdrawal?.destinationAddress || "") },
+    { label: "Final Status", value: decision || withdrawal?.status || "" },
+    { label: "Reviewed At", value: withdrawal?.reviewedAt || "" },
+    { label: "Completed At", value: withdrawal?.completedAt || "" },
+    { label: "Admin Note", value: withdrawal?.note || "" },
+  ];
+  const template = buildNotificationTemplate({
+    heading: "Withdrawal Status Update",
+    intro: "Your withdrawal request reached a final status.",
+    rows,
+  });
+  return {
+    subject: `${APP_NAME}: Withdrawal ${String(decision || withdrawal?.status || "").toUpperCase()} (${withdrawal?.withdrawalRef || "N/A"})`,
+    ...template,
+  };
 }
 
 function buildOtpDeliveryPayload({ emailError, otp, successMessage, fallbackMessage }) {
@@ -2450,6 +2872,23 @@ const assetsModule = createAssetsModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks: {
+    onWithdrawalSubmitted: ({ withdrawal, user }) => {
+      const mail = buildAdminWithdrawalRequestMailPayload({ withdrawal, user });
+      sendAdminNotificationEmail({
+        ...mail,
+        metaLabel: "admin-withdrawal-request",
+      });
+    },
+    onWithdrawalFinalized: ({ withdrawal, decision, user }) => {
+      const mail = buildUserWithdrawalFinalMailPayload({ withdrawal, decision });
+      sendUserNotificationEmail({
+        toEmail: user?.email,
+        ...mail,
+        metaLabel: `user-withdrawal-${decision || withdrawal?.status || "final"}`,
+      });
+    },
+  },
 });
 
 const {
@@ -2486,6 +2925,15 @@ const supportModule = createSupportModule({
   getNow,
   toIso,
   sanitizeShortText,
+  notificationHooks: {
+    onLiveChatUserMessage: ({ thread, user, messageText }) => {
+      const mail = buildAdminLiveChatMailPayload({ thread, user, messageText });
+      sendAdminNotificationEmail({
+        ...mail,
+        metaLabel: "admin-live-chat-message",
+      });
+    },
+  },
 });
 
 const {
@@ -4311,11 +4759,23 @@ async function handleKycSubmit(req, res) {
 
     const updatedUser = findUserByUserIdStatement.get(req.currentUser.userId);
     const latestSubmission = findLatestKycSubmissionByUserStatement.get(req.currentUser.userId);
+    const submissionPayload = buildKycSubmissionPayload(latestSubmission);
+    const userPayload = buildUserPayload(updatedUser || req.currentUser);
+    if (submissionPayload) {
+      const mail = buildAdminKycSubmissionMailPayload({
+        submission: submissionPayload,
+        user: userPayload,
+      });
+      sendAdminNotificationEmail({
+        ...mail,
+        metaLabel: "admin-kyc-submission",
+      });
+    }
 
     res.json({
       message: "Submitted successfully. KYC is now pending admin review.",
       user: buildUserPayload(updatedUser || req.currentUser),
-      kyc: buildKycSubmissionPayload(latestSubmission),
+      kyc: submissionPayload,
     });
   } catch (error) {
     res.status(error?.statusCode || 400).json({ error: error.message || "Could not submit KYC." });
@@ -4807,6 +5267,21 @@ async function handleAdminKycReview(req, res) {
 
     const updatedUser = findUserByUserIdStatement.get(submission.user_id);
     const reviewedRequest = findKycSubmissionWithUserByIdStatement.get(requestId);
+    if (decision === "authenticated" || decision === "rejected") {
+      const userPayload = buildUserPayload(updatedUser || { user_id: submission.user_id });
+      const requestPayload = buildKycAdminPayload(reviewedRequest);
+      if (userPayload?.email && requestPayload) {
+        const mail = buildUserKycDecisionMailPayload({
+          request: requestPayload,
+          decision,
+        });
+        sendUserNotificationEmail({
+          toEmail: userPayload.email,
+          ...mail,
+          metaLabel: `user-kyc-${decision}`,
+        });
+      }
+    }
 
     const responseMessageByDecision = {
       authenticated: "KYC approved successfully.",
@@ -4901,9 +5376,21 @@ async function handleDepositCreate(req, res) {
     await persistDbToBlobSafe("deposit.create");
 
     const createdRequest = findDepositRequestByIdStatement.get(requestId);
+    const requestPayload = buildDepositRequestPayload(createdRequest);
+    const userPayload = buildUserPayload(req.currentUser || {});
+    if (requestPayload) {
+      const mail = buildAdminDepositRequestMailPayload({
+        request: requestPayload,
+        user: userPayload,
+      });
+      sendAdminNotificationEmail({
+        ...mail,
+        metaLabel: "admin-deposit-request",
+      });
+    }
     res.json({
       message: "Deposit request submitted successfully. Admin review pending.",
-      request: buildDepositRequestPayload(createdRequest),
+      request: requestPayload,
     });
   } catch (error) {
     res.status(error?.statusCode || 400).json({ error: error.message || "Could not submit deposit request." });
@@ -5376,6 +5863,22 @@ async function handleAdminDepositRequestReview(req, res) {
     await persistDbToBlobSafe("admin.deposit.request.review");
 
     const reviewedRequest = findAdminDepositRequestByIdStatement.get(requestId);
+    if (decision === "approved" || decision === "rejected") {
+      const requestPayload = buildDepositRequestPayload(reviewedRequest, {
+        includeAdminFields: true,
+      });
+      if (requestPayload?.accountEmail) {
+        const mail = buildUserDepositDecisionMailPayload({
+          request: requestPayload,
+          decision,
+        });
+        sendUserNotificationEmail({
+          toEmail: requestPayload.accountEmail,
+          ...mail,
+          metaLabel: `user-deposit-${decision}`,
+        });
+      }
+    }
     const responseMessageByDecision = {
       approved:
         previousStatus === "approved"

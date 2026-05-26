@@ -83,7 +83,19 @@ function normalizeLiveChatStatus(value = "open", fallback = "open") {
   return fallback;
 }
 
-export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
+export function createSupportModule({ db, getNow, toIso, sanitizeShortText, notificationHooks = null }) {
+  function safeNotify(hookName, payload) {
+    const hook = notificationHooks?.[hookName];
+    if (typeof hook !== "function") {
+      return;
+    }
+    try {
+      hook(payload);
+    } catch {
+      // Non-blocking by design: notification failure must not break support flow.
+    }
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS support_tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1502,11 +1514,22 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText }) {
 
   function handleSupportLiveSend(req, res) {
     try {
+      const messageText = parseRequestValue(req, "message", "");
       const updatedThread = sendLiveUserMessage({
         userId: req.currentUser.userId,
         userName: req.currentUser.name,
         userEmail: req.currentUser.email,
-        messageText: parseRequestValue(req, "message", ""),
+        messageText,
+      });
+
+      safeNotify("onLiveChatUserMessage", {
+        thread: mapLiveThreadRow(updatedThread),
+        messageText: sanitizeMessageText(messageText, 3000),
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
       });
 
       res.json({

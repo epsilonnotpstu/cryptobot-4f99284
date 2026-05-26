@@ -253,6 +253,7 @@ export function createAssetsModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks = null,
 }) {
   const defaultWithdrawMinUsd = Math.max(0.01, toNumber(process.env.WITHDRAW_MIN_USD, 10));
   const defaultWithdrawMaxUsd = Math.max(defaultWithdrawMinUsd, toNumber(process.env.WITHDRAW_MAX_USD, 500000));
@@ -262,6 +263,18 @@ export function createAssetsModule({
   const defaultAllowWithdrawFromMain = normalizeBoolean(process.env.ASSETS_ALLOW_MAIN_WITHDRAW, false);
   const defaultAllowWithdrawFromBinary = normalizeBoolean(process.env.ASSETS_ALLOW_BINARY_WITHDRAW, false);
   const defaultAllowMainBinaryTransfer = normalizeBoolean(process.env.ASSETS_ALLOW_MAIN_BINARY_TRANSFER, false);
+
+  function safeNotify(hookName, payload) {
+    const hook = notificationHooks?.[hookName];
+    if (typeof hook !== "function") {
+      return;
+    }
+    try {
+      hook(payload);
+    } catch {
+      // Non-blocking by design: notification failure must not break business action.
+    }
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS wallet_transfer_requests (
@@ -3509,6 +3522,18 @@ export function createAssetsModule({
       });
 
       const updated = tx();
+      if (previousStatus !== targetStatus && (targetStatus === "rejected" || targetStatus === "cancelled")) {
+        const identity = findUserIdentityStatement.get(updated.user_id);
+        safeNotify("onWithdrawalFinalized", {
+          withdrawal: mapWithdrawalRow(updated),
+          decision: targetStatus,
+          user: {
+            userId: String(identity?.user_id || updated.user_id || ""),
+            email: String(identity?.email || ""),
+            name: String(identity?.name || ""),
+          },
+        });
+      }
       res.json({
         message: "Withdrawal status updated.",
         withdrawal: mapAdminWithdrawalRow(updated),
@@ -3664,6 +3689,16 @@ export function createAssetsModule({
       });
 
       const updated = tx();
+      const identity = findUserIdentityStatement.get(updated.user_id);
+      safeNotify("onWithdrawalFinalized", {
+        withdrawal: mapWithdrawalRow(updated),
+        decision: "completed",
+        user: {
+          userId: String(identity?.user_id || updated.user_id || ""),
+          email: String(identity?.email || ""),
+          name: String(identity?.name || ""),
+        },
+      });
       res.json({
         message: "Withdrawal marked as completed.",
         withdrawal: mapAdminWithdrawalRow(updated),
@@ -4062,6 +4097,15 @@ export function createAssetsModule({
         destinationAddress: parseRequestValue(req, "destinationAddress", ""),
         destinationLabel: parseRequestValue(req, "destinationLabel", ""),
         note: parseRequestValue(req, "note", ""),
+      });
+
+      safeNotify("onWithdrawalSubmitted", {
+        withdrawal: result.withdrawal,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
       });
 
       res.json({

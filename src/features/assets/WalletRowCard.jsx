@@ -5,9 +5,9 @@ export default function WalletRowCard({ wallet, walletCoins, restriction, expand
     <article className="assetspage-wallet-row">
       <button type="button" className="assetspage-wallet-main" onClick={onToggle}>
         <div className="assetspage-wallet-title">
-          <span>{walletShortLabel(wallet.walletSymbol)}</span>
-          <strong>{wallet.walletName}</strong>
-          <small>{formatWalletSymbolDisplay(wallet.walletSymbol)}</small>
+          <span><strong>{walletShortLabel(wallet.walletSymbol)} Wallet</strong></span>
+          {/* <strong>{wallet.walletName}</strong> */}
+          {/* <small>{formatWalletSymbolDisplay(wallet.walletSymbol)}</small> */}
         </div>
 
         <div className="assetspage-wallet-balance">
