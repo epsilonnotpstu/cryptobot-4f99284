@@ -184,10 +184,21 @@ const BINANCE_TICKER_ENDPOINTS = [
   "https://api.binance.com/api/v3/ticker/price",
   "https://api1.binance.com/api/v3/ticker/price",
   "https://api2.binance.com/api/v3/ticker/price",
+  "https://api.binance.us/api/v3/ticker/price",
 ];
+
+const BINANCE_QUOTE_SUFFIXES = ["USDT", "USDC", "BUSD", "BTC", "ETH", "BNB"];
 
 function sanitizeTickerSymbol(value = "") {
   return normalizeUpper(value).replace(/[^A-Z0-9]/g, "");
+}
+
+function isLikelyBinanceTickerSymbol(symbol = "") {
+  const normalized = sanitizeTickerSymbol(symbol);
+  if (normalized.length < 6 || normalized.length > 20 || !/^[A-Z0-9]+$/.test(normalized)) {
+    return false;
+  }
+  return BINANCE_QUOTE_SUFFIXES.some((suffix) => normalized.endsWith(suffix));
 }
 
 export function createBinaryModule({
@@ -1564,7 +1575,7 @@ export function createBinaryModule({
     const normalizedSymbols = [...new Set(
       ensureArray(symbols)
         .map((item) => sanitizeTickerSymbol(item))
-        .filter((item) => item.length >= 6),
+        .filter((item) => isLikelyBinanceTickerSymbol(item)),
     )];
     if (!normalizedSymbols.length || typeof fetch !== "function") {
       return new Map();
@@ -1638,7 +1649,9 @@ export function createBinaryModule({
 
     const externalPairs = pairs.filter((pair) => pair.priceSourceType === "external_api");
     const internalPairs = pairs.filter((pair) => pair.priceSourceType !== "external_api");
-    const symbols = externalPairs.map((pair) => resolveExternalTickerSymbol(pair)).filter(Boolean);
+    const symbols = externalPairs
+      .map((pair) => resolveExternalTickerSymbol(pair))
+      .filter((symbol) => isLikelyBinanceTickerSymbol(symbol));
     const externalPriceMap = await fetchExternalTickerMap(symbols);
     const nowIso = toIso(getNow());
 

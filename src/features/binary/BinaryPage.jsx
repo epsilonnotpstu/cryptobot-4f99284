@@ -18,11 +18,13 @@ const BOTTOM_NAV_ITEMS = [
 ];
 
 const BINANCE_TICKER_ENDPOINTS = [
-  "https://data-api.binance.vision/api/v3/ticker/price",
   "https://api.binance.com/api/v3/ticker/price",
   "https://api1.binance.com/api/v3/ticker/price",
   "https://api2.binance.com/api/v3/ticker/price",
+  "https://api.binance.us/api/v3/ticker/price",
 ];
+
+const BINANCE_QUOTE_SUFFIXES = ["USDT", "USDC", "BUSD", "BTC", "ETH", "BNB"];
 
 function normalizeBinanceSymbol(value = "") {
   return String(value || "")
@@ -42,6 +44,14 @@ function resolvePairTickerSymbol(pair = {}) {
     .filter(Boolean);
 
   return candidates.find((symbol) => symbol.length >= 6 && /^[A-Z0-9]+$/.test(symbol)) || "";
+}
+
+function isLikelyBinanceTickerSymbol(symbol = "") {
+  const normalized = normalizeBinanceSymbol(symbol);
+  if (normalized.length < 6 || normalized.length > 20 || !/^[A-Z0-9]+$/.test(normalized)) {
+    return false;
+  }
+  return BINANCE_QUOTE_SUFFIXES.some((suffix) => normalized.endsWith(suffix));
 }
 
 function clampAmount(value, maxAmount) {
@@ -106,6 +116,7 @@ export default function BinaryPage({
   const [marketLivePrices, setMarketLivePrices] = useState({});
   const [marketLiveChanges, setMarketLiveChanges] = useState({});
   const marketLivePricesRef = useRef({});
+  const liveMarketFetchInFlightRef = useRef(false);
 
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [resultTrade, setResultTrade] = useState(null);
@@ -657,7 +668,7 @@ export default function BinaryPage({
     }
     const symbols = pairs
       .map((pair) => resolvePairTickerSymbol(pair))
-      .filter((symbol) => symbol && symbol.length >= 6);
+      .filter((symbol) => isLikelyBinanceTickerSymbol(symbol));
     return [...new Set(symbols)];
   }, [pairs]);
 
@@ -713,6 +724,10 @@ export default function BinaryPage({
     };
 
     const run = async () => {
+      if (liveMarketFetchInFlightRef.current) {
+        return;
+      }
+      liveMarketFetchInFlightRef.current = true;
       try {
         let payload = await fetchBatchTickerPayload(marketSymbols);
 
@@ -755,6 +770,8 @@ export default function BinaryPage({
         }
       } catch {
         // Keep backend price as fallback if Binance request fails.
+      } finally {
+        liveMarketFetchInFlightRef.current = false;
       }
     };
 
