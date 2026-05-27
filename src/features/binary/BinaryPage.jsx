@@ -17,12 +17,31 @@ const BOTTOM_NAV_ITEMS = [
   { id: "assets", label: "Assets", icon: "fa-wallet" },
 ];
 
-const BINANCE_MULTI_PRICE_URL = "https://api.binance.com/api/v3/ticker/price";
+const BINANCE_TICKER_ENDPOINTS = [
+  "https://data-api.binance.vision/api/v3/ticker/price",
+  "https://api.binance.com/api/v3/ticker/price",
+  "https://api1.binance.com/api/v3/ticker/price",
+  "https://api2.binance.com/api/v3/ticker/price",
+];
 
 function normalizeBinanceSymbol(value = "") {
   return String(value || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
+}
+
+function resolvePairTickerSymbol(pair = {}) {
+  const candidates = [
+    pair?.sourceSymbol,
+    pair?.pairCode,
+    pair?.marketSymbol,
+    `${pair?.baseAsset || ""}${pair?.quoteAsset || ""}`,
+    `${pair?.baseAsset || ""}USDT`,
+  ]
+    .map((item) => normalizeBinanceSymbol(item))
+    .filter(Boolean);
+
+  return candidates.find((symbol) => symbol.length >= 6 && /^[A-Z0-9]+$/.test(symbol)) || "";
 }
 
 function clampAmount(value, maxAmount) {
@@ -86,6 +105,7 @@ export default function BinaryPage({
 
   const [marketLivePrices, setMarketLivePrices] = useState({});
   const [marketLiveChanges, setMarketLiveChanges] = useState({});
+  const marketLivePricesRef = useRef({});
 
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [resultTrade, setResultTrade] = useState(null);
@@ -93,6 +113,10 @@ export default function BinaryPage({
   useEffect(() => {
     activeTradeRef.current = activeTrade;
   }, [activeTrade]);
+
+  useEffect(() => {
+    marketLivePricesRef.current = marketLivePrices;
+  }, [marketLivePrices]);
 
   const walletAsset = summary?.walletAssetSymbol || config?.settings?.binaryWalletAssetSymbol || "USDT";
   const binaryWallet = toNumber(summary?.availableBalance ?? summary?.binaryWallet, 0);
@@ -599,13 +623,41 @@ export default function BinaryPage({
     [categories, selectedCategoryId],
   );
 
+  const selectedPairTickerSymbol = useMemo(() => resolvePairTickerSymbol(selectedPair || {}), [selectedPair]);
+  const selectedPairLivePrice = useMemo(
+    () => toNumber(marketLivePrices[selectedPairTickerSymbol], 0),
+    [marketLivePrices, selectedPairTickerSymbol],
+  );
+  const selectedPairLiveDeltaPercent = useMemo(
+    () => Number(marketLiveChanges[selectedPairTickerSymbol]),
+    [marketLiveChanges, selectedPairTickerSymbol],
+  );
+  const selectedPairForChart = useMemo(() => {
+    if (!selectedPair) {
+      return selectedPair;
+    }
+    if (!(selectedPairLivePrice > 0)) {
+      return selectedPair;
+    }
+
+    const previousFromDelta = Number.isFinite(selectedPairLiveDeltaPercent)
+      ? selectedPairLivePrice / (1 + selectedPairLiveDeltaPercent / 100)
+      : toNumber(selectedPair.previousPrice, selectedPairLivePrice);
+
+    return {
+      ...selectedPair,
+      currentPrice: selectedPairLivePrice,
+      previousPrice: Number.isFinite(previousFromDelta) && previousFromDelta > 0 ? previousFromDelta : selectedPairLivePrice,
+    };
+  }, [selectedPair, selectedPairLiveDeltaPercent, selectedPairLivePrice]);
+
   const marketSymbols = useMemo(() => {
     if (!pairs.length) {
       return [];
     }
     const symbols = pairs
-      .map((pair) => normalizeBinanceSymbol(pair?.sourceSymbol || pair?.pairCode || ""))
-      .filter((symbol) => symbol.length >= 6 && /USDT$/.test(symbol));
+      .map((pair) => resolvePairTickerSymbol(pair))
+      .filter(Boolean);
     return [...new Set(symbols)];
   }, [pairs]);
 
@@ -629,35 +681,49 @@ export default function BinaryPage({
     const run = async () => {
       try {
         const query = encodeURIComponent(JSON.stringify(marketSymbols));
-        const response = await fetch(`${BINANCE_MULTI_PRICE_URL}?symbols=${query}`);
-        if (!response.ok) {
+        let payload = null;
+
+        for (const endpoint of BINANCE_TICKER_ENDPOINTS) {
+          const response = await fetch(`${endpoint}?symbols=${query}`);
+          if (!response.ok) {
+            continue;
+          }
+          const parsed = await response.json();
+          if (Array.isArray(parsed)) {
+            payload = parsed;
+            break;
+          }
+        }
+
+        if (!payload) {
           return;
         }
-        const payload = await response.json();
         if (!Array.isArray(payload) || !isActive) {
           return;
         }
 
-        setMarketLivePrices((prevPrices) => {
-          const nextPrices = { ...prevPrices };
-          const nextChanges = {};
+        const previousLivePrices = marketLivePricesRef.current || {};
+        const nextPrices = { ...previousLivePrices };
+        const nextChanges = {};
 
-          for (const row of payload) {
-            const symbol = normalizeBinanceSymbol(row?.symbol || "");
-            const price = Number(row?.price || 0);
-            if (!symbol || !Number.isFinite(price) || price <= 0) {
-              continue;
-            }
-            const previousPrice = Number(prevPrices[symbol] || 0);
-            if (previousPrice > 0) {
-              nextChanges[symbol] = ((price - previousPrice) / previousPrice) * 100;
-            }
-            nextPrices[symbol] = price;
+        for (const row of payload) {
+          const symbol = normalizeBinanceSymbol(row?.symbol || "");
+          const price = Number(row?.price || 0);
+          if (!symbol || !Number.isFinite(price) || price <= 0) {
+            continue;
           }
+          const previousPrice = Number(previousLivePrices[symbol] || 0);
+          if (previousPrice > 0) {
+            nextChanges[symbol] = ((price - previousPrice) / previousPrice) * 100;
+          }
+          nextPrices[symbol] = price;
+        }
 
+        if (isActive) {
+          setMarketLivePrices(nextPrices);
+          marketLivePricesRef.current = nextPrices;
           setMarketLiveChanges(nextChanges);
-          return nextPrices;
-        });
+        }
       } catch {
         // Keep backend price as fallback if Binance request fails.
       }
@@ -735,7 +801,7 @@ export default function BinaryPage({
 
             <div className="binary-market-list">
               {categoryPairs.map((pair) => {
-                const sourceSymbol = normalizeBinanceSymbol(pair?.sourceSymbol || pair?.pairCode || "");
+                const sourceSymbol = resolvePairTickerSymbol(pair);
                 const livePrice = toNumber(marketLivePrices[sourceSymbol], 0);
                 const currentPrice = livePrice > 0 ? livePrice : toNumber(pair.currentPrice, 0);
                 const previousPrice = toNumber(pair.previousPrice, currentPrice);
@@ -820,7 +886,12 @@ export default function BinaryPage({
               </div>
             </details>
 
-            <BinaryChartCard pair={selectedPair} ticks={ticks} engineMode={config?.settings?.engineMode} />
+            <BinaryChartCard
+              pair={selectedPairForChart}
+              ticks={ticks}
+              engineMode={config?.settings?.engineMode}
+              liveExternalPriceActive={selectedPairLivePrice > 0}
+            />
 
             <BinaryDirectionToggle value={direction} onChange={setDirection} />
 
