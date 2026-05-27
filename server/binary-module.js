@@ -1,3 +1,5 @@
+import https from "node:https";
+
 function toNumber(value, fallback = 0) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -179,7 +181,103 @@ function randomWalkPrice(currentPrice) {
   return Math.max(0.00000001, next);
 }
 
-const BINANCE_MULTI_PRICE_URL = "https://api.binance.com/api/v3/ticker/price";
+const BINANCE_PRICE_ENDPOINTS = [
+  "https://api.binance.com/api/v3/ticker/price",
+  "https://api1.binance.com/api/v3/ticker/price",
+  "https://api2.binance.com/api/v3/ticker/price",
+  "https://api3.binance.com/api/v3/ticker/price",
+  "https://api.binance.us/api/v3/ticker/price",
+];
+
+function normalizeTickerSymbol(value = "") {
+  return normalizeUpper(value).replace(/[^A-Z0-9]/g, "");
+}
+
+function fetchJsonViaHttps(url, timeoutMs = 3800) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (error, value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(value);
+    };
+
+    const request = https.get(
+      url,
+      {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "RampXTrading-BinaryEngine/1.0",
+        },
+      },
+      (response) => {
+        const status = Number(response?.statusCode || 0);
+        if (status < 200 || status >= 300) {
+          response.resume();
+          done(new Error(`http-${status}`));
+          return;
+        }
+
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+        response.on("end", () => {
+          try {
+            const parsed = JSON.parse(body || "null");
+            done(null, parsed);
+          } catch {
+            done(new Error("invalid-json"));
+          }
+        });
+      },
+    );
+
+    request.on("error", (error) => {
+      done(error);
+    });
+
+    const timeoutId = setTimeout(() => {
+      request.destroy(new Error("request-timeout"));
+    }, Math.max(800, Math.floor(toNumber(timeoutMs, 3800))));
+
+    request.on("close", () => {
+      clearTimeout(timeoutId);
+    });
+  });
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs = 3800) {
+  if (typeof fetch === "function") {
+    const controller = typeof AbortController === "function" ? new AbortController() : null;
+    const timeoutId = setTimeout(() => controller?.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "RampXTrading-BinaryEngine/1.0",
+        },
+        ...(controller ? { signal: controller.signal } : {}),
+      });
+      if (!response.ok) {
+        throw new Error(`http-${response.status}`);
+      }
+      return await response.json();
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  return fetchJsonViaHttps(url, timeoutMs);
+}
 
 export function createBinaryModule({
   db,
@@ -1551,66 +1649,58 @@ export function createBinaryModule({
     syncPairTicks(settings.chartHistoryLimit * 3);
   }
 
-async function fetchExternalTickerMap(symbols = []) {
-    const normalizedSymbols = [...new Set(ensureArray(symbols).map((item) => normalizeUpper(item)).filter(Boolean))];
-    if (!normalizedSymbols.length || typeof fetch !== "function") {
+  async function fetchExternalTickerMap(symbols = []) {
+    const normalizedSymbols = [...new Set(ensureArray(symbols).map((item) => normalizeTickerSymbol(item)).filter(Boolean))];
+    if (!normalizedSymbols.length) {
       return new Map();
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3800);
+    const resolvedMap = new Map();
 
-    try {
-      const query = encodeURIComponent(JSON.stringify(normalizedSymbols));
-      const response = await fetch(`${BINANCE_MULTI_PRICE_URL}?symbols=${query}`, {
-        method: "GET",
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error(`batch-failed-${response.status}`);
+    for (const endpoint of BINANCE_PRICE_ENDPOINTS) {
+      if (resolvedMap.size >= normalizedSymbols.length) {
+        break;
       }
-      const payload = await response.json();
-      if (!Array.isArray(payload)) {
-        throw new Error("batch-invalid-shape");
-      }
-
-      const priceMap = new Map();
-      for (const row of payload) {
-        const symbol = normalizeUpper(row?.symbol || "");
-        const price = toNumber(row?.price, 0);
-        if (symbol && price > 0) {
-          priceMap.set(symbol, price);
+      try {
+        const query = encodeURIComponent(JSON.stringify(normalizedSymbols));
+        const payload = await fetchJsonWithTimeout(`${endpoint}?symbols=${query}`, 3800);
+        if (!Array.isArray(payload)) {
+          continue;
         }
-      }
-      return priceMap;
-    } catch {
-      const fallbackMap = new Map();
-      for (const symbol of normalizedSymbols) {
-        const localController = new AbortController();
-        const localTimeout = setTimeout(() => localController.abort(), 2200);
-        try {
-          const singleRes = await fetch(`${BINANCE_MULTI_PRICE_URL}?symbol=${encodeURIComponent(symbol)}`, {
-            method: "GET",
-            signal: localController.signal,
-          });
-          if (!singleRes.ok) {
-            continue;
+        for (const row of payload) {
+          const symbol = normalizeTickerSymbol(row?.symbol || "");
+          const price = toNumber(row?.price, 0);
+          if (symbol && price > 0 && !resolvedMap.has(symbol)) {
+            resolvedMap.set(symbol, price);
           }
-          const singlePayload = await singleRes.json();
-          const singlePrice = toNumber(singlePayload?.price, 0);
-          if (singlePrice > 0) {
-            fallbackMap.set(symbol, singlePrice);
+        }
+      } catch {
+        // Try next endpoint.
+      }
+    }
+
+    if (resolvedMap.size >= normalizedSymbols.length) {
+      return resolvedMap;
+    }
+
+    const unresolvedSymbols = normalizedSymbols.filter((symbol) => !resolvedMap.has(symbol));
+    for (const symbol of unresolvedSymbols) {
+      for (const endpoint of BINANCE_PRICE_ENDPOINTS) {
+        try {
+          const payload = await fetchJsonWithTimeout(`${endpoint}?symbol=${encodeURIComponent(symbol)}`, 2200);
+          const singleSymbol = normalizeTickerSymbol(payload?.symbol || symbol);
+          const singlePrice = toNumber(payload?.price, 0);
+          if (singleSymbol && singlePrice > 0) {
+            resolvedMap.set(singleSymbol, singlePrice);
+            break;
           }
         } catch {
-          // Ignore single-symbol fallback failure.
-        } finally {
-          clearTimeout(localTimeout);
+          // Try next endpoint for this symbol.
         }
       }
-      return fallbackMap;
-    } finally {
-      clearTimeout(timeoutId);
     }
+
+    return resolvedMap;
   }
 
   async function applyExternalTicks() {
@@ -1626,15 +1716,15 @@ async function fetchExternalTickerMap(symbols = []) {
 
     const externalPairs = pairs.filter((pair) => pair.priceSourceType === "external_api");
     const internalPairs = pairs.filter((pair) => pair.priceSourceType !== "external_api");
-    const symbols = externalPairs.map((pair) => normalizeUpper(pair.sourceSymbol || pair.pairCode));
+    const symbols = externalPairs.map((pair) => normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode));
     const externalPriceMap = await fetchExternalTickerMap(symbols);
     const nowIso = toIso(getNow());
 
     for (const pair of externalPairs) {
-      const key = normalizeUpper(pair.sourceSymbol || pair.pairCode);
+      const key = normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode);
       const previous = toNumber(pair.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
       const resolvedExternal = toNumber(externalPriceMap.get(key), 0);
-      const nextPrice = resolvedExternal > 0 ? resolvedExternal : randomWalkPrice(previous);
+      const nextPrice = resolvedExternal > 0 ? resolvedExternal : previous;
 
       updatePairPriceStatement.run({
         id: pair.pairId,
