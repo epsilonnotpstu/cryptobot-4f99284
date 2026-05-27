@@ -520,10 +520,36 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS platform_notices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL DEFAULT '',
     message TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'info',
+    priority INTEGER NOT NULL DEFAULT 50,
+    starts_at TEXT,
+    expires_at TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
+    is_dismissible INTEGER NOT NULL DEFAULT 1,
+    target_mode TEXT NOT NULL DEFAULT 'all',
+    target_kyc_status TEXT,
+    created_by TEXT NOT NULL DEFAULT 'system',
+    updated_by TEXT NOT NULL DEFAULT 'system',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS platform_notice_target_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notice_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(notice_id, user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS platform_notice_dismissals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    notice_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    dismissed_at TEXT NOT NULL,
+    UNIQUE(notice_id, user_id)
   );
 
   CREATE TABLE IF NOT EXISTS home_page_configs (
@@ -639,6 +665,43 @@ function ensureUserProfileColumns() {
 }
 
 ensureUserProfileColumns();
+
+function ensureTableColumn(tableName, columnName, columnDefinition) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => String(column.name || ""));
+  if (!columns.includes(columnName)) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
+  }
+}
+
+function ensureNoticeTablesAndColumns() {
+  ensureTableColumn("platform_notices", "title", "title TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("platform_notices", "severity", "severity TEXT NOT NULL DEFAULT 'info'");
+  ensureTableColumn("platform_notices", "priority", "priority INTEGER NOT NULL DEFAULT 50");
+  ensureTableColumn("platform_notices", "starts_at", "starts_at TEXT");
+  ensureTableColumn("platform_notices", "expires_at", "expires_at TEXT");
+  ensureTableColumn("platform_notices", "is_dismissible", "is_dismissible INTEGER NOT NULL DEFAULT 1");
+  ensureTableColumn("platform_notices", "target_mode", "target_mode TEXT NOT NULL DEFAULT 'all'");
+  ensureTableColumn("platform_notices", "target_kyc_status", "target_kyc_status TEXT");
+  ensureTableColumn("platform_notices", "created_by", "created_by TEXT NOT NULL DEFAULT 'system'");
+  ensureTableColumn("platform_notices", "updated_by", "updated_by TEXT NOT NULL DEFAULT 'system'");
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_platform_notices_active_schedule
+    ON platform_notices(is_active, starts_at, expires_at, priority, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_platform_notices_updated_desc
+    ON platform_notices(updated_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_platform_notice_target_users_notice
+    ON platform_notice_target_users(notice_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_platform_notice_target_users_user
+    ON platform_notice_target_users(user_id, notice_id);
+    CREATE INDEX IF NOT EXISTS idx_platform_notice_dismissals_user
+    ON platform_notice_dismissals(user_id, notice_id);
+    CREATE INDEX IF NOT EXISTS idx_platform_notice_dismissals_notice
+    ON platform_notice_dismissals(notice_id, user_id);
+  `);
+}
+
+ensureNoticeTablesAndColumns();
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_admin_user_update_logs_target_created
@@ -950,20 +1013,137 @@ const listLatestKycSubmissionsStatement = db.prepare(`
     k.submitted_at DESC
 `);
 const getLatestActiveNoticeStatement = db.prepare(`
-  SELECT * FROM platform_notices
+  SELECT *
+  FROM platform_notices
   WHERE is_active = 1
-  ORDER BY updated_at DESC, id DESC
+    AND (COALESCE(starts_at, '') = '' OR starts_at <= @nowIso)
+    AND (COALESCE(expires_at, '') = '' OR expires_at > @nowIso)
+  ORDER BY priority DESC, starts_at DESC, updated_at DESC, id DESC
   LIMIT 1
+`);
+const listAllNoticesStatement = db.prepare(`
+  SELECT *
+  FROM platform_notices
+  ORDER BY created_at DESC, id DESC
+`);
+const listActiveNoticesForDeliveryStatement = db.prepare(`
+  SELECT *
+  FROM platform_notices
+  WHERE is_active = 1
+    AND (COALESCE(starts_at, '') = '' OR starts_at <= @nowIso)
+    AND (COALESCE(expires_at, '') = '' OR expires_at > @nowIso)
+  ORDER BY priority DESC, starts_at DESC, updated_at DESC, id DESC
+`);
+const findNoticeByIdStatement = db.prepare(`
+  SELECT *
+  FROM platform_notices
+  WHERE id = ?
+  LIMIT 1
+`);
+const insertNoticeStatement = db.prepare(`
+  INSERT INTO platform_notices (
+    title,
+    message,
+    severity,
+    priority,
+    starts_at,
+    expires_at,
+    is_active,
+    is_dismissible,
+    target_mode,
+    target_kyc_status,
+    created_by,
+    updated_by,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    @title,
+    @message,
+    @severity,
+    @priority,
+    @startsAt,
+    @expiresAt,
+    @isActive,
+    @isDismissible,
+    @targetMode,
+    @targetKycStatus,
+    @createdBy,
+    @updatedBy,
+    @createdAt,
+    @updatedAt
+  )
+`);
+const updateNoticeStatement = db.prepare(`
+  UPDATE platform_notices
+  SET title = @title,
+      message = @message,
+      severity = @severity,
+      priority = @priority,
+      starts_at = @startsAt,
+      expires_at = @expiresAt,
+      is_active = @isActive,
+      is_dismissible = @isDismissible,
+      target_mode = @targetMode,
+      target_kyc_status = @targetKycStatus,
+      updated_by = @updatedBy,
+      updated_at = @updatedAt
+  WHERE id = @noticeId
+`);
+const updateNoticeStatusStatement = db.prepare(`
+  UPDATE platform_notices
+  SET is_active = @isActive,
+      updated_by = @updatedBy,
+      updated_at = @updatedAt
+  WHERE id = @noticeId
 `);
 const clearActiveNoticesStatement = db.prepare(`
   UPDATE platform_notices
   SET is_active = 0,
+      updated_by = @updatedBy,
       updated_at = @updatedAt
   WHERE is_active = 1
 `);
-const insertNoticeStatement = db.prepare(`
-  INSERT INTO platform_notices (message, is_active, created_at, updated_at)
-  VALUES (@message, @isActive, @createdAt, @updatedAt)
+const deleteNoticeTargetUsersByNoticeIdStatement = db.prepare(`
+  DELETE FROM platform_notice_target_users
+  WHERE notice_id = ?
+`);
+const insertNoticeTargetUserStatement = db.prepare(`
+  INSERT OR IGNORE INTO platform_notice_target_users (
+    notice_id,
+    user_id,
+    created_at
+  )
+  VALUES (
+    @noticeId,
+    @userId,
+    @createdAt
+  )
+`);
+const listNoticeTargetUsersByNoticeIdStatement = db.prepare(`
+  SELECT notice_id, user_id
+  FROM platform_notice_target_users
+  WHERE notice_id = ?
+  ORDER BY id ASC
+`);
+const insertNoticeDismissalStatement = db.prepare(`
+  INSERT INTO platform_notice_dismissals (
+    notice_id,
+    user_id,
+    dismissed_at
+  )
+  VALUES (
+    @noticeId,
+    @userId,
+    @dismissedAt
+  )
+  ON CONFLICT(notice_id, user_id)
+  DO UPDATE SET dismissed_at = excluded.dismissed_at
+`);
+const listNoticeDismissalsByUserStatement = db.prepare(`
+  SELECT notice_id
+  FROM platform_notice_dismissals
+  WHERE user_id = ?
 `);
 const getLatestActiveHomePageConfigStatement = db.prepare(`
   SELECT * FROM home_page_configs
@@ -2998,18 +3178,340 @@ const {
   handleAdminSupportAuditLogs,
 } = supportModule;
 
-function buildNoticePayload(row) {
+function normalizeNoticeSeverity(value = "") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "critical") {
+    return "critical";
+  }
+  if (normalized === "warning" || normalized === "warn") {
+    return "warning";
+  }
+  return "info";
+}
+
+function normalizeNoticeTargetMode(value = "") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (normalized === "kyc" || normalized === "users" || normalized === "mixed") {
+    return normalized;
+  }
+  return "all";
+}
+
+function normalizeNoticePriority(value, fallback = 50) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return Math.max(0, Math.min(9999, Number(fallback) || 50));
+  }
+  return Math.max(0, Math.min(9999, Math.round(numeric)));
+}
+
+function normalizeOptionalIsoDate(value, label = "Date") {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "";
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${label} is invalid.`);
+  }
+  return toIso(parsed);
+}
+
+function normalizeNoticeTargetUserIds(values = []) {
+  const input = Array.isArray(values) ? values : [values];
+  const seen = new Set();
+  const userIds = [];
+  for (const value of input) {
+    const userId = sanitizeShortText(value || "", 24);
+    if (!userId || seen.has(userId)) {
+      continue;
+    }
+    seen.add(userId);
+    userIds.push(userId);
+  }
+  return userIds;
+}
+
+function formatNoticeKycLabel(status = "") {
+  const normalized = normalizeKycStatus(status);
+  if (normalized === "authenticated") {
+    return "Authenticated";
+  }
+  if (normalized === "rejected") {
+    return "Rejected";
+  }
+  return "Pending";
+}
+
+function buildNoticeTargetSummary({ targetMode = "all", targetKycStatus = "", targetUserIds = [] }) {
+  const mode = normalizeNoticeTargetMode(targetMode);
+  const usersCount = Array.isArray(targetUserIds) ? targetUserIds.length : 0;
+  const kycLabel = targetKycStatus ? formatNoticeKycLabel(targetKycStatus) : "";
+  if (mode === "kyc") {
+    return kycLabel ? `KYC segment: ${kycLabel}` : "KYC segment";
+  }
+  if (mode === "users") {
+    return `${usersCount} specific user${usersCount === 1 ? "" : "s"}`;
+  }
+  if (mode === "mixed") {
+    const userChunk = `${usersCount} user${usersCount === 1 ? "" : "s"}`;
+    if (kycLabel) {
+      return `Mixed: ${kycLabel} + ${userChunk}`;
+    }
+    return `Mixed: ${userChunk}`;
+  }
+  return "All users";
+}
+
+function buildNoticePayload(row, { targetUserIds = [], fallbackMessage = "No notice posted yet." } = {}) {
   if (!row) {
     return {
-      message: "No notice posted yet.",
+      message: fallbackMessage,
       updatedAt: "",
     };
   }
+
+  const targetMode = normalizeNoticeTargetMode(row.target_mode || "all");
+  const normalizedTargetUsers = normalizeNoticeTargetUserIds(targetUserIds);
+  const rawTargetKycStatus = sanitizeShortText(row.target_kyc_status || "", 32);
+  const targetKycStatus =
+    targetMode === "all" || targetMode === "users"
+      ? ""
+      : rawTargetKycStatus
+        ? normalizeKycStatus(rawTargetKycStatus)
+        : "";
+
   return {
-    noticeId: row.id,
-    message: row.message || "",
-    updatedAt: row.updated_at || row.created_at || "",
+    noticeId: Number(row.id || 0),
+    title: sanitizeShortText(row.title || "", 120),
+    message: sanitizeShortText(row.message || "", 700),
+    severity: normalizeNoticeSeverity(row.severity || "info"),
+    priority: normalizeNoticePriority(row.priority, 50),
+    startsAt: String(row.starts_at || ""),
+    expiresAt: String(row.expires_at || ""),
+    isActive: Number(row.is_active || 0) === 1,
+    isDismissible: Number(row.is_dismissible || 0) === 1,
+    targetMode,
+    targetKycStatus,
+    targetUserIds: normalizedTargetUsers,
+    targetSummary: buildNoticeTargetSummary({
+      targetMode,
+      targetKycStatus,
+      targetUserIds: normalizedTargetUsers,
+    }),
+    createdBy: sanitizeShortText(row.created_by || "", 40),
+    updatedBy: sanitizeShortText(row.updated_by || "", 40),
+    createdAt: String(row.created_at || ""),
+    updatedAt: String(row.updated_at || row.created_at || ""),
   };
+}
+
+function resolveNoticeTargetUsers(noticeId) {
+  return listNoticeTargetUsersByNoticeIdStatement
+    .all(noticeId)
+    .map((row) => sanitizeShortText(row?.user_id || "", 24))
+    .filter(Boolean);
+}
+
+function isNoticeApplicableToUser(row, user = {}, targetUserIds = []) {
+  const targetMode = normalizeNoticeTargetMode(row?.target_mode || "all");
+  if (targetMode === "all") {
+    return true;
+  }
+
+  const userId = sanitizeShortText(user?.userId || user?.user_id || "", 24);
+  const userKycStatus = normalizeKycStatus(user?.kycStatus || user?.kyc_status || "pending");
+  const rawTargetKycStatus = sanitizeShortText(row?.target_kyc_status || "", 32);
+  const targetKycStatus = rawTargetKycStatus ? normalizeKycStatus(rawTargetKycStatus) : "";
+  const targetUserSet = new Set(normalizeNoticeTargetUserIds(targetUserIds));
+  const kycMatch = targetKycStatus ? targetKycStatus === userKycStatus : false;
+  const userMatch = userId ? targetUserSet.has(userId) : false;
+
+  if (targetMode === "kyc") {
+    return targetKycStatus ? kycMatch : false;
+  }
+  if (targetMode === "users") {
+    return userMatch;
+  }
+  return kycMatch || userMatch;
+}
+
+function resolveNoticesForUser(user = {}) {
+  const userId = sanitizeShortText(user?.userId || user?.user_id || "", 24);
+  if (!userId) {
+    return {
+      primary: buildNoticePayload(null),
+      items: [],
+      unreadCount: 0,
+    };
+  }
+
+  const nowIso = toIso(getNow());
+  const rows = listActiveNoticesForDeliveryStatement.all({ nowIso });
+  if (!rows.length) {
+    return {
+      primary: buildNoticePayload(null),
+      items: [],
+      unreadCount: 0,
+    };
+  }
+
+  const dismissedNoticeIds = new Set(
+    listNoticeDismissalsByUserStatement
+      .all(userId)
+      .map((row) => Number(row?.notice_id || 0))
+      .filter((noticeId) => Number.isInteger(noticeId) && noticeId > 0),
+  );
+
+  const applicableItems = [];
+  for (const row of rows) {
+    const noticeId = Number(row?.id || 0);
+    if (!noticeId || dismissedNoticeIds.has(noticeId)) {
+      continue;
+    }
+    const targetUserIds = resolveNoticeTargetUsers(noticeId);
+    if (!isNoticeApplicableToUser(row, user, targetUserIds)) {
+      continue;
+    }
+    applicableItems.push(buildNoticePayload(row, { targetUserIds }));
+  }
+
+  const primary = applicableItems.length ? applicableItems[0] : buildNoticePayload(null);
+  return {
+    primary,
+    items: applicableItems,
+    unreadCount: applicableItems.length,
+  };
+}
+
+function ensureNoticeTargetUsersExist(userIds = []) {
+  const invalid = [];
+  for (const userId of userIds) {
+    const user = findUserByUserIdStatement.get(userId);
+    if (!user) {
+      invalid.push(userId);
+    }
+  }
+  if (invalid.length) {
+    throw new Error(`Invalid target userId: ${invalid[0]}`);
+  }
+}
+
+function buildNoticeWriteInput(
+  input = {},
+  { existingNotice = null, existingTargetUserIds = [], defaultIsActive = true, requireMessage = true } = {},
+) {
+  const messageRaw = input.message !== undefined ? input.message : existingNotice?.message || "";
+  const message = sanitizeShortText(messageRaw || "", 700);
+  if (requireMessage && message.length < 6) {
+    throw new Error("Notice must contain at least 6 characters.");
+  }
+
+  let title = sanitizeShortText(
+    input.title !== undefined ? input.title : existingNotice?.title || "",
+    120,
+  );
+  if (!title) {
+    title = sanitizeShortText(message || "System Notice", 120);
+  }
+
+  const severity = normalizeNoticeSeverity(input.severity !== undefined ? input.severity : existingNotice?.severity || "info");
+  const priority = normalizeNoticePriority(
+    input.priority !== undefined ? input.priority : existingNotice?.priority ?? 50,
+    50,
+  );
+  const startsAt = normalizeOptionalIsoDate(
+    input.startsAt !== undefined ? input.startsAt : existingNotice?.starts_at || "",
+    "startsAt",
+  );
+  const expiresAt = normalizeOptionalIsoDate(
+    input.expiresAt !== undefined ? input.expiresAt : existingNotice?.expires_at || "",
+    "expiresAt",
+  );
+
+  if (startsAt && expiresAt && expiresAt <= startsAt) {
+    throw new Error("expiresAt must be greater than startsAt.");
+  }
+
+  const isActive = normalizeBoolean(
+    input.isActive !== undefined ? input.isActive : Number(existingNotice?.is_active || 0) === 1,
+    defaultIsActive,
+  );
+  const isDismissible = normalizeBoolean(
+    input.isDismissible !== undefined ? input.isDismissible : Number(existingNotice?.is_dismissible || 0) === 1,
+    true,
+  );
+
+  const targetMode = normalizeNoticeTargetMode(
+    input.targetMode !== undefined ? input.targetMode : existingNotice?.target_mode || "all",
+  );
+
+  let targetKycStatus = sanitizeShortText(
+    input.targetKycStatus !== undefined ? input.targetKycStatus : existingNotice?.target_kyc_status || "",
+    32,
+  );
+  targetKycStatus = targetKycStatus ? normalizeKycStatus(targetKycStatus) : "";
+
+  let targetUserIds = normalizeNoticeTargetUserIds(
+    input.targetUserIds !== undefined ? input.targetUserIds : existingTargetUserIds,
+  );
+
+  if (targetUserIds.length > 500) {
+    throw new Error("Target user list cannot exceed 500 users.");
+  }
+
+  if (targetMode === "all") {
+    targetKycStatus = "";
+    targetUserIds = [];
+  } else if (targetMode === "kyc") {
+    if (!targetKycStatus) {
+      throw new Error("targetKycStatus is required for KYC-targeted notices.");
+    }
+    targetUserIds = [];
+  } else if (targetMode === "users") {
+    targetKycStatus = "";
+    if (!targetUserIds.length) {
+      throw new Error("At least one target user is required.");
+    }
+  } else if (!targetKycStatus && !targetUserIds.length) {
+    throw new Error("Mixed target notices require a KYC segment or specific users.");
+  }
+
+  ensureNoticeTargetUsersExist(targetUserIds);
+
+  return {
+    title,
+    message,
+    severity,
+    priority,
+    startsAt,
+    expiresAt,
+    isActive: isActive ? 1 : 0,
+    isDismissible: isDismissible ? 1 : 0,
+    targetMode,
+    targetKycStatus: targetKycStatus || "",
+    targetUserIds,
+  };
+}
+
+function syncNoticeTargetUsers(noticeId, targetUserIds = [], nowIso = toIso(getNow())) {
+  const normalizedNoticeId = Number(noticeId || 0);
+  if (!normalizedNoticeId) {
+    return;
+  }
+  deleteNoticeTargetUsersByNoticeIdStatement.run(normalizedNoticeId);
+  for (const userId of normalizeNoticeTargetUserIds(targetUserIds)) {
+    insertNoticeTargetUserStatement.run({
+      noticeId: normalizedNoticeId,
+      userId,
+      createdAt: nowIso,
+    });
+  }
 }
 
 function buildDefaultHomePageContentConfig() {
@@ -5429,7 +5931,8 @@ function handleDashboardSnapshot(req, res) {
   try {
     cleanupExpiredRecords();
     const currentUser = findUserByUserIdStatement.get(req.currentUser.userId);
-    const notice = buildNoticePayload(getLatestActiveNoticeStatement.get());
+    const dashboardUser = buildUserPayload(currentUser || req.currentUser);
+    const noticeState = resolveNoticesForUser(dashboardUser);
     const wallet = readDashboardWallet(req.currentUser.userId);
     const depositAssets = listEnabledDepositAssetsStatement
       .all()
@@ -5438,8 +5941,12 @@ function handleDashboardSnapshot(req, res) {
     const prioritySymbols = buildDashboardMarketPrioritySymbols(depositAssets);
 
     res.json({
-      user: buildUserPayload(currentUser || req.currentUser),
-      notice,
+      user: dashboardUser,
+      notice: noticeState.primary,
+      notices: {
+        items: noticeState.items,
+        unreadCount: noticeState.unreadCount,
+      },
       wallet,
       deposit: {
         assets: depositAssets,
@@ -5543,8 +6050,18 @@ async function handleDepositRecords(req, res) {
 function handleAdminNoticeGet(_req, res) {
   try {
     cleanupExpiredRecords();
+    const nowIso = toIso(getNow());
+    const latestNoticeRow = getLatestActiveNoticeStatement.get({ nowIso });
+    const latestNoticeTargetUsers = latestNoticeRow ? resolveNoticeTargetUsers(Number(latestNoticeRow.id || 0)) : [];
+    const notice = buildNoticePayload(latestNoticeRow, { targetUserIds: latestNoticeTargetUsers });
+    const allRows = listAllNoticesStatement.all();
+    const activeCount = allRows.filter((row) => Number(row?.is_active || 0) === 1).length;
     res.json({
-      notice: buildNoticePayload(getLatestActiveNoticeStatement.get()),
+      notice,
+      stats: {
+        total: allRows.length,
+        active: activeCount,
+      },
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not load admin notice." });
@@ -5560,25 +6077,348 @@ async function handleAdminNoticeUpdate(req, res) {
     }
 
     const nowIso = toIso(getNow());
+    const updatedBy = sanitizeShortText(req.currentUser?.userId || "admin", 40) || "admin";
     const updateNoticeTransaction = db.transaction(() => {
-      clearActiveNoticesStatement.run({ updatedAt: nowIso });
-      insertNoticeStatement.run({
+      clearActiveNoticesStatement.run({
+        updatedBy,
+        updatedAt: nowIso,
+      });
+      const info = insertNoticeStatement.run({
+        title: sanitizeShortText(req.body?.title || "System Notice", 120) || "System Notice",
         message,
+        severity: "info",
+        priority: 50,
+        startsAt: nowIso,
+        expiresAt: "",
         isActive: 1,
+        isDismissible: 1,
+        targetMode: "all",
+        targetKycStatus: "",
+        createdBy: updatedBy,
+        updatedBy,
         createdAt: nowIso,
         updatedAt: nowIso,
       });
+      return Number(info.lastInsertRowid || 0);
     });
 
-    updateNoticeTransaction();
+    const noticeId = updateNoticeTransaction();
     await persistDbToBlobSafe("admin.notice.update");
-    const latestNotice = getLatestActiveNoticeStatement.get();
+    const latestNotice = noticeId ? findNoticeByIdStatement.get(noticeId) : null;
+    const targetUsers = noticeId ? resolveNoticeTargetUsers(noticeId) : [];
     res.json({
       message: "Notice published successfully.",
-      notice: buildNoticePayload(latestNotice),
+      notice: buildNoticePayload(latestNotice, { targetUserIds: targetUsers }),
     });
   } catch (error) {
     res.status(error?.statusCode || 400).json({ error: error.message || "Could not update notice." });
+  }
+}
+
+function handleAdminNoticeList(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const pageInput = Number(req.body?.page || req.query?.page || 1);
+    const limitInput = Number(req.body?.limit || req.query?.limit || 20);
+    const page = Number.isFinite(pageInput) && pageInput > 0 ? Math.floor(pageInput) : 1;
+    const limit = Number.isFinite(limitInput) && limitInput > 0 ? Math.min(100, Math.floor(limitInput)) : 20;
+
+    const statusRaw = String(req.body?.status || req.query?.status || "all")
+      .trim()
+      .toLowerCase();
+    const status = ["all", "active", "inactive", "scheduled", "expired", "archived"].includes(statusRaw)
+      ? statusRaw
+      : "all";
+    const targetModeRaw = String(req.body?.targetMode || req.query?.targetMode || "all")
+      .trim()
+      .toLowerCase();
+    const targetMode = ["all", "kyc", "users", "mixed"].includes(targetModeRaw) ? targetModeRaw : "all";
+    const severityRaw = String(req.body?.severity || req.query?.severity || "all")
+      .trim()
+      .toLowerCase();
+    const severity = ["all", "info", "warning", "critical"].includes(severityRaw) ? severityRaw : "all";
+    const keyword = String(req.body?.keyword || req.query?.keyword || "")
+      .trim()
+      .toLowerCase();
+
+    const nowIso = toIso(getNow());
+    const rows = listAllNoticesStatement.all();
+    const filteredRows = rows
+      .filter((row) => {
+        const rowIsActive = Number(row?.is_active || 0) === 1;
+        const startsAt = String(row?.starts_at || "");
+        const expiresAt = String(row?.expires_at || "");
+        const scheduled = rowIsActive && startsAt && startsAt > nowIso;
+        const expired = rowIsActive && expiresAt && expiresAt <= nowIso;
+        const activeNow = rowIsActive && !scheduled && !expired;
+
+        if (status === "active" && !activeNow) {
+          return false;
+        }
+        if ((status === "inactive" || status === "archived") && rowIsActive) {
+          return false;
+        }
+        if (status === "scheduled" && !scheduled) {
+          return false;
+        }
+        if (status === "expired" && !expired) {
+          return false;
+        }
+        if (targetMode !== "all" && normalizeNoticeTargetMode(row?.target_mode || "all") !== targetMode) {
+          return false;
+        }
+        if (severity !== "all" && normalizeNoticeSeverity(row?.severity || "info") !== severity) {
+          return false;
+        }
+        if (keyword) {
+          const candidate = `${row?.title || ""} ${row?.message || ""} ${row?.created_by || ""} ${row?.updated_by || ""}`.toLowerCase();
+          if (!candidate.includes(keyword)) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const byUpdated = String(b?.updated_at || b?.created_at || "").localeCompare(String(a?.updated_at || a?.created_at || ""));
+        if (byUpdated !== 0) {
+          return byUpdated;
+        }
+        return Number(b?.id || 0) - Number(a?.id || 0);
+      });
+
+    const total = filteredRows.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const offset = (safePage - 1) * limit;
+    const pagedRows = filteredRows.slice(offset, offset + limit);
+
+    const items = pagedRows.map((row) =>
+      buildNoticePayload(row, {
+        targetUserIds: resolveNoticeTargetUsers(Number(row?.id || 0)),
+      }),
+    );
+
+    res.json({
+      items,
+      pagination: {
+        page: safePage,
+        limit,
+        total,
+        totalPages,
+        hasMore: safePage < totalPages,
+      },
+      filters: {
+        status,
+        targetMode,
+        severity,
+        keyword,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load notice history." });
+  }
+}
+
+async function handleAdminNoticeCreate(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const actor = sanitizeShortText(req.currentUser?.userId || "admin", 40) || "admin";
+    const nowIso = toIso(getNow());
+    const noticeInput = buildNoticeWriteInput(req.body || {}, {
+      defaultIsActive: true,
+      requireMessage: true,
+    });
+
+    const createTransaction = db.transaction(() => {
+      const info = insertNoticeStatement.run({
+        title: noticeInput.title,
+        message: noticeInput.message,
+        severity: noticeInput.severity,
+        priority: noticeInput.priority,
+        startsAt: noticeInput.startsAt,
+        expiresAt: noticeInput.expiresAt,
+        isActive: noticeInput.isActive,
+        isDismissible: noticeInput.isDismissible,
+        targetMode: noticeInput.targetMode,
+        targetKycStatus: noticeInput.targetKycStatus,
+        createdBy: actor,
+        updatedBy: actor,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+      const noticeId = Number(info.lastInsertRowid || 0);
+      syncNoticeTargetUsers(noticeId, noticeInput.targetUserIds, nowIso);
+      return noticeId;
+    });
+
+    const noticeId = createTransaction();
+    await persistDbToBlobSafe("admin.notice.create");
+    const row = noticeId ? findNoticeByIdStatement.get(noticeId) : null;
+
+    res.json({
+      message: "Notice created successfully.",
+      notice: buildNoticePayload(row, {
+        targetUserIds: noticeInput.targetUserIds,
+      }),
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not create notice." });
+  }
+}
+
+async function handleAdminNoticeUpdateV2(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const noticeId = Number(req.body?.noticeId || req.query?.noticeId || 0);
+    if (!Number.isInteger(noticeId) || noticeId <= 0) {
+      throw new Error("Valid noticeId is required.");
+    }
+
+    const existingNotice = findNoticeByIdStatement.get(noticeId);
+    if (!existingNotice) {
+      res.status(404).json({ error: "Notice not found." });
+      return;
+    }
+
+    const existingTargetUserIds = resolveNoticeTargetUsers(noticeId);
+    const actor = sanitizeShortText(req.currentUser?.userId || "admin", 40) || "admin";
+    const nowIso = toIso(getNow());
+    const noticeInput = buildNoticeWriteInput(req.body || {}, {
+      existingNotice,
+      existingTargetUserIds,
+      defaultIsActive: Number(existingNotice?.is_active || 0) === 1,
+      requireMessage: true,
+    });
+
+    const updateTransaction = db.transaction(() => {
+      updateNoticeStatement.run({
+        noticeId,
+        title: noticeInput.title,
+        message: noticeInput.message,
+        severity: noticeInput.severity,
+        priority: noticeInput.priority,
+        startsAt: noticeInput.startsAt,
+        expiresAt: noticeInput.expiresAt,
+        isActive: noticeInput.isActive,
+        isDismissible: noticeInput.isDismissible,
+        targetMode: noticeInput.targetMode,
+        targetKycStatus: noticeInput.targetKycStatus,
+        updatedBy: actor,
+        updatedAt: nowIso,
+      });
+      syncNoticeTargetUsers(noticeId, noticeInput.targetUserIds, nowIso);
+    });
+
+    updateTransaction();
+    await persistDbToBlobSafe("admin.notice.update.v2");
+    const row = findNoticeByIdStatement.get(noticeId);
+    res.json({
+      message: "Notice updated successfully.",
+      notice: buildNoticePayload(row, {
+        targetUserIds: noticeInput.targetUserIds,
+      }),
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not update notice." });
+  }
+}
+
+async function handleAdminNoticeStatus(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const noticeId = Number(req.body?.noticeId || req.query?.noticeId || 0);
+    if (!Number.isInteger(noticeId) || noticeId <= 0) {
+      throw new Error("Valid noticeId is required.");
+    }
+
+    const existingNotice = findNoticeByIdStatement.get(noticeId);
+    if (!existingNotice) {
+      res.status(404).json({ error: "Notice not found." });
+      return;
+    }
+
+    const statusRaw = String(req.body?.status || req.query?.status || "")
+      .trim()
+      .toLowerCase();
+    let nextIsActive = normalizeBoolean(req.body?.isActive, Number(existingNotice?.is_active || 0) === 1) ? 1 : 0;
+    if (["active", "activate", "enabled", "publish", "published"].includes(statusRaw)) {
+      nextIsActive = 1;
+    }
+    if (["inactive", "deactivate", "disabled", "archive", "archived"].includes(statusRaw)) {
+      nextIsActive = 0;
+    }
+
+    const actor = sanitizeShortText(req.currentUser?.userId || "admin", 40) || "admin";
+    const nowIso = toIso(getNow());
+    updateNoticeStatusStatement.run({
+      noticeId,
+      isActive: nextIsActive,
+      updatedBy: actor,
+      updatedAt: nowIso,
+    });
+
+    await persistDbToBlobSafe("admin.notice.status");
+    const row = findNoticeByIdStatement.get(noticeId);
+    res.json({
+      message: nextIsActive ? "Notice activated." : "Notice deactivated.",
+      notice: buildNoticePayload(row, {
+        targetUserIds: resolveNoticeTargetUsers(noticeId),
+      }),
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not update notice status." });
+  }
+}
+
+async function handleNoticeDismiss(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const noticeId = Number(req.body?.noticeId || req.query?.noticeId || 0);
+    if (!Number.isInteger(noticeId) || noticeId <= 0) {
+      throw new Error("Valid noticeId is required.");
+    }
+
+    const row = findNoticeByIdStatement.get(noticeId);
+    if (!row) {
+      res.status(404).json({ error: "Notice not found." });
+      return;
+    }
+    if (Number(row.is_dismissible || 0) !== 1) {
+      throw new Error("This notice cannot be dismissed.");
+    }
+
+    const nowIso = toIso(getNow());
+    const startsAt = String(row.starts_at || "");
+    const expiresAt = String(row.expires_at || "");
+    const isLive = Number(row.is_active || 0) === 1 && (!startsAt || startsAt <= nowIso) && (!expiresAt || expiresAt > nowIso);
+    if (!isLive) {
+      throw new Error("This notice is not currently active.");
+    }
+
+    const targetUserIds = resolveNoticeTargetUsers(noticeId);
+    if (!isNoticeApplicableToUser(row, req.currentUser, targetUserIds)) {
+      res.status(404).json({ error: "Notice not found for this user." });
+      return;
+    }
+
+    insertNoticeDismissalStatement.run({
+      noticeId,
+      userId: req.currentUser.userId,
+      dismissedAt: nowIso,
+    });
+    await persistDbToBlobSafe("notice.dismiss");
+
+    const resolved = resolveNoticesForUser(req.currentUser);
+    res.json({
+      message: "Notice dismissed.",
+      notice: resolved.primary,
+      notices: {
+        items: resolved.items,
+        unreadCount: resolved.unreadCount,
+      },
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not dismiss notice." });
   }
 }
 
@@ -6125,6 +6965,9 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "dashboard.snapshot":
       requireSession(req, res, () => handleDashboardSnapshot(req, res));
       return;
+    case "notice.dismiss":
+      requireSession(req, res, () => handleNoticeDismiss(req, res));
+      return;
     case "deposit.create":
       requireSession(req, res, () => handleDepositCreate(req, res));
       return;
@@ -6378,6 +7221,18 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.notice.update":
       requireAdminSession(req, res, () => handleAdminNoticeUpdate(req, res));
+      return;
+    case "admin.notice.list":
+      requireAdminSession(req, res, () => handleAdminNoticeList(req, res));
+      return;
+    case "admin.notice.create":
+      requireAdminSession(req, res, () => handleAdminNoticeCreate(req, res));
+      return;
+    case "admin.notice.update.v2":
+      requireAdminSession(req, res, () => handleAdminNoticeUpdateV2(req, res));
+      return;
+    case "admin.notice.status":
+      requireAdminSession(req, res, () => handleAdminNoticeStatus(req, res));
       return;
     case "admin.home.content.get":
       requireAdminSession(req, res, () => handleAdminHomeContentGet(req, res));

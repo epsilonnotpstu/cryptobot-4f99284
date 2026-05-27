@@ -17,6 +17,7 @@ import TransactionManagementPage from "./TransactionManagementPage";
 import AssetManagementPage from "./AssetManagementPage";
 import SupportManagementPage from "./SupportManagementPage";
 import HomeContentManagementPage from "./HomeContentManagementPage";
+import NoticeManagementPage from "./NoticeManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -88,6 +89,7 @@ export default function AdminDashboardPage({
   assetCenter,
   supportCenter,
   webContent,
+  noticeCenter,
   activeSection,
   onSectionChange,
   onRefresh,
@@ -149,6 +151,10 @@ export default function AdminDashboardPage({
   onReplySupportLiveThread,
   onUpdateSupportLiveThread,
   onSaveHomeContent,
+  onCreateNotice,
+  onUpdateNotice,
+  onUpdateNoticeStatus,
+  onQuickPublishNotice,
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
@@ -203,6 +209,7 @@ export default function AdminDashboardPage({
         "assetCenter",
         "supportCenter",
         "webContent",
+        "notifications",
       ]),
     [],
   );
@@ -218,6 +225,7 @@ export default function AdminDashboardPage({
       transactionCenter: formatCompactNumber(transactionCenter?.summary?.pendingOrders || 0),
       assetCenter: formatCompactNumber(dashboard?.approvals?.pendingWithdrawalRequests || 0),
       webContent: "",
+      notifications: formatCompactNumber(noticeCenter?.stats?.active || 0),
       supportCenter: formatCompactNumber(
         dashboard?.approvals?.pendingSupportTickets || supportCenter?.summary?.pendingAdminTickets || 0,
       ),
@@ -231,6 +239,7 @@ export default function AdminDashboardPage({
       kycQueue?.stats?.pendingKycRequests,
       supportCenter?.summary?.pendingAdminTickets,
       lumCenter?.summary?.pendingInvestments,
+      noticeCenter?.stats?.active,
       transactionCenter?.summary?.pendingOrders,
       userDirectory?.stats?.pendingVerifications, 
     ],
@@ -307,6 +316,13 @@ export default function AdminDashboardPage({
         { label: "Assets", value: formatCompactNumber(webContent?.summary?.assets || 0) },
       ];
     }
+    if (activeSection === "notifications") {
+      return [
+        { label: "Total", value: formatCompactNumber(noticeCenter?.stats?.total || 0) },
+        { label: "Active", value: formatCompactNumber(noticeCenter?.stats?.active || 0) },
+        { label: "Critical", value: formatCompactNumber(noticeCenter?.stats?.critical || 0) },
+      ];
+    }
     return [];
   }, [
     activeSection,
@@ -328,6 +344,9 @@ export default function AdminDashboardPage({
     supportCenter?.summary?.pendingAdminTickets,
     supportCenter?.summary?.totalTickets,
     supportCenter?.summary?.unreadForAdmin,
+    noticeCenter?.stats?.active,
+    noticeCenter?.stats?.critical,
+    noticeCenter?.stats?.total,
     transactionCenter?.summary?.openSpotOrders,
     transactionCenter?.summary?.totalConvertOrders,
     transactionCenter?.summary?.totalSpotOrders,
@@ -814,6 +833,21 @@ export default function AdminDashboardPage({
             onSaveContent={onSaveHomeContent}
           />
         ) : null}
+        {activeSection === "notifications" ? (
+          <NoticeManagementPage
+            notices={Array.isArray(noticeCenter?.items) ? noticeCenter.items : []}
+            stats={noticeCenter?.stats || {}}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onCreateNotice={onCreateNotice}
+            onUpdateNotice={onUpdateNotice}
+            onUpdateNoticeStatus={onUpdateNoticeStatus}
+            onQuickPublish={onQuickPublishNotice}
+            userOptions={Array.isArray(userDirectory?.users) ? userDirectory.users : []}
+          />
+        ) : null}
         {activeSection !== "dashboard" &&
         activeSection !== "users" &&
         activeSection !== "kycReview" &&
@@ -823,7 +857,8 @@ export default function AdminDashboardPage({
         activeSection !== "transactionCenter" &&
         activeSection !== "assetCenter" &&
         activeSection !== "supportCenter" &&
-        activeSection !== "webContent"
+        activeSection !== "webContent" &&
+        activeSection !== "notifications"
           ? renderPlaceholder()
           : null}
       </section>

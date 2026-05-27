@@ -123,11 +123,21 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
   border-radius: 14px;
   border: 1px solid rgba(251, 113, 133, 0.38);
   background: linear-gradient(120deg, rgba(64, 22, 35, 0.7), rgba(25, 33, 56, 0.64));
   padding: 0.83rem 0.95rem;
   margin-bottom: 0.78rem;
+}
+
+.prodash-notice:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.32);
 }
 
 .prodash-notice-pill {
@@ -872,6 +882,102 @@ button.prodash-promo-card {
   background: linear-gradient(155deg, rgba(14, 25, 45, 0.98), rgba(9, 18, 33, 0.98));
   box-shadow: 0 34px 64px rgba(2, 6, 23, 0.56);
   padding: 1rem;
+}
+
+.prodash-notice-modal {
+  width: min(620px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: linear-gradient(160deg, rgba(10, 20, 36, 0.98), rgba(8, 17, 31, 0.96));
+  box-shadow: 0 30px 60px rgba(2, 6, 23, 0.54);
+  padding: 0.95rem;
+}
+
+.prodash-notice-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+
+.prodash-notice-modal-head h3 {
+  margin: 0;
+  color: #eef8ff;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.prodash-notice-modal-head button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d6e8fb;
+  cursor: pointer;
+}
+
+.prodash-notice-list {
+  display: grid;
+  gap: 0.58rem;
+}
+
+.prodash-notice-item {
+  border-radius: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(10, 20, 36, 0.7);
+  padding: 0.7rem;
+}
+
+.prodash-notice-item.is-warning {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.prodash-notice-item.is-critical {
+  border-color: rgba(248, 113, 113, 0.42);
+}
+
+.prodash-notice-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.prodash-notice-item-head strong {
+  color: #f2f8ff;
+  font-size: 0.92rem;
+}
+
+.prodash-notice-item-head span {
+  border-radius: 999px;
+  padding: 0.12rem 0.44rem;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  color: #9de8ff;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.prodash-notice-item p {
+  margin: 0.46rem 0;
+  color: #c3d8ee;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.prodash-notice-item footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.prodash-notice-item footer small {
+  color: #8ca8c6;
+  font-size: 0.74rem;
 }
 
 .prodash-whitepaper-head {

@@ -3,6 +3,7 @@ import "./premium-dashboard.css";
 import SupportChatModal from "../support/SupportChatModal";
 
 const BINANCE_TICKER_24H_URL = "https://api.binance.com/api/v3/ticker/24hr";
+const DEFAULT_DASHBOARD_NOTICE = "Deposit reminder: always confirm the correct wallet network before sending funds.";
 
 const MARKET_TABS = [
   { id: "all", label: "All" },
@@ -271,6 +272,58 @@ function normalizeMarketPrioritySymbols(values = []) {
   return normalized;
 }
 
+function normalizeNoticeSeverity(value = "") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "critical") {
+    return "critical";
+  }
+  if (normalized === "warning" || normalized === "warn") {
+    return "warning";
+  }
+  return "info";
+}
+
+function normalizeNoticeItem(item = {}) {
+  const message = String(item?.message || "").trim();
+  if (!message) {
+    return null;
+  }
+  const noticeId = Number(item?.noticeId || 0);
+  return {
+    noticeId: Number.isFinite(noticeId) && noticeId > 0 ? noticeId : 0,
+    title: String(item?.title || "").trim(),
+    message,
+    severity: normalizeNoticeSeverity(item?.severity || "info"),
+    priority: Number(item?.priority || 0),
+    startsAt: String(item?.startsAt || ""),
+    expiresAt: String(item?.expiresAt || ""),
+    updatedAt: String(item?.updatedAt || ""),
+    isDismissible: Boolean(item?.isDismissible),
+    targetSummary: String(item?.targetSummary || ""),
+  };
+}
+
+function normalizeNoticeItems(items = []) {
+  const list = Array.isArray(items) ? items : [];
+  const normalized = [];
+  const seen = new Set();
+  for (const row of list) {
+    const item = normalizeNoticeItem(row);
+    if (!item) {
+      continue;
+    }
+    const dedupeKey = item.noticeId ? `id:${item.noticeId}` : `msg:${item.message}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    normalized.push(item);
+  }
+  return normalized;
+}
+
 function buildPlaceholderCopy(activeMainTab) {
   if (activeMainTab === "transaction") {
     return {
@@ -299,6 +352,7 @@ export default function PremiumDashboardPage({
   onKycSubmit,
   onKycRefresh,
   onDashboardSnapshot,
+  onDismissNotice,
   onOpenDepositPage,
   onOpenLumPage,
   onOpenGoldMiningPage,
@@ -356,10 +410,12 @@ export default function PremiumDashboardPage({
   const [kycNotice, setKycNotice] = useState("");
   const [kycSubmitting, setKycSubmitting] = useState(false);
   const [kycSuccessPopup, setKycSuccessPopup] = useState("");
-  const [dashboardNotice, setDashboardNotice] = useState(
-    "Deposit reminder: always confirm the correct wallet network before sending funds.",
-  );
+  const [dashboardNotice, setDashboardNotice] = useState(DEFAULT_DASHBOARD_NOTICE);
   const [dashboardNoticeUpdatedAt, setDashboardNoticeUpdatedAt] = useState("");
+  const [dashboardNotices, setDashboardNotices] = useState([]);
+  const [noticePanelOpen, setNoticePanelOpen] = useState(false);
+  const [noticeDismissError, setNoticeDismissError] = useState("");
+  const [noticeDismissingId, setNoticeDismissingId] = useState(0);
   const [totalSpotAssetsUsd, setTotalSpotAssetsUsd] = useState(null);
   const [walletBalances, setWalletBalances] = useState([]);
   const [depositAssets, setDepositAssets] = useState([]);
@@ -380,6 +436,26 @@ export default function PremiumDashboardPage({
   const [recentDepositRecords, setRecentDepositRecords] = useState([]);
   const [depositStatusError, setDepositStatusError] = useState("");
   const [whitepaperOpen, setWhitepaperOpen] = useState(false);
+  const applyDashboardSnapshot = (data = {}) => {
+    const snapshotItems = normalizeNoticeItems(data?.notices?.items);
+    const snapshotPrimary = normalizeNoticeItem(data?.notice || {});
+    const resolvedItems = snapshotItems.length ? snapshotItems : snapshotPrimary ? [snapshotPrimary] : [];
+    const resolvedPrimary = snapshotPrimary || resolvedItems[0] || null;
+
+    setDashboardNotices(resolvedItems);
+    setDashboardNotice(resolvedPrimary?.message || DEFAULT_DASHBOARD_NOTICE);
+    setDashboardNoticeUpdatedAt(resolvedPrimary?.updatedAt || "");
+    if (data?.wallet) {
+      setTotalSpotAssetsUsd(data?.wallet?.totalSpotAssetsUsd ?? null);
+      setWalletBalances(Array.isArray(data?.wallet?.balances) ? data.wallet.balances : []);
+    }
+    if (data?.deposit) {
+      setDepositAssets(Array.isArray(data?.deposit?.assets) ? data.deposit.assets : []);
+    }
+    if (data?.market) {
+      setMarketPrioritySymbols(normalizeMarketPrioritySymbols(data?.market?.prioritySymbols));
+    }
+  };
 
   useEffect(() => {
     if (!entryMainTab) {
@@ -449,16 +525,9 @@ export default function PremiumDashboardPage({
         if (!isActive) {
           return;
         }
-
-        setDashboardNotice(
-          data?.notice?.message || "Deposit reminder: always confirm the correct wallet network before sending funds.",
-        );
-        setDashboardNoticeUpdatedAt(data?.notice?.updatedAt || "");
-        setTotalSpotAssetsUsd(data?.wallet?.totalSpotAssetsUsd ?? null);
-        setWalletBalances(Array.isArray(data?.wallet?.balances) ? data.wallet.balances : []);
-        setDepositAssets(Array.isArray(data?.deposit?.assets) ? data.deposit.assets : []);
-        setMarketPrioritySymbols(normalizeMarketPrioritySymbols(data?.market?.prioritySymbols));
+        applyDashboardSnapshot(data);
         setDashboardSyncError("");
+        setNoticeDismissError("");
       } catch {
         if (isActive) {
           setDashboardSyncError("Could not sync dashboard snapshot.");
@@ -1080,7 +1149,8 @@ export default function PremiumDashboardPage({
       setDepositNotice(data?.message || "Deposit request submitted.");
       resetDepositFlow();
       if (onDashboardSnapshot) {
-        await onDashboardSnapshot();
+        const snapshotData = await onDashboardSnapshot();
+        applyDashboardSnapshot(snapshotData);
       }
       setKycSuccessPopup("Deposit request submitted. Admin verification pending.");
       setActiveView("home");
@@ -1088,6 +1158,32 @@ export default function PremiumDashboardPage({
       setDepositError(submitError.message || "Could not submit deposit request.");
     } finally {
       setDepositSubmitting(false);
+    }
+  };
+
+  const openNoticePanel = () => {
+    setNoticeDismissError("");
+    setNoticePanelOpen(true);
+  };
+
+  const dismissNotice = async (noticeId) => {
+    if (!noticeId) {
+      return;
+    }
+    if (!onDismissNotice) {
+      setNoticeDismissError("Notice dismiss feature is not available right now.");
+      return;
+    }
+
+    setNoticeDismissError("");
+    setNoticeDismissingId(noticeId);
+    try {
+      const payload = await onDismissNotice({ noticeId });
+      applyDashboardSnapshot(payload || {});
+    } catch (dismissError) {
+      setNoticeDismissError(dismissError.message || "Could not dismiss this notice.");
+    } finally {
+      setNoticeDismissingId(0);
     }
   };
 
@@ -1171,11 +1267,11 @@ export default function PremiumDashboardPage({
         <div className="prodash-content-area">
           {showHome ? (
             <div>
-              <div className="prodash-notice">
+              <button type="button" className="prodash-notice" onClick={openNoticePanel}>
                 <span className="prodash-notice-pill">NOTICE</span>
                 <p>{dashboardNotice}</p>
                 <i className="fas fa-chevron-right" />
-              </div>
+              </button>
 
               {profileNotice ? <p className="prodash-page-notice">{profileNotice}</p> : null}
               {dashboardNoticeUpdatedAt ? (
@@ -1819,6 +1915,55 @@ export default function PremiumDashboardPage({
           ) : null}
         </div>
       </section>
+
+      {noticePanelOpen ? (
+        <div className="prodash-popup-overlay" onClick={() => setNoticePanelOpen(false)}>
+          <section className="prodash-notice-modal" role="dialog" aria-modal="true" aria-label="Notice Center" onClick={(event) => event.stopPropagation()}>
+            <header className="prodash-notice-modal-head">
+              <h3>Notice Center</h3>
+              <button type="button" onClick={() => setNoticePanelOpen(false)} aria-label="Close notice panel">
+                <i className="fas fa-xmark" />
+              </button>
+            </header>
+
+            {noticeDismissError ? <p className="prodash-form-error">{noticeDismissError}</p> : null}
+
+            <div className="prodash-notice-list">
+              {dashboardNotices.length ? (
+                dashboardNotices.map((item) => (
+                  <article key={item.noticeId || `${item.message}-${item.updatedAt}`} className={`prodash-notice-item is-${item.severity}`}>
+                    <div className="prodash-notice-item-head">
+                      <strong>{item.title || "System Notice"}</strong>
+                      <span>{item.severity.toUpperCase()}</span>
+                    </div>
+                    <p>{item.message}</p>
+                    <footer>
+                      <small>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "Now"}</small>
+                      {item.isDismissible && item.noticeId ? (
+                        <button
+                          type="button"
+                          className="prodash-inline-link-btn"
+                          onClick={() => dismissNotice(item.noticeId)}
+                          disabled={noticeDismissingId === item.noticeId}
+                        >
+                          {noticeDismissingId === item.noticeId ? "Dismissing..." : "Dismiss"}
+                        </button>
+                      ) : null}
+                    </footer>
+                  </article>
+                ))
+              ) : (
+                <article className="prodash-notice-item">
+                  <div className="prodash-notice-item-head">
+                    <strong>No active notices</strong>
+                  </div>
+                  <p>There are no additional notices for your account right now.</p>
+                </article>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <SupportChatModal
         open={chatOpen}

@@ -75,6 +75,11 @@ export const ADMIN_SECTION_META = {
     title: "Website Content Management",
     description: "Control and publish the full public home page content from a single JSON-driven editor.",
   },
+  notifications: {
+    icon: "fa-bell",
+    title: "Notice Center",
+    description: "Create, schedule, target, and manage notices delivered to user dashboards.",
+  },
 };
 
 export const STATIC_BOT_PERFORMANCE = [

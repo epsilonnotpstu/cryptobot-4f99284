@@ -571,6 +571,52 @@ function buildWebContentModel(payload) {
   };
 }
 
+function buildNoticeCenterModel(payload) {
+  const items = Array.isArray(payload?.items)
+    ? payload.items.map((item) => ({
+        noticeId: toNumber(item.noticeId, 0),
+        title: String(item.title || ""),
+        message: String(item.message || ""),
+        severity: String(item.severity || "info"),
+        priority: toNumber(item.priority, 50),
+        startsAt: String(item.startsAt || ""),
+        expiresAt: String(item.expiresAt || ""),
+        isActive: Boolean(item.isActive),
+        isDismissible: item.isDismissible !== false,
+        targetMode: String(item.targetMode || "all"),
+        targetKycStatus: String(item.targetKycStatus || ""),
+        targetUserIds: Array.isArray(item.targetUserIds) ? item.targetUserIds : [],
+        targetSummary: String(item.targetSummary || ""),
+        createdBy: String(item.createdBy || ""),
+        updatedBy: String(item.updatedBy || ""),
+        createdAt: String(item.createdAt || ""),
+        updatedAt: String(item.updatedAt || ""),
+      }))
+    : [];
+
+  const active = items.filter((item) => item.isActive).length;
+  const critical = items.filter((item) => String(item.severity || "").toLowerCase() === "critical").length;
+  const pagination = payload?.pagination || {};
+  const total = toNumber(pagination.total, items.length);
+
+  return {
+    items,
+    pagination: {
+      page: toNumber(pagination.page, 1),
+      limit: toNumber(pagination.limit, Math.max(items.length, 1)),
+      total,
+      totalPages: toNumber(pagination.totalPages, 1),
+      hasMore: Boolean(pagination.hasMore),
+    },
+    stats: {
+      total,
+      active,
+      critical,
+    },
+    filters: payload?.filters || {},
+  };
+}
+
 const DEFAULT_DASHBOARD = {
   metrics: [
     { key: "users", label: "Total Users", value: 0, icon: "fa-users", growth: "No pending KYC", tone: "blue", format: "number" },
@@ -786,6 +832,28 @@ const DEFAULT_WEB_CONTENT = {
   },
 };
 
+const DEFAULT_NOTICE_CENTER = {
+  items: [],
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+    hasMore: false,
+  },
+  stats: {
+    total: 0,
+    active: 0,
+    critical: 0,
+  },
+  filters: {
+    status: "all",
+    targetMode: "all",
+    severity: "all",
+    keyword: "",
+  },
+};
+
 const ADMIN_AUTO_REFRESH_MS = 120000;
 
 export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth, requireFreshLogin = false }) {
@@ -810,6 +878,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [assetCenter, setAssetCenter] = useState(DEFAULT_ASSET_CENTER);
   const [supportCenter, setSupportCenter] = useState(DEFAULT_SUPPORT_CENTER);
   const [webContent, setWebContent] = useState(DEFAULT_WEB_CONTENT);
+  const [noticeCenter, setNoticeCenter] = useState(DEFAULT_NOTICE_CENTER);
   const loadInFlightRef = useRef(false);
 
   const clearAuthFeedback = () => {
@@ -1151,6 +1220,23 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setWebContent(DEFAULT_WEB_CONTENT);
       }
+      }
+
+      if (activeSection === "notifications") {
+        try {
+          const noticePayload = await authService.adminListNotices({
+            sessionToken: snapshot.sessionToken,
+            page: 1,
+            limit: 120,
+            status: "all",
+            targetMode: "all",
+            severity: "all",
+            keyword: "",
+          });
+          setNoticeCenter(buildNoticeCenterModel(noticePayload));
+        } catch {
+          setNoticeCenter(DEFAULT_NOTICE_CENTER);
+        }
       }
     } catch (error) {
       setDashboardError(error.message || "Could not load admin dashboard data.");
@@ -1897,6 +1983,60 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const createNotice = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCreateNotice({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateNotice = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateNoticeV2({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateNoticeStatus = useCallback(async ({ noticeId, status, isActive }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateNoticeStatus({
+      sessionToken: snapshot.sessionToken,
+      noticeId,
+      status,
+      isActive,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const quickPublishNotice = useCallback(async (message) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateNotice({
+      sessionToken: snapshot.sessionToken,
+      message,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
   useEffect(() => {
     refreshAdminSession();
   }, [refreshAdminSession]);
@@ -1980,6 +2120,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       setAssetCenter(DEFAULT_ASSET_CENTER);
       setSupportCenter(DEFAULT_SUPPORT_CENTER);
       setWebContent(DEFAULT_WEB_CONTENT);
+      setNoticeCenter(DEFAULT_NOTICE_CENTER);
       clearAuthFeedback();
     }
   };
@@ -2023,6 +2164,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       assetCenter={assetCenter}
       supportCenter={supportCenter}
       webContent={webContent}
+      noticeCenter={noticeCenter}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
       onRefresh={loadAdminData}
@@ -2084,6 +2226,10 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onReplySupportLiveThread={replySupportLiveThread}
       onUpdateSupportLiveThread={updateSupportLiveThread}
       onSaveHomeContent={saveHomeContent}
+      onCreateNotice={createNotice}
+      onUpdateNotice={updateNotice}
+      onUpdateNoticeStatus={updateNoticeStatus}
+      onQuickPublishNotice={quickPublishNotice}
     />
   );
 }

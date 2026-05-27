@@ -1470,6 +1470,13 @@ const remoteAuthService = {
     }
     return data;
   },
+  async dismissNotice({ sessionToken, noticeId }) {
+    return this.requestGatewayAction({
+      action: "notice.dismiss",
+      sessionToken,
+      payload: { noticeId },
+    });
+  },
   async createDepositRequest({ sessionToken, assetId, amountUsd, screenshotFileName, screenshotFileData }) {
     return this.requestGatewayAction({
       action: "deposit.create",
@@ -1854,6 +1861,42 @@ const remoteAuthService = {
       action: "admin.notice.update",
       sessionToken,
       payload: { message },
+    });
+  },
+  async adminListNotices({
+    sessionToken,
+    page = 1,
+    limit = 20,
+    status = "all",
+    targetMode = "all",
+    severity = "all",
+    keyword = "",
+  } = {}) {
+    return this.requestGatewayAction({
+      action: "admin.notice.list",
+      sessionToken,
+      payload: { page, limit, status, targetMode, severity, keyword },
+    });
+  },
+  async adminCreateNotice({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.notice.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateNoticeV2({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.notice.update.v2",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateNoticeStatus({ sessionToken, noticeId, status, isActive }) {
+    return this.requestGatewayAction({
+      action: "admin.notice.status",
+      sessionToken,
+      payload: { noticeId, status, isActive },
     });
   },
   async adminGetHomeContent({ sessionToken }) {
@@ -3626,6 +3669,13 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleDismissNotice = async ({ noticeId }) => {
+    return authService.dismissNotice({
+      sessionToken: authSnapshot.sessionToken,
+      noticeId,
+    });
+  };
+
   const handleCreateDepositRequest = async ({ assetId, amountUsd, screenshotFileName, screenshotFileData }) => {
     return authService.createDepositRequest({
       sessionToken: authSnapshot.sessionToken,
@@ -4190,6 +4240,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onKycSubmit={handleKycSubmit}
         onKycRefresh={handleKycRefresh}
         onDashboardSnapshot={handleDashboardSnapshot}
+        onDismissNotice={handleDismissNotice}
         onOpenDepositPage={() => setActiveAppScreen("deposit")}
         onOpenLumPage={() => setActiveAppScreen("lum")}
         onOpenGoldMiningPage={() => setActiveAppScreen("goldMining")}
