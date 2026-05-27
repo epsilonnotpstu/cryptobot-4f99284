@@ -17,6 +17,14 @@ const BOTTOM_NAV_ITEMS = [
   { id: "assets", label: "Assets", icon: "fa-wallet" },
 ];
 
+const BINANCE_MULTI_PRICE_URL = "https://api.binance.com/api/v3/ticker/price";
+
+function normalizeBinanceSymbol(value = "") {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
 function clampAmount(value, maxAmount) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -75,6 +83,9 @@ export default function BinaryPage({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyTrades, setHistoryTrades] = useState([]);
+
+  const [marketLivePrices, setMarketLivePrices] = useState({});
+  const [marketLiveChanges, setMarketLiveChanges] = useState({});
 
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [resultTrade, setResultTrade] = useState(null);
@@ -588,6 +599,16 @@ export default function BinaryPage({
     [categories, selectedCategoryId],
   );
 
+  const marketSymbols = useMemo(() => {
+    if (!pairs.length) {
+      return [];
+    }
+    const symbols = pairs
+      .map((pair) => normalizeBinanceSymbol(pair?.sourceSymbol || pair?.pairCode || ""))
+      .filter((symbol) => symbol.length >= 6 && /USDT$/.test(symbol));
+    return [...new Set(symbols)];
+  }, [pairs]);
+
   const categoryPairs = useMemo(() => {
     if (!pairs.length) {
       return [];
@@ -597,6 +618,58 @@ export default function BinaryPage({
     }
     return pairs.filter((item) => Number(item.categoryId) === Number(selectedCategoryId));
   }, [pairs, selectedCategoryId]);
+
+  useEffect(() => {
+    if (!marketSymbols.length || typeof fetch !== "function") {
+      return undefined;
+    }
+
+    let isActive = true;
+
+    const run = async () => {
+      try {
+        const query = encodeURIComponent(JSON.stringify(marketSymbols));
+        const response = await fetch(`${BINANCE_MULTI_PRICE_URL}?symbols=${query}`);
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        if (!Array.isArray(payload) || !isActive) {
+          return;
+        }
+
+        setMarketLivePrices((prevPrices) => {
+          const nextPrices = { ...prevPrices };
+          const nextChanges = {};
+
+          for (const row of payload) {
+            const symbol = normalizeBinanceSymbol(row?.symbol || "");
+            const price = Number(row?.price || 0);
+            if (!symbol || !Number.isFinite(price) || price <= 0) {
+              continue;
+            }
+            const previousPrice = Number(prevPrices[symbol] || 0);
+            if (previousPrice > 0) {
+              nextChanges[symbol] = ((price - previousPrice) / previousPrice) * 100;
+            }
+            nextPrices[symbol] = price;
+          }
+
+          setMarketLiveChanges(nextChanges);
+          return nextPrices;
+        });
+      } catch {
+        // Keep backend price as fallback if Binance request fails.
+      }
+    };
+
+    run();
+    const timer = window.setInterval(run, 3500);
+    return () => {
+      isActive = false;
+      window.clearInterval(timer);
+    };
+  }, [marketSymbols]);
 
   const openPairFromMarket = (pairId) => {
     setSelectedPairId(Number(pairId || 0));
@@ -662,9 +735,13 @@ export default function BinaryPage({
 
             <div className="binary-market-list">
               {categoryPairs.map((pair) => {
-                const currentPrice = toNumber(pair.currentPrice, 0);
+                const sourceSymbol = normalizeBinanceSymbol(pair?.sourceSymbol || pair?.pairCode || "");
+                const livePrice = toNumber(marketLivePrices[sourceSymbol], 0);
+                const currentPrice = livePrice > 0 ? livePrice : toNumber(pair.currentPrice, 0);
                 const previousPrice = toNumber(pair.previousPrice, currentPrice);
-                const deltaPercent = previousPrice > 0 ? ((currentPrice - previousPrice) / previousPrice) * 100 : 0;
+                const backendDeltaPercent = previousPrice > 0 ? ((currentPrice - previousPrice) / previousPrice) * 100 : 0;
+                const liveDeltaPercent = Number(marketLiveChanges[sourceSymbol]);
+                const deltaPercent = Number.isFinite(liveDeltaPercent) ? liveDeltaPercent : backendDeltaPercent;
                 const isPositive = deltaPercent >= 0;
                 const iconUrl = pair.iconImageUrl || getTokenIconUrl(pair.baseAsset);
 
