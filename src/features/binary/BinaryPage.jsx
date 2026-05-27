@@ -657,7 +657,7 @@ export default function BinaryPage({
     }
     const symbols = pairs
       .map((pair) => resolvePairTickerSymbol(pair))
-      .filter(Boolean);
+      .filter((symbol) => symbol && symbol.length >= 6);
     return [...new Set(symbols)];
   }, [pairs]);
 
@@ -678,26 +678,55 @@ export default function BinaryPage({
 
     let isActive = true;
 
-    const run = async () => {
-      try {
-        const query = encodeURIComponent(JSON.stringify(marketSymbols));
-        let payload = null;
+    const fetchBatchTickerPayload = async (symbols) => {
+      const query = encodeURIComponent(JSON.stringify(symbols));
+      for (const endpoint of BINANCE_TICKER_ENDPOINTS) {
+        const response = await fetch(`${endpoint}?symbols=${query}`);
+        if (!response.ok) {
+          continue;
+        }
+        const parsed = await response.json();
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+      return null;
+    };
 
-        for (const endpoint of BINANCE_TICKER_ENDPOINTS) {
-          const response = await fetch(`${endpoint}?symbols=${query}`);
+    const fetchSingleTicker = async (symbol) => {
+      for (const endpoint of BINANCE_TICKER_ENDPOINTS) {
+        try {
+          const response = await fetch(`${endpoint}?symbol=${encodeURIComponent(symbol)}`);
           if (!response.ok) {
             continue;
           }
           const parsed = await response.json();
-          if (Array.isArray(parsed)) {
-            payload = parsed;
-            break;
+          const price = Number(parsed?.price || 0);
+          if (Number.isFinite(price) && price > 0) {
+            return { symbol, price };
           }
+        } catch {
+          // Ignore and continue to the next endpoint.
         }
+      }
+      return null;
+    };
+
+    const run = async () => {
+      try {
+        let payload = await fetchBatchTickerPayload(marketSymbols);
 
         if (!payload) {
-          return;
+          const fallbackRows = [];
+          for (const symbol of marketSymbols) {
+            const row = await fetchSingleTicker(symbol);
+            if (row) {
+              fallbackRows.push(row);
+            }
+          }
+          payload = fallbackRows;
         }
+
         if (!Array.isArray(payload) || !isActive) {
           return;
         }
@@ -769,7 +798,7 @@ export default function BinaryPage({
           selectedCategoryId={selectedCategoryId}
           onCategorySelect={handleCategorySelect}
           mode={marketMode}
-          selectedPair={selectedPair}
+          selectedPair={selectedPairForChart}
           selectedCategory={selectedCategory}
           onBack={handleHeaderBack}
           onBrowseMarkets={() => setMarketMode("browse")}
