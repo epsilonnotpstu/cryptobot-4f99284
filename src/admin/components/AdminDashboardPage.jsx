@@ -210,25 +210,29 @@ export default function AdminDashboardPage({
 
   const navBadges = useMemo(
     () => ({
-      users: formatCompactNumber(userDirectory?.stats?.totalUsers || 0),
+      users: formatCompactNumber(userDirectory?.stats?.pendingVerifications || 0),
       kycReview: formatCompactNumber(kycQueue?.stats?.pendingKycRequests || 0),
       depositCenter: formatCompactNumber(depositCenter?.stats?.pendingRequests || 0),
-      lumCenter: formatCompactNumber(lumCenter?.summary?.pendingCount || 0),
-      binaryCenter: formatCompactNumber(binaryCenter?.summary?.activeTradesCount || 0),
-      transactionCenter: formatCompactNumber(transactionCenter?.summary?.openSpotOrders || 0),
-      assetCenter: formatCompactNumber(assetCenter?.withdrawals?.pagination?.total || 0),
-      supportCenter: formatCompactNumber(supportCenter?.summary?.pendingAdminTickets || 0),
-      webContent: "CMS",
+      lumCenter: formatCompactNumber(lumCenter?.summary?.pendingInvestments || 0),
+      binaryCenter: formatCompactNumber(binaryCenter?.summary?.pendingTrades || 0),
+      transactionCenter: formatCompactNumber(transactionCenter?.summary?.pendingOrders || 0),
+      assetCenter: formatCompactNumber(dashboard?.approvals?.pendingWithdrawalRequests || 0),
+      webContent: "",
+      supportCenter: formatCompactNumber(
+        dashboard?.approvals?.pendingSupportTickets || supportCenter?.summary?.pendingAdminTickets || 0,
+      ),
     }),
     [
-      assetCenter?.withdrawals?.pagination?.total,
-      binaryCenter?.summary?.activeTradesCount,
+      assetCenter?.stats?.pendingRequests,
+      binaryCenter?.summary?.pendingTrades,
+      dashboard?.approvals?.pendingSupportTickets,
+      dashboard?.approvals?.pendingWithdrawalRequests,
       depositCenter?.stats?.pendingRequests,
       kycQueue?.stats?.pendingKycRequests,
-      lumCenter?.summary?.pendingCount,
       supportCenter?.summary?.pendingAdminTickets,
-      transactionCenter?.summary?.openSpotOrders,
-      userDirectory?.stats?.totalUsers,
+      lumCenter?.summary?.pendingInvestments,
+      transactionCenter?.summary?.pendingOrders,
+      userDirectory?.stats?.pendingVerifications, 
     ],
   );
 
@@ -355,10 +359,17 @@ export default function AdminDashboardPage({
         </article>
 
         <div className="adminx-approval-summary-grid">
+          {/* Deposite Approval */}
           <article className="adminx-approval-summary-card">
             <small>Pending Deposit Approvals</small>
             <strong>{formatCompactNumber(dashboard.approvals?.pendingDepositRequests || 0)}</strong>
             <button type="button" onClick={() => onSectionChange("depositCenter")}>Go to Deposit Desk</button>
+          </article>
+          {/* Withdraw Approval */}
+          <article className="adminx-approval-summary-card">
+            <small>Pending Withdrawal Approvals</small>
+            <strong>{formatCompactNumber(dashboard.approvals?.pendingWithdrawalRequests || 0)}</strong>
+            <button type="button" onClick={() => onSectionChange("assetCenter")}>Go to Withdrawal Desk</button>
           </article>
           <article className="adminx-approval-summary-card">
             <small>Pending KYC Reviews</small>

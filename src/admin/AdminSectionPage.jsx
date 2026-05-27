@@ -56,7 +56,7 @@ function buildActivityFeed(depositRequests, kycRequests) {
     .slice(0, 10);
 }
 
-function buildApprovalSpotlight(depositPayload, kycPayload, supportSummary = {}) {
+function buildApprovalSpotlight(depositPayload, kycPayload, supportSummary = {}, withdrawPayload = {}) {
   const depositRows = Array.isArray(depositPayload?.requests) ? depositPayload.requests : [];
   const kycRows = Array.isArray(kycPayload?.requests) ? kycPayload.requests : [];
 
@@ -101,24 +101,31 @@ function buildApprovalSpotlight(depositPayload, kycPayload, supportSummary = {})
       : [];
 
   const items = [...pendingDepositRows, ...pendingKycRows, ...supportItems].slice(0, 8);
+  const pendingWithdrawalRequests = toNumber(
+    withdrawPayload?.stats?.pending,
+    toNumber(withdrawPayload?.stats?.pendingRequests, toNumber(withdrawPayload?.stats?.pendingWithdrawals, 0)),
+  );
 
   return {
     pendingDepositRequests: toNumber(depositPayload?.stats?.pendingRequests, pendingDepositRows.length),
+    pendingWithdrawalRequests,
     pendingKycRequests: toNumber(kycPayload?.stats?.pendingKycRequests, pendingKycRows.length),
     pendingSupportTickets,
     unreadSupport,
     totalPendingApprovals:
       toNumber(depositPayload?.stats?.pendingRequests, pendingDepositRows.length) +
       toNumber(kycPayload?.stats?.pendingKycRequests, pendingKycRows.length) +
-      pendingSupportTickets,
+      pendingWithdrawalRequests +
+      toNumber(supportSummary?.pendingAdminTickets, 0),
     items,
   };
 }
 
-function buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSummary = {}) {
+function buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSummary = {}, withdrawPayload = {}) {
   const userStats = usersPayload?.stats || {};
   const depositStats = depositPayload?.stats || {};
   const kycStats = kycPayload?.stats || {};
+  const withdrawStats = withdrawPayload?.stats || {};
 
   const totalUsers = toNumber(userStats.totalUsers, 0);
   const pendingVerifications = toNumber(userStats.pendingVerifications, 0);
@@ -192,7 +199,7 @@ function buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSu
     metrics,
     profitSeries: baseProfit.map((value) => Number((value * trendScale).toFixed(2))),
     costSeries: baseCost.map((value) => Number((value * Math.max(0.7, trendScale * 0.68)).toFixed(2))),
-    approvals: buildApprovalSpotlight(depositPayload, kycPayload, supportSummary),
+    approvals: buildApprovalSpotlight(depositPayload, kycPayload, supportSummary, withdrawPayload),
     health: {
       uptime: totalUsers > 0 ? "99.97" : "99.90",
       apiSuccessRate,
@@ -856,12 +863,16 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     setDashboardLoading(true);
     setDashboardError("");
     try {
-      const [usersPayload, assetsPayload, depositPayload, kycPayload, baseSupportSummaryPayload] = await Promise.all([
+      const [usersPayload, assetsPayload, depositPayload, kycPayload, baseSupportSummaryPayload, assetsWithdrawalsPayload] = await Promise.all([
         authService.adminListUsers({ sessionToken: snapshot.sessionToken, kycStatus: "", includeAdmins: true }),
         authService.adminListDepositAssets({ sessionToken: snapshot.sessionToken }),
         authService.adminListDepositRequests({ sessionToken: snapshot.sessionToken, includeSensitiveMedia: false }),
         authService.adminListKycRequests({ sessionToken: snapshot.sessionToken, includeSensitiveMedia: false }),
         authService.adminGetSupportDashboardSummary({ sessionToken: snapshot.sessionToken }),
+        authService.adminListAssetsWithdrawals({ sessionToken: snapshot.sessionToken, status: "all",
+          page: 1,
+          limit: 1,
+        }),
       ]);
       setDashboard(
         buildDashboardModel(
@@ -869,6 +880,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
           depositPayload,
           kycPayload,
           baseSupportSummaryPayload?.summary || baseSupportSummaryPayload || {},
+          assetsWithdrawalsPayload
         ),
       );
       setUserDirectory(buildUserDirectoryModel(usersPayload));
@@ -1119,7 +1131,13 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
           liveDetail: prev?.liveDetail || {},
         }));
         setDashboard(
-          buildDashboardModel(usersPayload, depositPayload, kycPayload, supportSummaryPayload?.summary || supportSummaryPayload || {}),
+          buildDashboardModel(
+            usersPayload,
+            depositPayload,
+            kycPayload,
+            supportSummaryPayload?.summary || supportSummaryPayload || {},
+            assetsWithdrawalsPayload,
+          ),
         );
       } catch {
         setSupportCenter(DEFAULT_SUPPORT_CENTER);
