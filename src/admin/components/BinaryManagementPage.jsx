@@ -30,6 +30,14 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function formatRemainingSeconds(trade) {
+  if (normalizeText(trade?.resultStatus) !== "active") {
+    return "-";
+  }
+  const value = Math.max(0, Math.floor(toNumber(trade?.remainingSeconds, 0)));
+  return `${value}s`;
+}
+
 function statusClass(value = "") {
   const status = normalizeText(value);
   if (status === "active" || status === "won" || status === "enabled" || status === "credited") {
@@ -1276,6 +1284,7 @@ export default function BinaryManagementPage({
                   <th>Status</th>
                   <th>Opened</th>
                   <th>Expires</th>
+                  <th>Remaining</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -1299,6 +1308,7 @@ export default function BinaryManagementPage({
                       </td>
                       <td>{formatDateTime(trade.openedAt)}</td>
                       <td>{formatDateTime(trade.expiresAt)}</td>
+                      <td>{formatRemainingSeconds(trade)}</td>
                       <td>
                         <div className="adminx-row-actions">
                           {isActive ? (

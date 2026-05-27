@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { directionLabel, formatMoney, formatPrice, statusLabel, statusClassName } from "./binary-utils";
 
 function outcomeHeading(status) {
@@ -18,28 +18,56 @@ function outcomeHeading(status) {
 }
 
 export default function BinaryResultModal({ open, trade, summary, onClose, onTradeAgain, autoCloseSeconds = 10 }) {
-  const [secondsLeft, setSecondsLeft] = useState(autoCloseSeconds);
+  const [secondsLeft, setSecondsLeft] = useState(Math.max(1, Number(autoCloseSeconds || 10)));
+  const closeRef = useRef(onClose);
+  const timerRef = useRef(null);
+  const lastSessionKeyRef = useRef("");
+  const tradeSessionKey = String(trade?.tradeId || trade?.createdAt || "result");
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open || !trade) {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      lastSessionKeyRef.current = "";
       return undefined;
     }
-    setSecondsLeft(autoCloseSeconds);
-    const timer = window.setInterval(() => {
-      setSecondsLeft((current) => {
-        if (current <= 1) {
-          window.clearInterval(timer);
-          onClose?.();
+
+    const safeAutoCloseSeconds = Math.max(1, Number(autoCloseSeconds || 10));
+    const sessionKey = `${tradeSessionKey}:${safeAutoCloseSeconds}`;
+
+    if (lastSessionKeyRef.current !== sessionKey) {
+      lastSessionKeyRef.current = sessionKey;
+      setSecondsLeft(safeAutoCloseSeconds);
+    }
+
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    timerRef.current = window.setTimeout(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          closeRef.current?.();
           return 0;
         }
-        return current - 1;
+        return prev - 1;
       });
     }, 1000);
 
     return () => {
-      window.clearInterval(timer);
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [autoCloseSeconds, onClose, open, trade]);
+  }, [autoCloseSeconds, open, secondsLeft, tradeSessionKey]);
 
   if (!open || !trade) {
     return null;

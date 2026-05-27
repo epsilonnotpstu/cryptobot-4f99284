@@ -1,8 +1,8 @@
-import { directionLabel, formatMoney, formatPrice, remainingSeconds } from "./binary-utils";
+import { directionLabel, formatMoney, formatPrice, getTradeRemainingSeconds } from "./binary-utils";
 
 function progressPercent(trade) {
   const total = Math.max(1, Number(trade?.periodSeconds || 1));
-  const left = remainingSeconds(trade?.expiresAt || "");
+  const left = getTradeRemainingSeconds(trade);
   return Math.max(0, Math.min(100, ((total - left) / total) * 100));
 }
 
@@ -11,7 +11,7 @@ export default function BinaryActiveTradeModal({ open, trade, onClose, onReopenS
     return null;
   }
 
-  const left = remainingSeconds(trade.expiresAt);
+  const left = getTradeRemainingSeconds(trade);
   const progress = progressPercent(trade);
   const walletSymbol = trade.walletAssetSymbol || "USDT";
 

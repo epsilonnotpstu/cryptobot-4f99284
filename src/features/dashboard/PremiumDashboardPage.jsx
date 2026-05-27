@@ -1154,7 +1154,7 @@ export default function PremiumDashboardPage({
                       <div className="prodash-wallet-tags">
                         <span className="prodash-auth-tag">{authTagLabel}</span>
                       </div>
-                      {walletBalances.length ? (
+                      {/* {walletBalances.length ? (
                         <div className="prodash-wallet-balance-strip">
                           {walletBalances.slice(0, 4).map((balance) => (
                             <span key={balance.symbol}>
@@ -1162,7 +1162,7 @@ export default function PremiumDashboardPage({
                             </span>
                           ))}
                         </div>
-                      ) : null}
+                      ) : null} */}
                       {!isUserKycAuthenticated ? <p className="prodash-lock-note">Complete KYC to unlock premium actions.</p> : null}
                     </div>
 

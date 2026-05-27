@@ -442,7 +442,7 @@ export default function SupportChatModal({
                     className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
                   >
                     <header>
-                      <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : "You"}</strong>
+                      <strong>{message.senderRole === "admin" ? ( "Rampx Trading") : "You"}</strong>
                       <small>{formatDateTime(message.createdAt)}</small>
                     </header>
                     <p>{message.messageText}</p>
@@ -603,7 +603,7 @@ export default function SupportChatModal({
                         className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
                       >
                         <header>
-                          <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : "You"}</strong>
+                          <strong>{message.senderRole === "admin" ? ( "Rampx Trading") : "You"}</strong>
                           <small>{formatDateTime(message.createdAt)}</small>
                         </header>
                         <p>{message.messageText}</p>

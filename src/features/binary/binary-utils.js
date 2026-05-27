@@ -149,6 +149,14 @@ export function remainingSeconds(expireAt = "") {
   return Math.max(0, Math.ceil((expires - Date.now()) / 1000));
 }
 
+export function getTradeRemainingSeconds(trade = null) {
+  const serverRemaining = Number(trade?.remainingSeconds);
+  if (Number.isFinite(serverRemaining) && serverRemaining >= 0) {
+    return Math.max(0, Math.floor(serverRemaining));
+  }
+  return remainingSeconds(String(trade?.expiresAt || ""));
+}
+
 export function buildSparklinePath(ticks = [], width = 100, height = 32) {
   if (!Array.isArray(ticks) || ticks.length === 0) {
     return "";

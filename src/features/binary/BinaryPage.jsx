@@ -7,7 +7,7 @@ import BinaryAmountCard from "./BinaryAmountCard";
 import BinaryActiveTradeModal from "./BinaryActiveTradeModal";
 import BinaryResultModal from "./BinaryResultModal";
 import BinaryRecordsSection from "./BinaryRecordsSection";
-import { calculateProjection, formatMoney, formatPrice, getTokenIconUrl, normalizeDirection, remainingSeconds, toNumber } from "./binary-utils";
+import { calculateProjection, formatMoney, formatPrice, getTokenIconUrl, getTradeRemainingSeconds, normalizeDirection, toNumber } from "./binary-utils";
 import "./binary.css";
 
 const BOTTOM_NAV_ITEMS = [
@@ -284,13 +284,13 @@ export default function BinaryPage({
 
     if (topTrade) {
       setActiveTrade(topTrade);
-      if (remainingSeconds(topTrade.expiresAt) <= 0) {
+      if (getTradeRemainingSeconds(topTrade) <= 0) {
         await settleTrade(topTrade.tradeId, { silentNotice: true });
       }
       return;
     }
 
-    if (existingTrade && remainingSeconds(existingTrade.expiresAt) <= 0) {
+    if (existingTrade && Number(existingTrade.tradeId || 0) > 0) {
       await settleTrade(existingTrade.tradeId, { silentNotice: true });
       return;
     }

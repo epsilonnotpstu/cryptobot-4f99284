@@ -340,7 +340,7 @@ export default function LUMPage({
         <div className="lum-user-strip">
           <div>
             <strong>{user?.name || "Trader"}</strong>
-            <p>{user?.email || ""}</p>
+            {/* <p>{user?.email || ""}</p> */}
           </div>
           <span>Available: {formatMoney(walletAvailableUsd || 0, "USDT")}</span>
         </div>
