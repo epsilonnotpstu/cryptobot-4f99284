@@ -249,6 +249,28 @@ function filterRowsByTab(rows, activeTab) {
   return rows;
 }
 
+function normalizeMarketPrioritySymbol(value = "") {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizeMarketPrioritySymbols(values = []) {
+  const list = Array.isArray(values) ? values : [];
+  const seen = new Set();
+  const normalized = [];
+  for (const value of list) {
+    const symbol = normalizeMarketPrioritySymbol(value);
+    if (!symbol || seen.has(symbol)) {
+      continue;
+    }
+    seen.add(symbol);
+    normalized.push(symbol);
+  }
+  return normalized;
+}
+
 function buildPlaceholderCopy(activeMainTab) {
   if (activeMainTab === "transaction") {
     return {
@@ -341,6 +363,7 @@ export default function PremiumDashboardPage({
   const [totalSpotAssetsUsd, setTotalSpotAssetsUsd] = useState(null);
   const [walletBalances, setWalletBalances] = useState([]);
   const [depositAssets, setDepositAssets] = useState([]);
+  const [marketPrioritySymbols, setMarketPrioritySymbols] = useState([]);
   const [dashboardSyncError, setDashboardSyncError] = useState("");
 
   const [depositSearch, setDepositSearch] = useState("");
@@ -434,6 +457,7 @@ export default function PremiumDashboardPage({
         setTotalSpotAssetsUsd(data?.wallet?.totalSpotAssetsUsd ?? null);
         setWalletBalances(Array.isArray(data?.wallet?.balances) ? data.wallet.balances : []);
         setDepositAssets(Array.isArray(data?.deposit?.assets) ? data.deposit.assets : []);
+        setMarketPrioritySymbols(normalizeMarketPrioritySymbols(data?.market?.prioritySymbols));
         setDashboardSyncError("");
       } catch {
         if (isActive) {
@@ -521,11 +545,39 @@ export default function PremiumDashboardPage({
 
   const visibleRows = useMemo(() => {
     const filteredRows = filterRowsByTab(rows, activeTab);
-    if (activeTab === "all") {
-      return filteredRows;
+    const priorityList = normalizeMarketPrioritySymbols(marketPrioritySymbols);
+    if (!priorityList.length) {
+      if (activeTab === "all") {
+        return filteredRows;
+      }
+      return filteredRows.slice(0, 40);
     }
-    return filteredRows.slice(0, 40);
-  }, [rows, activeTab]);
+
+    const priorityIndex = new Map(priorityList.map((symbol, index) => [symbol, index]));
+    const priorityRows = [];
+    const otherRows = [];
+
+    for (const row of filteredRows) {
+      const baseSymbol = normalizeMarketPrioritySymbol(row?.base || "");
+      if (priorityIndex.has(baseSymbol)) {
+        priorityRows.push(row);
+        continue;
+      }
+      otherRows.push(row);
+    }
+
+    priorityRows.sort((a, b) => {
+      const aIndex = priorityIndex.get(normalizeMarketPrioritySymbol(a?.base || "")) ?? Number.MAX_SAFE_INTEGER;
+      const bIndex = priorityIndex.get(normalizeMarketPrioritySymbol(b?.base || "")) ?? Number.MAX_SAFE_INTEGER;
+      return aIndex - bIndex;
+    });
+
+    const mergedRows = [...priorityRows, ...otherRows];
+    if (activeTab === "all") {
+      return mergedRows;
+    }
+    return mergedRows.slice(0, 40);
+  }, [rows, activeTab, marketPrioritySymbols]);
   const latestDepositRecords = useMemo(() => recentDepositRecords.slice(0, 4), [recentDepositRecords]);
 
   const hasUsdSpotValue = useMemo(

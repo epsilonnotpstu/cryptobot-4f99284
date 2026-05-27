@@ -3503,6 +3503,64 @@ function buildDepositAssetPayload(row) {
   };
 }
 
+function normalizeMarketPrioritySymbol(value = "") {
+  return normalizeAssetSymbol(value || "");
+}
+
+function extractBaseSymbolFromPairCode(value = "") {
+  const normalizedPairCode = normalizeAssetSymbol(value || "");
+  if (!normalizedPairCode) {
+    return "";
+  }
+  if (normalizedPairCode.endsWith("USDT") && normalizedPairCode.length > 4) {
+    return normalizedPairCode.slice(0, -4);
+  }
+  return normalizedPairCode;
+}
+
+function buildDashboardMarketPrioritySymbols(depositAssets = []) {
+  const symbols = [];
+  const seen = new Set();
+  const pushSymbol = (value = "") => {
+    const normalized = normalizeMarketPrioritySymbol(value);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    symbols.push(normalized);
+  };
+
+  const depositList = Array.isArray(depositAssets) ? depositAssets : [];
+  for (const asset of depositList) {
+    pushSymbol(asset?.symbol || "");
+  }
+
+  let binaryRows = [];
+  try {
+    binaryRows = db
+      .prepare(`
+        SELECT base_asset, pair_code
+        FROM binary_pairs
+        WHERE is_enabled = 1
+        ORDER BY display_sort_order ASC, pair_code ASC
+      `)
+      .all();
+  } catch {
+    binaryRows = [];
+  }
+
+  for (const row of binaryRows) {
+    const baseAsset = normalizeMarketPrioritySymbol(row?.base_asset || "");
+    if (baseAsset) {
+      pushSymbol(baseAsset);
+      continue;
+    }
+    pushSymbol(extractBaseSymbolFromPairCode(row?.pair_code || ""));
+  }
+
+  return symbols;
+}
+
 function buildWalletBalancePayload(row) {
   if (!row) {
     return null;
@@ -5377,6 +5435,7 @@ function handleDashboardSnapshot(req, res) {
       .all()
       .map((row) => buildDepositAssetPayload(row))
       .filter(Boolean);
+    const prioritySymbols = buildDashboardMarketPrioritySymbols(depositAssets);
 
     res.json({
       user: buildUserPayload(currentUser || req.currentUser),
@@ -5384,6 +5443,9 @@ function handleDashboardSnapshot(req, res) {
       wallet,
       deposit: {
         assets: depositAssets,
+      },
+      market: {
+        prioritySymbols,
       },
     });
   } catch (error) {
