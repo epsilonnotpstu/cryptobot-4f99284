@@ -21,15 +21,7 @@ function formatTickTime(value = "") {
   return parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-function modeLabel(engineMode = "internal_tick", externalCount = 0, total = 0, liveExternalPriceActive = false, pairSourceType = "") {
-  if (liveExternalPriceActive) {
-    return "External API live price feed";
-  }
-
-  if (String(pairSourceType || "").toLowerCase() === "external_api" && externalCount === 0) {
-    return "External API configured (fallback feed active)";
-  }
-
+function modeLabel(engineMode = "internal_tick", externalCount = 0, total = 0) {
   const normalized = String(engineMode || "").toLowerCase();
   if (normalized === "external_price_sync") {
     if (total > 0 && externalCount === 0) {
@@ -46,18 +38,7 @@ function modeLabel(engineMode = "internal_tick", externalCount = 0, total = 0, l
   return "Live synchronized tick feed";
 }
 
-function sourceMixLabel(
-  { externalCount = 0, internalCount = 0, manualCount = 0, total = 0 } = {},
-  { liveExternalPriceActive = false, pairSourceType = "" } = {},
-) {
-  if (liveExternalPriceActive) {
-    return "External API (live)";
-  }
-
-  if (String(pairSourceType || "").toLowerCase() === "external_api" && total > 0 && externalCount === 0) {
-    return "External API configured • internal fallback feed";
-  }
-
+function sourceMixLabel({ externalCount = 0, internalCount = 0, manualCount = 0, total = 0 } = {}) {
   if (!total) {
     return "No feed data";
   }
@@ -73,7 +54,7 @@ function sourceMixLabel(
   return "Internal fallback feed";
 }
 
-export default function BinaryChartCard({ pair, ticks, engineMode, liveExternalPriceActive = false }) {
+export default function BinaryChartCard({ pair, ticks, engineMode }) {
   const chart = useMemo(() => {
     const safeTicks = Array.isArray(ticks)
       ? ticks.filter((tick) => Number.isFinite(toNumber(tick?.price, NaN)))
@@ -149,7 +130,7 @@ export default function BinaryChartCard({ pair, ticks, engineMode, liveExternalP
   const pairPrecision = pair?.pricePrecision || 2;
   const priceChangeClass = chart.change > 0 ? "is-up" : chart.change < 0 ? "is-down" : "is-flat";
   const changePrefix = chart.change > 0 ? "+" : chart.change < 0 ? "-" : "";
-  const feedLabel = modeLabel(engineMode, chart.externalCount, chart.total, liveExternalPriceActive, pair?.priceSourceType || "");
+  const feedLabel = modeLabel(engineMode, chart.externalCount, chart.total);
 
   return (
     <section className="binary-chart-card">
@@ -212,7 +193,7 @@ export default function BinaryChartCard({ pair, ticks, engineMode, liveExternalP
       <div className="binary-chart-meta">
         <span className="binary-feed-badge">
           <i className="fas fa-satellite-dish" />
-          {sourceMixLabel(chart, { liveExternalPriceActive, pairSourceType: pair?.priceSourceType || "" })}
+          {sourceMixLabel(chart)}
         </span>
         <span className="binary-chart-updated">
           <i className="fas fa-clock" />
