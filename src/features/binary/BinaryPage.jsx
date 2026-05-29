@@ -17,8 +17,6 @@ const BOTTOM_NAV_ITEMS = [
   { id: "assets", label: "Assets", icon: "fa-wallet" },
 ];
 
-const BINANCE_MULTI_PRICE_URL = "https://api.binance.com/api/v3/ticker/price";
-
 function normalizeBinanceSymbol(value = "") {
   return String(value || "")
     .toUpperCase()
@@ -44,6 +42,7 @@ export default function BinaryPage({
   onLoadPairs,
   onLoadConfig,
   onLoadPairChart,
+  onLoadMarketPrices,
   onOpenTrade,
   onLoadActiveTrades,
   onLoadHistory,
@@ -620,7 +619,7 @@ export default function BinaryPage({
   }, [pairs, selectedCategoryId]);
 
   useEffect(() => {
-    if (!marketSymbols.length || typeof fetch !== "function") {
+    if (!marketSymbols.length || !onLoadMarketPrices) {
       return undefined;
     }
 
@@ -628,13 +627,13 @@ export default function BinaryPage({
 
     const run = async () => {
       try {
-        const query = encodeURIComponent(JSON.stringify(marketSymbols));
-        const response = await fetch(`${BINANCE_MULTI_PRICE_URL}?symbols=${query}`);
-        if (!response.ok) {
-          return;
-        }
-        const payload = await response.json();
-        if (!Array.isArray(payload) || !isActive) {
+        const payload = await onLoadMarketPrices({ symbols: marketSymbols });
+        const rows = Array.isArray(payload?.prices)
+          ? payload.prices
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : [];
+        if (!Array.isArray(rows) || !isActive) {
           return;
         }
 
@@ -642,8 +641,10 @@ export default function BinaryPage({
           const nextPrices = { ...prevPrices };
           const nextChanges = {};
 
-          for (const row of payload) {
-            const symbol = normalizeBinanceSymbol(row?.symbol || "");
+          for (const row of rows) {
+            const requestedSymbol = normalizeBinanceSymbol(row?.requestSymbol || "");
+            const resolvedSymbol = normalizeBinanceSymbol(row?.symbol || "");
+            const symbol = requestedSymbol || resolvedSymbol;
             const price = Number(row?.price || 0);
             if (!symbol || !Number.isFinite(price) || price <= 0) {
               continue;
@@ -653,13 +654,16 @@ export default function BinaryPage({
               nextChanges[symbol] = ((price - previousPrice) / previousPrice) * 100;
             }
             nextPrices[symbol] = price;
+            if (resolvedSymbol && resolvedSymbol !== symbol) {
+              nextPrices[resolvedSymbol] = price;
+            }
           }
 
           setMarketLiveChanges(nextChanges);
           return nextPrices;
         });
       } catch {
-        // Keep backend price as fallback if Binance request fails.
+        // Keep backend pair price as fallback if live price sync fails.
       }
     };
 
@@ -669,7 +673,7 @@ export default function BinaryPage({
       isActive = false;
       window.clearInterval(timer);
     };
-  }, [marketSymbols]);
+  }, [marketSymbols, onLoadMarketPrices]);
 
   const openPairFromMarket = (pairId) => {
     setSelectedPairId(Number(pairId || 0));

@@ -3017,6 +3017,7 @@ const {
   handleBinaryPairs,
   handleBinaryPairChart,
   handleBinaryConfig,
+  handleBinaryMarketPrices,
   handleBinaryTradeOpen,
   handleBinaryActiveTrades,
   handleBinaryTradeHistory,
@@ -7071,6 +7072,9 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "binary.config":
       requireSession(req, res, () => handleBinaryConfig(req, res));
       return;
+    case "binary.market.prices":
+      requireSession(req, res, () => handleBinaryMarketPrices(req, res));
+      return;
     case "binary.trade.open":
       requireSession(req, res, () => handleBinaryTradeOpen(req, res));
       return;
@@ -7534,6 +7538,7 @@ app.get("/api/binary/summary", requireSession, handleBinarySummary);
 app.get("/api/binary/pairs", requireSession, handleBinaryPairs);
 app.get("/api/binary/pairs/:id/chart", requireSession, handleBinaryPairChart);
 app.get("/api/binary/config", requireSession, handleBinaryConfig);
+app.post("/api/binary/market/prices", requireSession, handleBinaryMarketPrices);
 app.post("/api/binary/trades/open", requireSession, handleBinaryTradeOpen);
 app.get("/api/binary/trades/active", requireSession, handleBinaryActiveTrades);
 app.get("/api/binary/trades/history", requireSession, handleBinaryTradeHistory);

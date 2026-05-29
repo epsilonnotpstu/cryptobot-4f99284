@@ -2195,3 +2195,60 @@ button.prodash-promo-card {
     transition: none;
   }
 }
+
+/* Mobile overflow guard for dashboard home layout blocks */
+@media (max-width: 768px) {
+  .prodash-shell,
+  .prodash-content-area,
+  .prodash-grid,
+  .prodash-left-column,
+  .prodash-right-column,
+  .prodash-wallet-card,
+  .prodash-quick-actions,
+  .prodash-panel-card,
+  .prodash-deposit-status-card,
+  .prodash-promos {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .prodash-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0.72rem;
+  }
+
+  .prodash-wallet-card,
+  .prodash-panel-card,
+  .prodash-deposit-status-card {
+    overflow: hidden;
+  }
+
+  .prodash-quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.52rem;
+    padding: 0.5rem;
+    overflow: hidden;
+  }
+
+  .prodash-quick-item {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .prodash-page {
+    padding-inline: 0.6rem;
+  }
+
+  .prodash-shell {
+    padding-inline: 0.6rem;
+  }
+
+  .prodash-quick-actions {
+    gap: 0.46rem;
+    padding: 0.46rem;
+  }
+}

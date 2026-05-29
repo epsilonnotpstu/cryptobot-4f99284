@@ -193,8 +193,23 @@ const BINANCE_FUTURES_PRICE_ENDPOINTS = [
   "https://fapi1.binance.com/fapi/v1/ticker/price",
 ];
 
+const BINANCE_SYMBOL_ALIASES = {
+  XAUUSDT: ["XAUTUSDT", "PAXGUSDT"],
+  XAGUSDT: ["SILVERUSDT"],
+  SILVERUSDT: ["XAGUSDT"],
+};
+
 function normalizeTickerSymbol(value = "") {
   return normalizeUpper(value).replace(/[^A-Z0-9]/g, "");
+}
+
+function resolveTickerCandidates(symbol = "") {
+  const normalized = normalizeTickerSymbol(symbol);
+  if (!normalized) {
+    return [];
+  }
+  const aliasCandidates = ensureArray(BINANCE_SYMBOL_ALIASES[normalized]).map((item) => normalizeTickerSymbol(item)).filter(Boolean);
+  return [...new Set([normalized, ...aliasCandidates])];
 }
 
 function fetchJsonViaHttps(url, timeoutMs = 3800) {
@@ -1768,14 +1783,34 @@ export function createBinaryModule({
     }
 
     const resolvedMap = new Map();
+    const directPriceMap = new Map();
     const allPriceEndpoints = [...BINANCE_PRICE_ENDPOINTS, ...BINANCE_FUTURES_PRICE_ENDPOINTS];
+    const symbolCandidates = new Map();
+
+    for (const symbol of normalizedSymbols) {
+      symbolCandidates.set(symbol, resolveTickerCandidates(symbol));
+    }
+
+    const allCandidates = [...new Set(Array.from(symbolCandidates.values()).flat().filter(Boolean))];
+
+    const assignResolvedPrice = (requestedSymbol, priceMap) => {
+      const candidates = symbolCandidates.get(requestedSymbol) || [];
+      for (const candidate of candidates) {
+        const candidatePrice = toNumber(priceMap.get(candidate), 0);
+        if (candidatePrice > 0) {
+          resolvedMap.set(requestedSymbol, candidatePrice);
+          return true;
+        }
+      }
+      return false;
+    };
 
     for (const endpoint of allPriceEndpoints) {
       if (resolvedMap.size >= normalizedSymbols.length) {
         break;
       }
       try {
-        const query = encodeURIComponent(JSON.stringify(normalizedSymbols));
+        const query = encodeURIComponent(JSON.stringify(allCandidates));
         const payload = await fetchJsonWithTimeout(`${endpoint}?symbols=${query}`, 3800);
         if (!Array.isArray(payload)) {
           continue;
@@ -1783,8 +1818,13 @@ export function createBinaryModule({
         for (const row of payload) {
           const symbol = normalizeTickerSymbol(row?.symbol || "");
           const price = toNumber(row?.price, 0);
-          if (symbol && price > 0 && !resolvedMap.has(symbol)) {
-            resolvedMap.set(symbol, price);
+          if (symbol && price > 0 && !directPriceMap.has(symbol)) {
+            directPriceMap.set(symbol, price);
+          }
+        }
+        for (const requestedSymbol of normalizedSymbols) {
+          if (!resolvedMap.has(requestedSymbol)) {
+            assignResolvedPrice(requestedSymbol, directPriceMap);
           }
         }
       } catch {
@@ -1798,22 +1838,92 @@ export function createBinaryModule({
 
     const unresolvedSymbols = normalizedSymbols.filter((symbol) => !resolvedMap.has(symbol));
     for (const symbol of unresolvedSymbols) {
+      const candidates = symbolCandidates.get(symbol) || [symbol];
       for (const endpoint of allPriceEndpoints) {
-        try {
-          const payload = await fetchJsonWithTimeout(`${endpoint}?symbol=${encodeURIComponent(symbol)}`, 2200);
-          const singleSymbol = normalizeTickerSymbol(payload?.symbol || symbol);
-          const singlePrice = toNumber(payload?.price, 0);
-          if (singleSymbol && singlePrice > 0) {
-            resolvedMap.set(singleSymbol, singlePrice);
-            break;
+        let matched = false;
+        for (const candidate of candidates) {
+          try {
+            const payload = await fetchJsonWithTimeout(`${endpoint}?symbol=${encodeURIComponent(candidate)}`, 2200);
+            const singleSymbol = normalizeTickerSymbol(payload?.symbol || candidate);
+            const singlePrice = toNumber(payload?.price, 0);
+            if (singleSymbol && singlePrice > 0) {
+              resolvedMap.set(symbol, singlePrice);
+              directPriceMap.set(singleSymbol, singlePrice);
+              matched = true;
+              break;
+            }
+          } catch {
+            // Try next candidate symbol.
           }
-        } catch {
-          // Try next endpoint for this symbol.
+        }
+        if (matched) {
+          break;
         }
       }
     }
 
+    for (const symbol of normalizedSymbols) {
+      if (resolvedMap.has(symbol)) {
+        continue;
+      }
+      if (assignResolvedPrice(symbol, directPriceMap)) {
+        continue;
+      }
+      const fallbackCandidates = symbolCandidates.get(symbol) || [];
+      const fallback = fallbackCandidates.map((candidate) => toNumber(directPriceMap.get(candidate), 0)).find((value) => value > 0);
+      if (fallback > 0) {
+        resolvedMap.set(symbol, fallback);
+      }
+    }
+
     return resolvedMap;
+  }
+
+  async function resolveMarketPriceRows(symbols = []) {
+    const requestedSymbols = [...new Set(ensureArray(symbols).map((item) => normalizeTickerSymbol(item)).filter(Boolean))];
+    if (!requestedSymbols.length) {
+      return [];
+    }
+
+    const externalPriceMap = await fetchExternalTickerMap(requestedSymbols);
+    return requestedSymbols.map((symbol) => {
+      const candidates = resolveTickerCandidates(symbol);
+      const resolvedPrice = toNumber(externalPriceMap.get(symbol), 0);
+      const resolvedSymbol =
+        candidates.find((candidate) => toNumber(externalPriceMap.get(candidate), 0) > 0) ||
+        symbol;
+      const resolvedDirectPrice = toNumber(externalPriceMap.get(resolvedSymbol), 0);
+      const price = resolvedPrice > 0 ? resolvedPrice : resolvedDirectPrice;
+
+      return {
+        requestSymbol: symbol,
+        symbol: resolvedSymbol,
+        price: price > 0 ? price : 0,
+      };
+    });
+  }
+
+  async function handleBinaryMarketPrices(req, res) {
+    try {
+      const symbolsRaw = req.body?.symbols ?? req.query?.symbols;
+      const symbolsInput = Array.isArray(symbolsRaw)
+        ? symbolsRaw
+        : typeof symbolsRaw === "string" && symbolsRaw.trim()
+          ? JSON.parse(symbolsRaw)
+          : [];
+      const normalizedSymbols = [...new Set(ensureArray(symbolsInput).map((item) => normalizeTickerSymbol(item)).filter(Boolean))];
+      if (!normalizedSymbols.length) {
+        throw new Error("At least one valid symbol is required.");
+      }
+      if (normalizedSymbols.length > 40) {
+        throw new Error("Maximum 40 symbols allowed.");
+      }
+
+      const prices = await resolveMarketPriceRows(normalizedSymbols);
+      res.json({ ok: true, data: prices, prices });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message || "Could not load market prices." });
+    }
   }
 
   async function applyExternalTicks() {
@@ -3306,6 +3416,7 @@ export function createBinaryModule({
     handleBinaryPairs,
     handleBinaryPairChart,
     handleBinaryConfig,
+    handleBinaryMarketPrices,
     handleBinaryTradeOpen,
     handleBinaryActiveTrades,
     handleBinaryTradeHistory,

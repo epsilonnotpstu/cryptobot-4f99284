@@ -1624,6 +1624,13 @@ const remoteAuthService = {
       sessionToken,
     });
   },
+  async getBinaryMarketPrices({ sessionToken, symbols = [] }) {
+    return this.requestGatewayAction({
+      action: "binary.market.prices",
+      sessionToken,
+      payload: { symbols },
+    });
+  },
   async openBinaryTrade({ sessionToken, pairId, direction, periodSeconds, stakeAmountUsd }) {
     return this.requestGatewayAction({
       action: "binary.trade.open",
@@ -4049,6 +4056,13 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleBinaryMarketPrices = async ({ symbols = [] }) => {
+    return authService.getBinaryMarketPrices({
+      sessionToken: authSnapshot.sessionToken,
+      symbols,
+    });
+  };
+
   const handleBinaryActiveTrades = async () => {
     return authService.getBinaryActiveTrades({
       sessionToken: authSnapshot.sessionToken,
@@ -4469,6 +4483,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onLoadPairs={handleBinaryPairs}
           onLoadConfig={handleBinaryConfig}
           onLoadPairChart={handleBinaryPairChart}
+          onLoadMarketPrices={handleBinaryMarketPrices}
           onOpenTrade={handleOpenBinaryTrade}
           onLoadActiveTrades={handleBinaryActiveTrades}
           onLoadHistory={handleBinaryTradeHistory}
