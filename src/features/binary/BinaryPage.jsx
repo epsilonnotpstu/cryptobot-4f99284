@@ -37,6 +37,7 @@ function clampAmount(value, maxAmount) {
 
 export default function BinaryPage({
   user,
+  liveMarketAssets = [],
   onBack,
   onLoadSummary,
   onLoadPairs,
@@ -618,6 +619,18 @@ export default function BinaryPage({
     return pairs.filter((item) => Number(item.categoryId) === Number(selectedCategoryId));
   }, [pairs, selectedCategoryId]);
 
+  const liveMarketAssetMap = useMemo(() => {
+    const nextMap = new Map();
+    for (const asset of Array.isArray(liveMarketAssets) ? liveMarketAssets : []) {
+      const key = normalizeBinanceSymbol(asset?.symbol || "");
+      if (!key) {
+        continue;
+      }
+      nextMap.set(key, asset);
+    }
+    return nextMap;
+  }, [liveMarketAssets]);
+
   useEffect(() => {
     if (!marketSymbols.length || !onLoadMarketPrices) {
       return undefined;
@@ -740,12 +753,20 @@ export default function BinaryPage({
             <div className="binary-market-list">
               {categoryPairs.map((pair) => {
                 const sourceSymbol = normalizeBinanceSymbol(pair?.sourceSymbol || pair?.pairCode || "");
+                const baseAssetSymbol = normalizeBinanceSymbol(pair?.baseAsset || "");
+                const homepageLiveAsset = liveMarketAssetMap.get(baseAssetSymbol);
+                const homepageLivePrice = toNumber(homepageLiveAsset?.price, 0);
                 const livePrice = toNumber(marketLivePrices[sourceSymbol], 0);
-                const currentPrice = livePrice > 0 ? livePrice : toNumber(pair.currentPrice, 0);
+                const currentPrice = homepageLivePrice > 0 ? homepageLivePrice : livePrice > 0 ? livePrice : toNumber(pair.currentPrice, 0);
                 const previousPrice = toNumber(pair.previousPrice, currentPrice);
                 const backendDeltaPercent = previousPrice > 0 ? ((currentPrice - previousPrice) / previousPrice) * 100 : 0;
+                const homepageLiveDeltaPercent = Number(homepageLiveAsset?.change);
                 const liveDeltaPercent = Number(marketLiveChanges[sourceSymbol]);
-                const deltaPercent = Number.isFinite(liveDeltaPercent) ? liveDeltaPercent : backendDeltaPercent;
+                const deltaPercent = Number.isFinite(homepageLiveDeltaPercent)
+                  ? homepageLiveDeltaPercent
+                  : Number.isFinite(liveDeltaPercent)
+                    ? liveDeltaPercent
+                    : backendDeltaPercent;
                 const isPositive = deltaPercent >= 0;
                 const iconUrl = pair.iconImageUrl || getTokenIconUrl(pair.baseAsset);
 
