@@ -8,6 +8,7 @@ import LUMPage from "./features/lum/LUMPage";
 import BinaryPage from "./features/binary/BinaryPage";
 import TransactionPage from "./features/transaction/TransactionPage";
 import AssetsPage from "./features/assets/AssetsPage";
+import LaunchpadPage from "./features/launchpad/LaunchpadPage";
 import AdminSectionPage from "./admin/AdminSectionPage";
 
 const ROUTES = {
@@ -1470,6 +1471,62 @@ const remoteAuthService = {
     }
     return data;
   },
+  async getLaunchpadCatalog({ sessionToken, status = "all", page = 1, limit = 50 }) {
+    return this.requestGatewayAction({
+      action: "launchpad.catalog",
+      sessionToken,
+      payload: { status, page, limit },
+    });
+  },
+  async getLaunchpadDetail({ sessionToken, launchId, launchRef, feedLimit = 20 }) {
+    return this.requestGatewayAction({
+      action: "launchpad.detail",
+      sessionToken,
+      payload: { launchId, launchRef, feedLimit },
+    });
+  },
+  async toggleLaunchpadWatchlist({ sessionToken, launchId, launchRef }) {
+    return this.requestGatewayAction({
+      action: "launchpad.watchlist.toggle",
+      sessionToken,
+      payload: { launchId, launchRef },
+    });
+  },
+  async previewLaunchpadBuy({ sessionToken, launchId, buyUsd }) {
+    return this.requestGatewayAction({
+      action: "launchpad.buy.preview",
+      sessionToken,
+      payload: { launchId, buyUsd },
+    });
+  },
+  async submitLaunchpadBuy({ sessionToken, launchId, buyUsd }) {
+    return this.requestGatewayAction({
+      action: "launchpad.buy.submit",
+      sessionToken,
+      payload: { launchId, buyUsd },
+    });
+  },
+  async getLaunchpadMyOrders({ sessionToken, page = 1, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "launchpad.my.orders",
+      sessionToken,
+      payload: { page, limit },
+    });
+  },
+  async getLaunchpadFeed({ sessionToken, launchId, limit = 30 }) {
+    return this.requestGatewayAction({
+      action: "launchpad.feed",
+      sessionToken,
+      payload: { launchId, limit },
+    });
+  },
+  async getLaunchpadCountdown({ sessionToken, launchId }) {
+    return this.requestGatewayAction({
+      action: "launchpad.countdown",
+      sessionToken,
+      payload: { launchId },
+    });
+  },
   async dismissNotice({ sessionToken, noticeId }) {
     return this.requestGatewayAction({
       action: "notice.dismiss",
@@ -1786,18 +1843,50 @@ const remoteAuthService = {
       payload: { ticketRef },
     });
   },
-  async createSupportTicket({ sessionToken, subject, message, category = "general" }) {
+  async createSupportTicket({
+    sessionToken,
+    subject,
+    message,
+    category = "general",
+    attachmentFileName = "",
+    attachmentFileData = "",
+    attachmentMimeType = "",
+    attachmentSizeBytes = 0,
+  }) {
     return this.requestGatewayAction({
       action: "support.ticket.create",
       sessionToken,
-      payload: { subject, message, category },
+      payload: {
+        subject,
+        message,
+        category,
+        attachmentFileName,
+        attachmentFileData,
+        attachmentMimeType,
+        attachmentSizeBytes,
+      },
     });
   },
-  async sendSupportTicketMessage({ sessionToken, ticketRef, message }) {
+  async sendSupportTicketMessage({
+    sessionToken,
+    ticketRef,
+    message,
+    attachmentFileName = "",
+    attachmentFileData = "",
+    attachmentMimeType = "",
+    attachmentSizeBytes = 0,
+  }) {
     return this.requestGatewayAction({
       action: "support.ticket.message.send",
       sessionToken,
-      payload: { ticketRef, message },
+      payload: {
+        ticketRef,
+        message,
+        attachmentFileName,
+        attachmentFileData,
+        attachmentMimeType,
+        attachmentSizeBytes,
+      },
     });
   },
   async updateSupportTicketStatus({ sessionToken, ticketRef, status }) {
@@ -1813,11 +1902,24 @@ const remoteAuthService = {
       sessionToken,
     });
   },
-  async sendSupportLiveMessage({ sessionToken, message }) {
+  async sendSupportLiveMessage({
+    sessionToken,
+    message,
+    attachmentFileName = "",
+    attachmentFileData = "",
+    attachmentMimeType = "",
+    attachmentSizeBytes = 0,
+  }) {
     return this.requestGatewayAction({
       action: "support.live.send",
       sessionToken,
-      payload: { message },
+      payload: {
+        message,
+        attachmentFileName,
+        attachmentFileData,
+        attachmentMimeType,
+        attachmentSizeBytes,
+      },
     });
   },
   async getHomeContent() {
@@ -1848,6 +1950,88 @@ const remoteAuthService = {
     return this.requestGatewayAction({
       action: "admin.auth.logout",
       sessionToken,
+    });
+  },
+  async adminGetLaunchpadDashboardSummary({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.dashboard-summary",
+      sessionToken,
+    });
+  },
+  async adminListLaunchpadLaunches({ sessionToken, page = 1, limit = 80, status = "all" } = {}) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.launches.list",
+      sessionToken,
+      payload: { page, limit, status },
+    });
+  },
+  async adminCreateLaunchpadLaunch({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.launches.create",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateLaunchpadLaunch({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.launches.update",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminUpdateLaunchpadLaunchStatus({ sessionToken, launchId, launchRef, status }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.launches.status",
+      sessionToken,
+      payload: { launchId, launchRef, status },
+    });
+  },
+  async adminSaveLaunchpadTiers({ sessionToken, launchId, launchRef, tiers = [] }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.tiers.save",
+      sessionToken,
+      payload: { launchId, launchRef, tiers },
+    });
+  },
+  async adminGetLaunchpadSettings({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.settings.get",
+      sessionToken,
+    });
+  },
+  async adminSaveLaunchpadSettings({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.settings.save",
+      sessionToken,
+      payload,
+    });
+  },
+  async adminListLaunchpadOrders({ sessionToken, launchId, launchRef, status = "all", page = 1, limit = 120 }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.orders.list",
+      sessionToken,
+      payload: { launchId, launchRef, status, page, limit },
+    });
+  },
+  async adminReleaseLaunchpadOrders({ sessionToken, launchId, launchRef, note = "" }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.orders.release",
+      sessionToken,
+      payload: { launchId, launchRef, note },
+    });
+  },
+  async adminRunLaunchpadMarketSync({ sessionToken, launchId, launchRef, enableSpot = false, enableConvert = false, enableBinary = false }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.market-sync.run",
+      sessionToken,
+      payload: { launchId, launchRef, enableSpot, enableConvert, enableBinary },
+    });
+  },
+  async adminListLaunchpadAudit({ sessionToken, page = 1, limit = 120 }) {
+    return this.requestGatewayAction({
+      action: "admin.launchpad.audit.list",
+      sessionToken,
+      payload: { page, limit },
     });
   },
   async adminGetNotice({ sessionToken }) {
@@ -2481,11 +2665,28 @@ const remoteAuthService = {
       payload: { ticketRef },
     });
   },
-  async adminReplySupportTicket({ sessionToken, ticketRef, message, isInternalNote = false }) {
+  async adminReplySupportTicket({
+    sessionToken,
+    ticketRef,
+    message,
+    isInternalNote = false,
+    attachmentFileName = "",
+    attachmentFileData = "",
+    attachmentMimeType = "",
+    attachmentSizeBytes = 0,
+  }) {
     return this.requestGatewayAction({
       action: "admin.support.ticket.reply",
       sessionToken,
-      payload: { ticketRef, message, isInternalNote },
+      payload: {
+        ticketRef,
+        message,
+        isInternalNote,
+        attachmentFileName,
+        attachmentFileData,
+        attachmentMimeType,
+        attachmentSizeBytes,
+      },
     });
   },
   async adminUpdateSupportTicket({
@@ -2524,11 +2725,26 @@ const remoteAuthService = {
       payload: { threadRef },
     });
   },
-  async adminReplySupportLiveThread({ sessionToken, threadRef, message }) {
+  async adminReplySupportLiveThread({
+    sessionToken,
+    threadRef,
+    message,
+    attachmentFileName = "",
+    attachmentFileData = "",
+    attachmentMimeType = "",
+    attachmentSizeBytes = 0,
+  }) {
     return this.requestGatewayAction({
       action: "admin.support.live.reply",
       sessionToken,
-      payload: { threadRef, message },
+      payload: {
+        threadRef,
+        message,
+        attachmentFileName,
+        attachmentFileData,
+        attachmentMimeType,
+        attachmentSizeBytes,
+      },
     });
   },
   async adminUpdateSupportLiveThread({ sessionToken, threadRef, status, assignedAdminUserId, assignedAdminEmail, note = "" }) {
@@ -3676,6 +3892,71 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleLaunchpadCatalog = async ({ status, page, limit }) => {
+    return authService.getLaunchpadCatalog({
+      sessionToken: authSnapshot.sessionToken,
+      status,
+      page,
+      limit,
+    });
+  };
+
+  const handleLaunchpadDetail = async ({ launchId, launchRef, feedLimit }) => {
+    return authService.getLaunchpadDetail({
+      sessionToken: authSnapshot.sessionToken,
+      launchId,
+      launchRef,
+      feedLimit,
+    });
+  };
+
+  const handleLaunchpadWatchlistToggle = async ({ launchId, launchRef }) => {
+    return authService.toggleLaunchpadWatchlist({
+      sessionToken: authSnapshot.sessionToken,
+      launchId,
+      launchRef,
+    });
+  };
+
+  const handleLaunchpadBuyPreview = async ({ launchId, buyUsd }) => {
+    return authService.previewLaunchpadBuy({
+      sessionToken: authSnapshot.sessionToken,
+      launchId,
+      buyUsd,
+    });
+  };
+
+  const handleLaunchpadBuySubmit = async ({ launchId, buyUsd }) => {
+    return authService.submitLaunchpadBuy({
+      sessionToken: authSnapshot.sessionToken,
+      launchId,
+      buyUsd,
+    });
+  };
+
+  const handleLaunchpadMyOrders = async ({ page, limit }) => {
+    return authService.getLaunchpadMyOrders({
+      sessionToken: authSnapshot.sessionToken,
+      page,
+      limit,
+    });
+  };
+
+  const handleLaunchpadFeed = async ({ launchId, limit }) => {
+    return authService.getLaunchpadFeed({
+      sessionToken: authSnapshot.sessionToken,
+      launchId,
+      limit,
+    });
+  };
+
+  const handleLaunchpadCountdown = async ({ launchId }) => {
+    return authService.getLaunchpadCountdown({
+      sessionToken: authSnapshot.sessionToken,
+      launchId,
+    });
+  };
+
   const handleCreateDepositRequest = async ({ assetId, amountUsd, screenshotFileName, screenshotFileData }) => {
     return authService.createDepositRequest({
       sessionToken: authSnapshot.sessionToken,
@@ -4019,20 +4300,43 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
-  const handleSupportTicketCreate = async ({ subject, message, category }) => {
+  const handleSupportTicketCreate = async ({
+    subject,
+    message,
+    category,
+    attachmentFileName,
+    attachmentFileData,
+    attachmentMimeType,
+    attachmentSizeBytes,
+  }) => {
     return authService.createSupportTicket({
       sessionToken: authSnapshot.sessionToken,
       subject,
       message,
       category,
+      attachmentFileName,
+      attachmentFileData,
+      attachmentMimeType,
+      attachmentSizeBytes,
     });
   };
 
-  const handleSupportTicketMessageSend = async ({ ticketRef, message }) => {
+  const handleSupportTicketMessageSend = async ({
+    ticketRef,
+    message,
+    attachmentFileName,
+    attachmentFileData,
+    attachmentMimeType,
+    attachmentSizeBytes,
+  }) => {
     return authService.sendSupportTicketMessage({
       sessionToken: authSnapshot.sessionToken,
       ticketRef,
       message,
+      attachmentFileName,
+      attachmentFileData,
+      attachmentMimeType,
+      attachmentSizeBytes,
     });
   };
 
@@ -4050,10 +4354,20 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
-  const handleSupportLiveMessageSend = async ({ message }) => {
+  const handleSupportLiveMessageSend = async ({
+    message,
+    attachmentFileName,
+    attachmentFileData,
+    attachmentMimeType,
+    attachmentSizeBytes,
+  }) => {
     return authService.sendSupportLiveMessage({
       sessionToken: authSnapshot.sessionToken,
       message,
+      attachmentFileName,
+      attachmentFileData,
+      attachmentMimeType,
+      attachmentSizeBytes,
     });
   };
 
@@ -4062,6 +4376,30 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   }
 
   if (authSnapshot.hasAccount && authSnapshot.isLoggedIn) {
+    if (activeAppScreen === "launchpad") {
+      return (
+        <LaunchpadPage
+          user={authSnapshot}
+          onBack={() => setActiveAppScreen("dashboard")}
+          onCatalog={handleLaunchpadCatalog}
+          onDetail={handleLaunchpadDetail}
+          onWatchlistToggle={handleLaunchpadWatchlistToggle}
+          onBuyPreview={handleLaunchpadBuyPreview}
+          onBuySubmit={handleLaunchpadBuySubmit}
+          onMyOrders={handleLaunchpadMyOrders}
+          onFeed={handleLaunchpadFeed}
+          onCountdown={handleLaunchpadCountdown}
+          onNavigateTrade={(target) => {
+            if (target === "binary") {
+              setActiveAppScreen("binary");
+              return;
+            }
+            setActiveAppScreen("transaction");
+          }}
+        />
+      );
+    }
+
     if (activeAppScreen === "deposit") {
       return (
         <DepositPage
@@ -4247,6 +4585,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onOpenBinaryPage={() => setActiveAppScreen("binary")}
         onOpenTransactionPage={() => setActiveAppScreen("transaction")}
         onOpenAssetsPage={() => setActiveAppScreen("assets")}
+        onOpenLaunchpadPage={() => setActiveAppScreen("launchpad")}
         onCreateDepositRequest={handleCreateDepositRequest}
         onDepositRecords={handleDepositRecords}
         onLoadSupportTickets={handleSupportTicketsList}

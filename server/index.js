@@ -15,6 +15,7 @@ import { createBinaryModule } from "./binary-module.js";
 import { createTransactionModule } from "./transaction-module.js";
 import { createAssetsModule } from "./assets-module.js";
 import { createSupportModule } from "./support-module.js";
+import { createLaunchpadModule } from "./launchpad-module.js";
 
 dotenv.config();
 
@@ -3178,6 +3179,39 @@ const {
   handleAdminSupportAuditLogs,
 } = supportModule;
 
+const launchpadModule = createLaunchpadModule({
+  db,
+  getNow,
+  toIso,
+  normalizeAssetSymbol,
+  normalizeUsdAmount,
+  sanitizeShortText,
+});
+
+const {
+  getLaunchpadDashboardSnapshot,
+  handleLaunchpadCatalog,
+  handleLaunchpadDetail,
+  handleLaunchpadWatchlistToggle,
+  handleLaunchpadBuyPreview,
+  handleLaunchpadBuySubmit,
+  handleLaunchpadMyOrders,
+  handleLaunchpadFeed,
+  handleLaunchpadCountdown,
+  handleAdminLaunchpadDashboardSummary,
+  handleAdminLaunchpadLaunchesList,
+  handleAdminLaunchpadLaunchCreate,
+  handleAdminLaunchpadLaunchUpdate,
+  handleAdminLaunchpadLaunchStatus,
+  handleAdminLaunchpadTiersSave,
+  handleAdminLaunchpadSettingsGet,
+  handleAdminLaunchpadSettingsSave,
+  handleAdminLaunchpadOrdersList,
+  handleAdminLaunchpadOrdersRelease,
+  handleAdminLaunchpadMarketSyncRun,
+  handleAdminLaunchpadAuditList,
+} = launchpadModule;
+
 function normalizeNoticeSeverity(value = "") {
   const normalized = String(value || "")
     .trim()
@@ -5939,6 +5973,7 @@ function handleDashboardSnapshot(req, res) {
       .map((row) => buildDepositAssetPayload(row))
       .filter(Boolean);
     const prioritySymbols = buildDashboardMarketPrioritySymbols(depositAssets);
+    const launchpad = getLaunchpadDashboardSnapshot({ userId: req.currentUser.userId });
 
     res.json({
       user: dashboardUser,
@@ -5954,6 +5989,7 @@ function handleDashboardSnapshot(req, res) {
       market: {
         prioritySymbols,
       },
+      launchpad,
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not load dashboard snapshot." });
@@ -6974,6 +7010,30 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "deposit.records":
       requireSession(req, res, () => handleDepositRecords(req, res));
       return;
+    case "launchpad.catalog":
+      requireSession(req, res, () => handleLaunchpadCatalog(req, res));
+      return;
+    case "launchpad.detail":
+      requireSession(req, res, () => handleLaunchpadDetail(req, res));
+      return;
+    case "launchpad.watchlist.toggle":
+      requireSession(req, res, () => handleLaunchpadWatchlistToggle(req, res));
+      return;
+    case "launchpad.buy.preview":
+      requireSession(req, res, () => handleLaunchpadBuyPreview(req, res));
+      return;
+    case "launchpad.buy.submit":
+      requireSession(req, res, () => handleLaunchpadBuySubmit(req, res));
+      return;
+    case "launchpad.my.orders":
+      requireSession(req, res, () => handleLaunchpadMyOrders(req, res));
+      return;
+    case "launchpad.feed":
+      requireSession(req, res, () => handleLaunchpadFeed(req, res));
+      return;
+    case "launchpad.countdown":
+      requireSession(req, res, () => handleLaunchpadCountdown(req, res));
+      return;
     case "lum.summary":
       requireSession(req, res, () => handleLumSummary(req, res));
       return;
@@ -7194,6 +7254,42 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.support.live.update":
       requireAdminSession(req, res, () => handleAdminSupportLiveUpdate(req, res));
+      return;
+    case "admin.launchpad.dashboard-summary":
+      requireAdminSession(req, res, () => handleAdminLaunchpadDashboardSummary(req, res));
+      return;
+    case "admin.launchpad.launches.list":
+      requireAdminSession(req, res, () => handleAdminLaunchpadLaunchesList(req, res));
+      return;
+    case "admin.launchpad.launches.create":
+      requireAdminSession(req, res, () => handleAdminLaunchpadLaunchCreate(req, res));
+      return;
+    case "admin.launchpad.launches.update":
+      requireAdminSession(req, res, () => handleAdminLaunchpadLaunchUpdate(req, res));
+      return;
+    case "admin.launchpad.launches.status":
+      requireAdminSession(req, res, () => handleAdminLaunchpadLaunchStatus(req, res));
+      return;
+    case "admin.launchpad.tiers.save":
+      requireAdminSession(req, res, () => handleAdminLaunchpadTiersSave(req, res));
+      return;
+    case "admin.launchpad.settings.get":
+      requireAdminSession(req, res, () => handleAdminLaunchpadSettingsGet(req, res));
+      return;
+    case "admin.launchpad.settings.save":
+      requireAdminSession(req, res, () => handleAdminLaunchpadSettingsSave(req, res));
+      return;
+    case "admin.launchpad.orders.list":
+      requireAdminSession(req, res, () => handleAdminLaunchpadOrdersList(req, res));
+      return;
+    case "admin.launchpad.orders.release":
+      requireAdminSession(req, res, () => handleAdminLaunchpadOrdersRelease(req, res));
+      return;
+    case "admin.launchpad.market-sync.run":
+      requireAdminSession(req, res, () => handleAdminLaunchpadMarketSyncRun(req, res));
+      return;
+    case "admin.launchpad.audit.list":
+      requireAdminSession(req, res, () => handleAdminLaunchpadAuditList(req, res));
       return;
     case "admin.kyc.list":
       requireAdminSession(req, res, () => handleAdminKycList(req, res));

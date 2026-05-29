@@ -34,6 +34,34 @@ function shortenAddress(value = "") {
   return `${text.slice(0, 14)}...${text.slice(-10)}`;
 }
 
+function buildQrCodeFallback(address = "", symbol = "") {
+  const content = String(address || symbol || "").trim();
+  if (!content) {
+    return "";
+  }
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(content)}`;
+}
+
+function resolveQrCodeSource(rawValue = "", address = "", symbol = "") {
+  const value = String(rawValue || "").trim();
+  if (!value) {
+    return buildQrCodeFallback(address, symbol);
+  }
+  if (/^data:image\//i.test(value)) {
+    return value;
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  if (value.startsWith("/")) {
+    return `${window.location.origin}${value}`;
+  }
+  if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 200) {
+    return `data:image/png;base64,${value.replace(/\s+/g, "")}`;
+  }
+  return buildQrCodeFallback(address, symbol);
+}
+
 function formatStatusLabel(value = "") {
   const normalized = String(value || "pending").trim().toLowerCase();
   if (!normalized) {
@@ -329,8 +357,17 @@ export default function DepositPage({
         <h3>Scan To Get Recharge Address</h3>
 
         <div className="prodash-deposit-qr-wrap">
-          {selectedAsset.qrCodeData ? (
-            <img src={selectedAsset.qrCodeData} alt={`${selectedAsset.symbol} QR`} />
+          {selectedAsset.qrCodeData || selectedAsset.rechargeAddress ? (
+            <img
+              src={resolveQrCodeSource(selectedAsset.qrCodeData, selectedAsset.rechargeAddress, selectedAsset.symbol)}
+              alt={`${selectedAsset.symbol} QR`}
+              onError={(event) => {
+                const fallback = buildQrCodeFallback(selectedAsset.rechargeAddress, selectedAsset.symbol);
+                if (fallback && event.currentTarget.src !== fallback) {
+                  event.currentTarget.src = fallback;
+                }
+              }}
+            />
           ) : (
             <div className="prodash-deposit-qr-fallback">No QR</div>
           )}

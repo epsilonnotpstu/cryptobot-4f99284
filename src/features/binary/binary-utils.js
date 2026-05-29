@@ -27,6 +27,12 @@ export function getTokenIconUrl(assetCode = "") {
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
+  if (normalized === "XAU") {
+    return "/icons/metals/gold.svg";
+  }
+  if (normalized === "XAG") {
+    return "/icons/metals/silver.svg";
+  }
   const iconCode = TOKEN_ICON_CODE_MAP[normalized];
   if (!iconCode) {
     return "";

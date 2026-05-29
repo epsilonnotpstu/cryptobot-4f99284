@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Gold">
+  <defs>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff5b5" />
+      <stop offset="52%" stop-color="#f7bf3a" />
+      <stop offset="100%" stop-color="#b77409" />
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="#1b2135" />
+  <circle cx="64" cy="64" r="52" fill="url(#goldFill)" />
+  <path d="M64 28l8 21 22 2-17 14 5 22-18-11-18 11 5-22-17-14 22-2 8-21z" fill="#fff6d8" opacity="0.9"/>
+</svg>

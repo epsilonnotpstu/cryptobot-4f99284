@@ -75,6 +75,67 @@ function sanitizeMessageText(value = "", maxLen = 3000) {
     .slice(0, maxLen);
 }
 
+const SUPPORT_ATTACHMENT_ALLOWED_MIME_SET = new Set([
+  "image/jpg",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+  "text/plain",
+]);
+const SUPPORT_ATTACHMENT_MAX_BYTES = Number(process.env.SUPPORT_ATTACHMENT_MAX_BYTES || 10 * 1024 * 1024);
+
+function sanitizeAttachmentFileName(value = "", maxLen = 180) {
+  return String(value || "")
+    .replace(/[^\w.\-()[\] ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
+}
+
+function sanitizeAttachmentPayload(payload = null) {
+  const attachment = payload && typeof payload === "object" ? payload : null;
+  if (!attachment) {
+    return null;
+  }
+
+  const fileData = String(attachment.fileData || "").trim();
+  if (!fileData) {
+    return null;
+  }
+
+  if (!/^data:[^;]+;base64,/i.test(fileData)) {
+    throw new Error("Attachment must be a valid base64 data URL.");
+  }
+
+  const mimeType = normalizeLower(String(attachment.mimeType || "").trim());
+  if (!SUPPORT_ATTACHMENT_ALLOWED_MIME_SET.has(mimeType)) {
+    throw new Error("Unsupported attachment format. Allowed: JPG, PNG, WEBP, HEIC, PDF, TXT.");
+  }
+
+  const declaredSize = toNumber(attachment.sizeBytes, 0);
+  const base64Payload = fileData.split(",", 2)[1] || "";
+  const estimatedBytes = Math.floor((base64Payload.length * 3) / 4);
+  const resolvedSize = declaredSize > 0 ? declaredSize : estimatedBytes;
+  if (resolvedSize <= 0) {
+    throw new Error("Attachment file is empty.");
+  }
+  if (resolvedSize > SUPPORT_ATTACHMENT_MAX_BYTES) {
+    throw new Error("Attachment is too large.");
+  }
+
+  const fileName = sanitizeAttachmentFileName(attachment.fileName || "");
+
+  return {
+    fileName: fileName || "attachment",
+    fileData,
+    mimeType,
+    sizeBytes: resolvedSize,
+  };
+}
+
 function normalizeLiveChatStatus(value = "open", fallback = "open") {
   const normalized = normalizeLower(value);
   if (LIVE_CHAT_STATUS_SET.has(normalized)) {
@@ -127,6 +188,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       sender_email TEXT,
       message_text TEXT NOT NULL,
       message_type TEXT NOT NULL DEFAULT 'text',
+      attachment_file_name TEXT NOT NULL DEFAULT '',
+      attachment_file_data TEXT NOT NULL DEFAULT '',
+      attachment_mime_type TEXT NOT NULL DEFAULT '',
+      attachment_size_bytes INTEGER NOT NULL DEFAULT 0,
       is_internal_note INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       read_by_user_at TEXT,
@@ -171,6 +236,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       sender_name TEXT,
       sender_email TEXT,
       message_text TEXT NOT NULL,
+      attachment_file_name TEXT NOT NULL DEFAULT '',
+      attachment_file_data TEXT NOT NULL DEFAULT '',
+      attachment_mime_type TEXT NOT NULL DEFAULT '',
+      attachment_size_bytes INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       read_by_user_at TEXT,
       read_by_admin_at TEXT
@@ -193,6 +262,22 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     CREATE INDEX IF NOT EXISTS idx_support_live_messages_thread_created
       ON support_live_messages(thread_id, created_at ASC, id ASC);
   `);
+
+  function ensureTableColumn(tableName, columnName, columnDefinition) {
+    const columns = db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => String(column?.name || ""));
+    if (!columns.includes(columnName)) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
+    }
+  }
+
+  ensureTableColumn("support_ticket_messages", "attachment_file_name", "attachment_file_name TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("support_ticket_messages", "attachment_file_data", "attachment_file_data TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("support_ticket_messages", "attachment_mime_type", "attachment_mime_type TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("support_ticket_messages", "attachment_size_bytes", "attachment_size_bytes INTEGER NOT NULL DEFAULT 0");
+  ensureTableColumn("support_live_messages", "attachment_file_name", "attachment_file_name TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("support_live_messages", "attachment_file_data", "attachment_file_data TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("support_live_messages", "attachment_mime_type", "attachment_mime_type TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("support_live_messages", "attachment_size_bytes", "attachment_size_bytes INTEGER NOT NULL DEFAULT 0");
 
   const insertTicketStatement = db.prepare(`
     INSERT INTO support_tickets (
@@ -355,6 +440,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       sender_email,
       message_text,
       message_type,
+      attachment_file_name,
+      attachment_file_data,
+      attachment_mime_type,
+      attachment_size_bytes,
       is_internal_note,
       created_at,
       read_by_user_at,
@@ -368,6 +457,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       @senderEmail,
       @messageText,
       @messageType,
+      @attachmentFileName,
+      @attachmentFileData,
+      @attachmentMimeType,
+      @attachmentSizeBytes,
       @isInternalNote,
       @createdAt,
       @readByUserAt,
@@ -557,6 +650,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       sender_name,
       sender_email,
       message_text,
+      attachment_file_name,
+      attachment_file_data,
+      attachment_mime_type,
+      attachment_size_bytes,
       created_at,
       read_by_user_at,
       read_by_admin_at
@@ -568,6 +665,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       @senderName,
       @senderEmail,
       @messageText,
+      @attachmentFileName,
+      @attachmentFileData,
+      @attachmentMimeType,
+      @attachmentSizeBytes,
       @createdAt,
       @readByUserAt,
       @readByAdminAt
@@ -612,6 +713,20 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       return req.query[key];
     }
     return fallback;
+  }
+
+  function buildAttachmentFromRequest(req, prefix = "") {
+    const safePrefix = String(prefix || "").trim();
+    const fileNameKey = safePrefix ? `${safePrefix}FileName` : "attachmentFileName";
+    const fileDataKey = safePrefix ? `${safePrefix}FileData` : "attachmentFileData";
+    const mimeTypeKey = safePrefix ? `${safePrefix}MimeType` : "attachmentMimeType";
+    const sizeBytesKey = safePrefix ? `${safePrefix}SizeBytes` : "attachmentSizeBytes";
+    return {
+      fileName: parseRequestValue(req, fileNameKey, ""),
+      fileData: parseRequestValue(req, fileDataKey, ""),
+      mimeType: parseRequestValue(req, mimeTypeKey, ""),
+      sizeBytes: parseRequestValue(req, sizeBytesKey, 0),
+    };
   }
 
   function normalizeCategory(value = "general") {
@@ -678,6 +793,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       senderEmail: String(row.sender_email || ""),
       messageText: String(row.message_text || ""),
       messageType: String(row.message_type || "text"),
+      attachmentFileName: String(row.attachment_file_name || ""),
+      attachmentFileData: String(row.attachment_file_data || ""),
+      attachmentMimeType: String(row.attachment_mime_type || ""),
+      attachmentSizeBytes: toNumber(row.attachment_size_bytes, 0),
       isInternalNote: toNumber(row.is_internal_note, 0) === 1,
       createdAt: String(row.created_at || ""),
       readByUserAt: String(row.read_by_user_at || ""),
@@ -723,6 +842,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       senderName: String(row.sender_name || ""),
       senderEmail: String(row.sender_email || ""),
       messageText: String(row.message_text || ""),
+      attachmentFileName: String(row.attachment_file_name || ""),
+      attachmentFileData: String(row.attachment_file_data || ""),
+      attachmentMimeType: String(row.attachment_mime_type || ""),
+      attachmentSizeBytes: toNumber(row.attachment_size_bytes, 0),
       createdAt: String(row.created_at || ""),
       readByUserAt: String(row.read_by_user_at || ""),
       readByAdminAt: String(row.read_by_admin_at || ""),
@@ -889,16 +1012,17 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     return listTicketMessagesStatement.all({ ticketId, limit, offset }).map((row) => mapMessageRow(row));
   }
 
-  function createUserTicket({ userId, subject, messageText, category }) {
+  function createUserTicket({ userId, subject, messageText, category, attachment = null }) {
     const nowIso = toIso(getNow());
     const sanitizedMessage = sanitizeMessageText(messageText, 3000);
+    const sanitizedAttachment = sanitizeAttachmentPayload(attachment);
     const sanitizedSubject = sanitizeShortText(subject || sanitizedMessage.slice(0, 80), 140);
 
     if (!sanitizedSubject) {
       throw new Error("Ticket subject is required.");
     }
-    if (!sanitizedMessage) {
-      throw new Error("Message is required.");
+    if (!sanitizedMessage && !sanitizedAttachment) {
+      throw new Error("Message or attachment is required.");
     }
 
     const ticketRef = buildSupportRef();
@@ -914,7 +1038,9 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         priority: "normal",
         assignedAdminUserId: null,
         assignedAdminEmail: null,
-        lastMessagePreview: sanitizeShortText(sanitizedMessage, 180),
+        lastMessagePreview: sanitizedMessage
+          ? sanitizeShortText(sanitizedMessage, 180)
+          : `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
         lastMessageAt: nowIso,
         userUnreadCount: 0,
         adminUnreadCount: 1,
@@ -937,7 +1063,11 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         senderName: "",
         senderEmail: "",
         messageText: sanitizedMessage,
-        messageType: "text",
+        messageType: sanitizedAttachment ? "attachment" : "text",
+        attachmentFileName: sanitizedAttachment?.fileName || "",
+        attachmentFileData: sanitizedAttachment?.fileData || "",
+        attachmentMimeType: sanitizedAttachment?.mimeType || "",
+        attachmentSizeBytes: toNumber(sanitizedAttachment?.sizeBytes, 0),
         isInternalNote: 0,
         createdAt: nowIso,
         readByUserAt: nowIso,
@@ -950,13 +1080,14 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     return createTx();
   }
 
-  function sendUserMessage({ userId, ticketRef, messageText }) {
+  function sendUserMessage({ userId, ticketRef, messageText, attachment = null }) {
     const ticket = findTicketByRefStatement.get(ticketRef);
     assertTicketAccessForUser(ticket, userId);
 
     const sanitizedMessage = sanitizeMessageText(messageText, 3000);
-    if (!sanitizedMessage) {
-      throw new Error("Message is required.");
+    const sanitizedAttachment = sanitizeAttachmentPayload(attachment);
+    if (!sanitizedMessage && !sanitizedAttachment) {
+      throw new Error("Message or attachment is required.");
     }
 
     const nowIso = toIso(getNow());
@@ -970,7 +1101,11 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         senderName: "",
         senderEmail: "",
         messageText: sanitizedMessage,
-        messageType: "text",
+        messageType: sanitizedAttachment ? "attachment" : "text",
+        attachmentFileName: sanitizedAttachment?.fileName || "",
+        attachmentFileData: sanitizedAttachment?.fileData || "",
+        attachmentMimeType: sanitizedAttachment?.mimeType || "",
+        attachmentSizeBytes: toNumber(sanitizedAttachment?.sizeBytes, 0),
         isInternalNote: 0,
         createdAt: nowIso,
         readByUserAt: nowIso,
@@ -985,7 +1120,9 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         priority: normalizeTicketPriority(ticket.priority, "normal"),
         assignedAdminUserId: ticket.assigned_admin_user_id,
         assignedAdminEmail: ticket.assigned_admin_email,
-        lastMessagePreview: sanitizeShortText(sanitizedMessage, 180),
+        lastMessagePreview: sanitizedMessage
+          ? sanitizeShortText(sanitizedMessage, 180)
+          : `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
         lastMessageAt: nowIso,
         userUnreadCount: 0,
         adminUnreadCount: Math.max(0, toNumber(ticket.admin_unread_count, 0)) + 1,
@@ -1044,11 +1181,12 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     return ticket;
   }
 
-  function sendAdminMessage({ ticketRef, messageText, adminUserId, adminEmail, senderName, isInternalNote = false }) {
+  function sendAdminMessage({ ticketRef, messageText, adminUserId, adminEmail, senderName, isInternalNote = false, attachment = null }) {
     const ticket = getAdminTicketOrThrow(ticketRef);
     const sanitizedMessage = sanitizeMessageText(messageText, 3000);
-    if (!sanitizedMessage) {
-      throw new Error("Reply message is required.");
+    const sanitizedAttachment = sanitizeAttachmentPayload(attachment);
+    if (!sanitizedMessage && !sanitizedAttachment) {
+      throw new Error("Reply message or attachment is required.");
     }
 
     const nowIso = toIso(getNow());
@@ -1063,7 +1201,11 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         senderName: sanitizeShortText(senderName || "Support Admin", 120),
         senderEmail: sanitizeShortText(adminEmail || "", 180),
         messageText: sanitizedMessage,
-        messageType: noteMode ? "note" : "text",
+        messageType: noteMode ? "note" : sanitizedAttachment ? "attachment" : "text",
+        attachmentFileName: sanitizedAttachment?.fileName || "",
+        attachmentFileData: sanitizedAttachment?.fileData || "",
+        attachmentMimeType: sanitizedAttachment?.mimeType || "",
+        attachmentSizeBytes: toNumber(sanitizedAttachment?.sizeBytes, 0),
         isInternalNote: noteMode ? 1 : 0,
         createdAt: nowIso,
         readByUserAt: noteMode ? nowIso : null,
@@ -1078,7 +1220,9 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         priority: normalizeTicketPriority(ticket.priority, "normal"),
         assignedAdminUserId: ticket.assigned_admin_user_id || adminUserId,
         assignedAdminEmail: ticket.assigned_admin_email || adminEmail,
-        lastMessagePreview: sanitizeShortText(sanitizedMessage, 180),
+        lastMessagePreview: sanitizedMessage
+          ? sanitizeShortText(sanitizedMessage, 180)
+          : `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
         lastMessageAt: nowIso,
         userUnreadCount: noteMode ? toNumber(ticket.user_unread_count, 0) : Math.max(0, toNumber(ticket.user_unread_count, 0)) + 1,
         adminUnreadCount: 0,
@@ -1093,7 +1237,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         actionType: noteMode ? "ticket_note" : "ticket_reply",
         targetType: "support_ticket",
         targetId: ticket.ticket_ref,
-        note: sanitizeShortText(sanitizedMessage, 260),
+        note: sanitizeShortText(
+          sanitizedMessage || `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
+          260,
+        ),
         createdAt: nowIso,
       });
     });
@@ -1175,11 +1322,12 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     return findTicketByRefStatement.get(ticketRef);
   }
 
-  function sendLiveUserMessage({ userId, userName, userEmail, messageText }) {
+  function sendLiveUserMessage({ userId, userName, userEmail, messageText, attachment = null }) {
     const thread = ensureLiveThreadForUser({ userId, userName, userEmail });
     const sanitizedMessage = sanitizeMessageText(messageText, 3000);
-    if (!sanitizedMessage) {
-      throw new Error("Message is required.");
+    const sanitizedAttachment = sanitizeAttachmentPayload(attachment);
+    if (!sanitizedMessage && !sanitizedAttachment) {
+      throw new Error("Message or attachment is required.");
     }
 
     const nowIso = toIso(getNow());
@@ -1193,6 +1341,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         senderName: sanitizeShortText(userName || "", 120),
         senderEmail: sanitizeShortText(userEmail || "", 180),
         messageText: sanitizedMessage,
+        attachmentFileName: sanitizedAttachment?.fileName || "",
+        attachmentFileData: sanitizedAttachment?.fileData || "",
+        attachmentMimeType: sanitizedAttachment?.mimeType || "",
+        attachmentSizeBytes: toNumber(sanitizedAttachment?.sizeBytes, 0),
         createdAt: nowIso,
         readByUserAt: nowIso,
         readByAdminAt: null,
@@ -1205,7 +1357,9 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         status: "open",
         assignedAdminUserId: thread.assigned_admin_user_id,
         assignedAdminEmail: thread.assigned_admin_email,
-        lastMessagePreview: sanitizeShortText(sanitizedMessage, 200),
+        lastMessagePreview: sanitizedMessage
+          ? sanitizeShortText(sanitizedMessage, 200)
+          : `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
         lastMessageAt: nowIso,
         userUnreadCount: 0,
         adminUnreadCount: Math.max(0, toNumber(thread.admin_unread_count, 0)) + 1,
@@ -1218,15 +1372,16 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     return findLiveThreadByRefStatement.get(thread.thread_ref);
   }
 
-  function sendLiveAdminMessage({ threadRef, messageText, adminUserId, adminEmail, senderName }) {
+  function sendLiveAdminMessage({ threadRef, messageText, adminUserId, adminEmail, senderName, attachment = null }) {
     const thread = findLiveThreadByRefStatement.get(threadRef);
     if (!thread) {
       throw new Error("Live chat thread not found.");
     }
 
     const sanitizedMessage = sanitizeMessageText(messageText, 3000);
-    if (!sanitizedMessage) {
-      throw new Error("Reply message is required.");
+    const sanitizedAttachment = sanitizeAttachmentPayload(attachment);
+    if (!sanitizedMessage && !sanitizedAttachment) {
+      throw new Error("Reply message or attachment is required.");
     }
 
     const nowIso = toIso(getNow());
@@ -1242,6 +1397,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         senderName: sanitizeShortText(senderName || "Support Admin", 120),
         senderEmail: sanitizeShortText(adminEmail || "", 180),
         messageText: sanitizedMessage,
+        attachmentFileName: sanitizedAttachment?.fileName || "",
+        attachmentFileData: sanitizedAttachment?.fileData || "",
+        attachmentMimeType: sanitizedAttachment?.mimeType || "",
+        attachmentSizeBytes: toNumber(sanitizedAttachment?.sizeBytes, 0),
         createdAt: nowIso,
         readByUserAt: null,
         readByAdminAt: nowIso,
@@ -1254,7 +1413,9 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         status: "open",
         assignedAdminUserId: nextAssignedUserId,
         assignedAdminEmail: nextAssignedEmail,
-        lastMessagePreview: sanitizeShortText(sanitizedMessage, 200),
+        lastMessagePreview: sanitizedMessage
+          ? sanitizeShortText(sanitizedMessage, 200)
+          : `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
         lastMessageAt: nowIso,
         userUnreadCount: Math.max(0, toNumber(thread.user_unread_count, 0)) + 1,
         adminUnreadCount: 0,
@@ -1268,7 +1429,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         actionType: "live_chat_reply",
         targetType: "support_live_thread",
         targetId: thread.thread_ref,
-        note: sanitizeShortText(sanitizedMessage, 260),
+        note: sanitizeShortText(
+          sanitizedMessage || `[Attachment] ${sanitizeShortText(sanitizedAttachment?.fileName || "file", 120)}`,
+          260,
+        ),
         createdAt: nowIso,
       });
     });
@@ -1426,6 +1590,7 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         subject: parseRequestValue(req, "subject", ""),
         messageText: parseRequestValue(req, "message", ""),
         category: parseRequestValue(req, "category", "general"),
+        attachment: buildAttachmentFromRequest(req),
       });
 
       res.json({
@@ -1451,6 +1616,7 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         userId: req.currentUser.userId,
         ticketRef,
         messageText: parseRequestValue(req, "message", ""),
+        attachment: buildAttachmentFromRequest(req),
       });
 
       res.json({
@@ -1520,11 +1686,13 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         userName: req.currentUser.name,
         userEmail: req.currentUser.email,
         messageText,
+        attachment: buildAttachmentFromRequest(req),
       });
 
       safeNotify("onLiveChatUserMessage", {
         thread: mapLiveThreadRow(updatedThread),
         messageText: sanitizeMessageText(messageText, 3000),
+        attachment: sanitizeAttachmentPayload(buildAttachmentFromRequest(req)),
         user: {
           userId: String(req.currentUser?.userId || ""),
           email: String(req.currentUser?.email || ""),
@@ -1638,6 +1806,7 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         adminEmail: req.currentUser.email,
         senderName: req.currentUser.name,
         isInternalNote: parseRequestValue(req, "isInternalNote", false),
+        attachment: buildAttachmentFromRequest(req),
       });
 
       res.json({
@@ -1759,6 +1928,7 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         adminUserId: req.currentUser.userId,
         adminEmail: req.currentUser.email,
         senderName: req.currentUser.name,
+        attachment: buildAttachmentFromRequest(req),
       });
       res.json({
         message: "Live chat reply sent successfully.",
@@ -1887,6 +2057,10 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         senderEmail: adminAccount?.email || "",
         messageText: "Welcome! If you need help with deposit, assets, or trading, reply here.",
         messageType: "text",
+        attachmentFileName: "",
+        attachmentFileData: "",
+        attachmentMimeType: "",
+        attachmentSizeBytes: 0,
         isInternalNote: 0,
         createdAt: nowIso,
         readByUserAt: null,

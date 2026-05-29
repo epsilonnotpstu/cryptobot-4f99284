@@ -23,6 +23,50 @@ function formatDateTime(value = "") {
   return date.toLocaleString();
 }
 
+const SUPPORT_ATTACHMENT_ACCEPT = ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.txt";
+const SUPPORT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("Could not read selected attachment."));
+    };
+    reader.onerror = () => reject(new Error("Could not read selected attachment."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function normalizeAttachmentFromMessage(message = {}) {
+  const data = String(message?.attachmentFileData || "").trim();
+  if (!data) {
+    return null;
+  }
+  return {
+    fileName: String(message?.attachmentFileName || "attachment"),
+    fileData: data,
+    sizeBytes: toNumber(message?.attachmentSizeBytes, 0),
+  };
+}
+
+function formatBytes(value = 0) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "0 B";
+  }
+  if (numeric >= 1024 * 1024) {
+    return `${(numeric / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (numeric >= 1024) {
+    return `${(numeric / 1024).toFixed(1)} KB`;
+  }
+  return `${Math.floor(numeric)} B`;
+}
+
 function statusChipClass(status = "") {
   const normalized = normalizeText(status);
   if (["resolved", "closed"].includes(normalized)) {
@@ -98,6 +142,8 @@ export default function SupportManagementPage({
 
   const [replyText, setReplyText] = useState("");
   const [internalNoteText, setInternalNoteText] = useState("");
+  const [replyAttachment, setReplyAttachment] = useState(null);
+  const [internalNoteAttachment, setInternalNoteAttachment] = useState(null);
   const [busyAction, setBusyAction] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -116,6 +162,7 @@ export default function SupportManagementPage({
     note: "",
   });
   const [liveReplyText, setLiveReplyText] = useState("");
+  const [liveReplyAttachment, setLiveReplyAttachment] = useState(null);
   const threadBodyRef = useRef(null);
   const liveThreadBodyRef = useRef(null);
   const livePollCounterRef = useRef(0);
@@ -286,6 +333,30 @@ export default function SupportManagementPage({
     }
   };
 
+  const selectAttachment = async (event, setter) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (file.size > SUPPORT_ATTACHMENT_MAX_BYTES) {
+      setError("Attachment size must be below 10MB.");
+      return;
+    }
+    try {
+      const fileData = await readFileAsDataUrl(file);
+      setError("");
+      setter({
+        fileName: file.name,
+        fileData,
+        mimeType: String(file.type || "").trim().toLowerCase(),
+        sizeBytes: file.size,
+      });
+    } catch (fileError) {
+      setError(fileError.message || "Could not read selected attachment.");
+    }
+  };
+
   const openTicket = async (ticketRef) => {
     setSelectedTicketRef(ticketRef);
     await runAction(`support.open.${ticketRef}`, async () => {
@@ -341,8 +412,8 @@ export default function SupportManagementPage({
       setError("Select a ticket before replying.");
       return;
     }
-    if (!replyText.trim()) {
-      setError("Reply message is required.");
+    if (!replyText.trim() && !replyAttachment) {
+      setError("Reply message or attachment is required.");
       return;
     }
 
@@ -351,8 +422,13 @@ export default function SupportManagementPage({
         ticketRef: selectedTicketRef,
         message: replyText,
         isInternalNote: false,
+        attachmentFileName: replyAttachment?.fileName || "",
+        attachmentFileData: replyAttachment?.fileData || "",
+        attachmentMimeType: replyAttachment?.mimeType || "",
+        attachmentSizeBytes: replyAttachment?.sizeBytes || 0,
       });
       setReplyText("");
+      setReplyAttachment(null);
       await onLoadTicketDetail?.({ ticketRef: selectedTicketRef });
       return data;
     });
@@ -363,8 +439,8 @@ export default function SupportManagementPage({
       setError("Select a ticket before adding note.");
       return;
     }
-    if (!internalNoteText.trim()) {
-      setError("Internal note is required.");
+    if (!internalNoteText.trim() && !internalNoteAttachment) {
+      setError("Internal note or attachment is required.");
       return;
     }
 
@@ -373,8 +449,13 @@ export default function SupportManagementPage({
         ticketRef: selectedTicketRef,
         message: internalNoteText,
         isInternalNote: true,
+        attachmentFileName: internalNoteAttachment?.fileName || "",
+        attachmentFileData: internalNoteAttachment?.fileData || "",
+        attachmentMimeType: internalNoteAttachment?.mimeType || "",
+        attachmentSizeBytes: internalNoteAttachment?.sizeBytes || 0,
       });
       setInternalNoteText("");
+      setInternalNoteAttachment(null);
       await onLoadTicketDetail?.({ ticketRef: selectedTicketRef });
       return data;
     });
@@ -406,8 +487,8 @@ export default function SupportManagementPage({
       setError("Select a live thread before replying.");
       return;
     }
-    if (!liveReplyText.trim()) {
-      setError("Live reply message is required.");
+    if (!liveReplyText.trim() && !liveReplyAttachment) {
+      setError("Live reply message or attachment is required.");
       return;
     }
 
@@ -415,8 +496,13 @@ export default function SupportManagementPage({
       const data = await onReplyLiveThread?.({
         threadRef: selectedLiveThreadRef,
         message: liveReplyText,
+        attachmentFileName: liveReplyAttachment?.fileName || "",
+        attachmentFileData: liveReplyAttachment?.fileData || "",
+        attachmentMimeType: liveReplyAttachment?.mimeType || "",
+        attachmentSizeBytes: liveReplyAttachment?.sizeBytes || 0,
       });
       setLiveReplyText("");
+      setLiveReplyAttachment(null);
       await onLoadLiveThreadDetail?.({ threadRef: selectedLiveThreadRef });
       await onRefresh?.();
       return data;
@@ -596,7 +682,20 @@ export default function SupportManagementPage({
                       <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : (ticketDetail.ticket.accountName || "User")}</strong>
                       <small>{formatDateTime(message.createdAt)}</small>
                     </header>
-                    <p>{message.messageText}</p>
+                    {message.messageText ? <p>{message.messageText}</p> : null}
+                    {normalizeAttachmentFromMessage(message) ? (
+                      <a
+                        className="adminx-support-attachment-link"
+                        href={normalizeAttachmentFromMessage(message)?.fileData}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={normalizeAttachmentFromMessage(message)?.fileName}
+                      >
+                        <i className="fas fa-paperclip" />
+                        <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
+                        <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
+                      </a>
+                    ) : null}
                   </article>
                 ))}
                 {!detailMessages.length ? <p className="adminx-muted">No thread messages yet.</p> : null}
@@ -612,6 +711,24 @@ export default function SupportManagementPage({
                     rows={3}
                   />
                 </label>
+                <label className="adminx-support-upload-field">
+                  Attachment (optional)
+                  <input
+                    type="file"
+                    accept={SUPPORT_ATTACHMENT_ACCEPT}
+                    onChange={(event) => selectAttachment(event, setReplyAttachment)}
+                  />
+                </label>
+                {replyAttachment ? (
+                  <div className="adminx-support-attachment-pill">
+                    <i className="fas fa-file-arrow-up" />
+                    <span>{replyAttachment.fileName}</span>
+                    <small>{formatBytes(replyAttachment.sizeBytes)}</small>
+                    <button type="button" onClick={() => setReplyAttachment(null)} aria-label="Remove attachment">
+                      <i className="fas fa-xmark" />
+                    </button>
+                  </div>
+                ) : null}
                 <div className="adminx-profile-actions">
                   <button type="button" className="btn btn-primary" onClick={sendReply} disabled={busyAction === "support.reply"}>
                     {busyAction === "support.reply" ? "Sending..." : "Send Reply"}
@@ -627,6 +744,24 @@ export default function SupportManagementPage({
                     rows={2}
                   />
                 </label>
+                <label className="adminx-support-upload-field">
+                  Note Attachment (optional)
+                  <input
+                    type="file"
+                    accept={SUPPORT_ATTACHMENT_ACCEPT}
+                    onChange={(event) => selectAttachment(event, setInternalNoteAttachment)}
+                  />
+                </label>
+                {internalNoteAttachment ? (
+                  <div className="adminx-support-attachment-pill">
+                    <i className="fas fa-file-arrow-up" />
+                    <span>{internalNoteAttachment.fileName}</span>
+                    <small>{formatBytes(internalNoteAttachment.sizeBytes)}</small>
+                    <button type="button" onClick={() => setInternalNoteAttachment(null)} aria-label="Remove note attachment">
+                      <i className="fas fa-xmark" />
+                    </button>
+                  </div>
+                ) : null}
                 <div className="adminx-support-inline-controls">
                   <label className="adminx-checkbox-row">
                     <input type="checkbox" checked={showInternalNotes} onChange={(event) => setShowInternalNotes(event.target.checked)} />
@@ -821,7 +956,20 @@ export default function SupportManagementPage({
                       <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : (selectedLiveThread.userName || "User")}</strong>
                       <small>{formatDateTime(message.createdAt)}</small>
                     </header>
-                    <p>{message.messageText}</p>
+                    {message.messageText ? <p>{message.messageText}</p> : null}
+                    {normalizeAttachmentFromMessage(message) ? (
+                      <a
+                        className="adminx-support-attachment-link"
+                        href={normalizeAttachmentFromMessage(message)?.fileData}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={normalizeAttachmentFromMessage(message)?.fileName}
+                      >
+                        <i className="fas fa-paperclip" />
+                        <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
+                        <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
+                      </a>
+                    ) : null}
                   </article>
                 ))}
                 {!selectedLiveMessages.length ? (
@@ -841,6 +989,24 @@ export default function SupportManagementPage({
                     rows={3}
                   />
                 </label>
+                <label className="adminx-support-upload-field">
+                  Attachment (optional)
+                  <input
+                    type="file"
+                    accept={SUPPORT_ATTACHMENT_ACCEPT}
+                    onChange={(event) => selectAttachment(event, setLiveReplyAttachment)}
+                  />
+                </label>
+                {liveReplyAttachment ? (
+                  <div className="adminx-support-attachment-pill">
+                    <i className="fas fa-file-arrow-up" />
+                    <span>{liveReplyAttachment.fileName}</span>
+                    <small>{formatBytes(liveReplyAttachment.sizeBytes)}</small>
+                    <button type="button" onClick={() => setLiveReplyAttachment(null)} aria-label="Remove live attachment">
+                      <i className="fas fa-xmark" />
+                    </button>
+                  </div>
+                ) : null}
                 <div className="adminx-profile-actions">
                   <button type="button" className="btn btn-primary" onClick={sendLiveReply} disabled={busyAction === "support.live.reply"}>
                     {busyAction === "support.live.reply" ? "Sending..." : "Send Reply"}

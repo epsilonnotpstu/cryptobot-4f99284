@@ -43,6 +43,51 @@ function statusLabel(status = "") {
   return normalized.replace(/_/g, " ");
 }
 
+const SUPPORT_ATTACHMENT_ACCEPT = ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.txt";
+const SUPPORT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("Could not read selected attachment."));
+    };
+    reader.onerror = () => reject(new Error("Could not read selected attachment."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(value = 0) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "0 B";
+  }
+  if (numeric >= 1024 * 1024) {
+    return `${(numeric / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (numeric >= 1024) {
+    return `${(numeric / 1024).toFixed(1)} KB`;
+  }
+  return `${Math.floor(numeric)} B`;
+}
+
+function normalizeAttachmentFromMessage(message = {}) {
+  const data = String(message?.attachmentFileData || "").trim();
+  if (!data) {
+    return null;
+  }
+  return {
+    fileName: String(message?.attachmentFileName || "attachment"),
+    fileData: data,
+    mimeType: String(message?.attachmentMimeType || ""),
+    sizeBytes: toNumber(message?.attachmentSizeBytes, 0),
+  };
+}
+
 export default function SupportChatModal({
   open,
   onClose,
@@ -67,16 +112,19 @@ export default function SupportChatModal({
 
   const [ticketDetail, setTicketDetail] = useState({});
   const [messageInput, setMessageInput] = useState("");
+  const [ticketReplyAttachment, setTicketReplyAttachment] = useState(null);
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [newSubject, setNewSubject] = useState("");
   const [newCategory, setNewCategory] = useState("general");
   const [newMessage, setNewMessage] = useState("");
+  const [newTicketAttachment, setNewTicketAttachment] = useState(null);
 
   const [liveChatEnabled, setLiveChatEnabled] = useState(true);
   const [lastSyncAt, setLastSyncAt] = useState("");
   const [liveThreadDetail, setLiveThreadDetail] = useState({});
   const [liveMessageInput, setLiveMessageInput] = useState("");
+  const [liveReplyAttachment, setLiveReplyAttachment] = useState(null);
 
   const ticketMessagesRef = useRef(null);
   const liveMessagesRef = useRef(null);
@@ -237,6 +285,37 @@ export default function SupportChatModal({
     node.scrollTop = node.scrollHeight;
   }, [liveMessages.length, activeMode]);
 
+  const selectAttachment = async (event, setter) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    if (file.size > SUPPORT_ATTACHMENT_MAX_BYTES) {
+      setError("Attachment size must be below 10MB.");
+      return;
+    }
+
+    try {
+      const fileData = await readFileAsDataUrl(file);
+      const mimeType = String(file.type || "").trim().toLowerCase();
+      if (!fileData.startsWith("data:")) {
+        setError("Unsupported attachment format.");
+        return;
+      }
+      setError("");
+      setter({
+        fileName: file.name,
+        fileData,
+        mimeType,
+        sizeBytes: file.size,
+      });
+    } catch (fileError) {
+      setError(fileError.message || "Could not read selected attachment.");
+    }
+  };
+
   const submitNewTicket = async () => {
     if (!onCreateTicket) {
       return;
@@ -245,8 +324,8 @@ export default function SupportChatModal({
       setError("Ticket subject is required.");
       return;
     }
-    if (!newMessage.trim()) {
-      setError("Message is required.");
+    if (!newMessage.trim() && !newTicketAttachment) {
+      setError("Message or attachment is required.");
       return;
     }
 
@@ -258,12 +337,17 @@ export default function SupportChatModal({
         subject: newSubject,
         message: newMessage,
         category: newCategory,
+        attachmentFileName: newTicketAttachment?.fileName || "",
+        attachmentFileData: newTicketAttachment?.fileData || "",
+        attachmentMimeType: newTicketAttachment?.mimeType || "",
+        attachmentSizeBytes: newTicketAttachment?.sizeBytes || 0,
       });
       const createdTicketRef = payload?.ticket?.ticketRef || "";
       setComposerOpen(false);
       setNewSubject("");
       setNewMessage("");
       setNewCategory("general");
+      setNewTicketAttachment(null);
       setNotice(payload?.message || "Support ticket created.");
       await refreshTickets(statusFilter, { silent: true });
       if (createdTicketRef) {
@@ -281,8 +365,8 @@ export default function SupportChatModal({
       setError("Select a ticket first.");
       return;
     }
-    if (!messageInput.trim()) {
-      setError("Message is required.");
+    if (!messageInput.trim() && !ticketReplyAttachment) {
+      setError("Message or attachment is required.");
       return;
     }
     if (!onSendTicketMessage) {
@@ -296,8 +380,13 @@ export default function SupportChatModal({
       const payload = await onSendTicketMessage({
         ticketRef: selectedTicketRef,
         message: messageInput,
+        attachmentFileName: ticketReplyAttachment?.fileName || "",
+        attachmentFileData: ticketReplyAttachment?.fileData || "",
+        attachmentMimeType: ticketReplyAttachment?.mimeType || "",
+        attachmentSizeBytes: ticketReplyAttachment?.sizeBytes || 0,
       });
       setMessageInput("");
+      setTicketReplyAttachment(null);
       setNotice(payload?.message || "Message sent.");
       await openTicket(selectedTicketRef, { silent: true });
       await refreshTickets(statusFilter, { silent: true });
@@ -312,8 +401,8 @@ export default function SupportChatModal({
     if (!onSendLiveMessage) {
       return;
     }
-    if (!liveMessageInput.trim()) {
-      setError("Message is required.");
+    if (!liveMessageInput.trim() && !liveReplyAttachment) {
+      setError("Message or attachment is required.");
       return;
     }
 
@@ -321,8 +410,15 @@ export default function SupportChatModal({
     setError("");
     setNotice("");
     try {
-      const payload = await onSendLiveMessage({ message: liveMessageInput });
+      const payload = await onSendLiveMessage({
+        message: liveMessageInput,
+        attachmentFileName: liveReplyAttachment?.fileName || "",
+        attachmentFileData: liveReplyAttachment?.fileData || "",
+        attachmentMimeType: liveReplyAttachment?.mimeType || "",
+        attachmentSizeBytes: liveReplyAttachment?.sizeBytes || 0,
+      });
       setLiveMessageInput("");
+      setLiveReplyAttachment(null);
       setNotice(payload?.message || "Message sent.");
       await loadLiveThread({ silent: true });
     } catch (sendError) {
@@ -445,7 +541,20 @@ export default function SupportChatModal({
                       <strong>{message.senderRole === "admin" ? ( "Rampx Trading") : "You"}</strong>
                       <small>{formatDateTime(message.createdAt)}</small>
                     </header>
-                    <p>{message.messageText}</p>
+                    {message.messageText ? <p>{message.messageText}</p> : null}
+                    {normalizeAttachmentFromMessage(message) ? (
+                      <a
+                        className="supportchat-attachment-link"
+                        href={normalizeAttachmentFromMessage(message)?.fileData}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={normalizeAttachmentFromMessage(message)?.fileName}
+                      >
+                        <i className="fas fa-paperclip" />
+                        <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
+                        <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
+                      </a>
+                    ) : null}
                   </article>
                 ))}
                 {!liveMessages.length ? <p className="supportchat-muted">Start the conversation with the support team.</p> : null}
@@ -464,6 +573,14 @@ export default function SupportChatModal({
                   }}
                   placeholder="Write your live message..."
                 />
+                <label className="supportchat-upload-btn" title="Attach file">
+                  <i className="fas fa-paperclip" />
+                  <input
+                    type="file"
+                    accept={SUPPORT_ATTACHMENT_ACCEPT}
+                    onChange={(event) => selectAttachment(event, setLiveReplyAttachment)}
+                  />
+                </label>
                 <button
                   type="button"
                   className="supportchat-primary-btn"
@@ -473,6 +590,16 @@ export default function SupportChatModal({
                   {busyAction === "live-send" ? "Sending..." : "Send"}
                 </button>
               </footer>
+              {liveReplyAttachment ? (
+                <div className="supportchat-attachment-pill">
+                  <i className="fas fa-file-arrow-up" />
+                  <span>{liveReplyAttachment.fileName}</span>
+                  <small>{formatBytes(liveReplyAttachment.sizeBytes)}</small>
+                  <button type="button" onClick={() => setLiveReplyAttachment(null)} aria-label="Remove attachment">
+                    <i className="fas fa-xmark" />
+                  </button>
+                </div>
+              ) : null}
             </section>
           </div>
         ) : (
@@ -531,9 +658,35 @@ export default function SupportChatModal({
                         placeholder="Explain details so support can help faster"
                       />
                     </label>
+                    <label className="supportchat-field-span-2 supportchat-upload-field">
+                      Attachment (optional)
+                      <input
+                        type="file"
+                        accept={SUPPORT_ATTACHMENT_ACCEPT}
+                        onChange={(event) => selectAttachment(event, setNewTicketAttachment)}
+                      />
+                      <small>Up to 10MB (JPG, PNG, WEBP, HEIC, PDF, TXT)</small>
+                    </label>
                   </div>
+                  {newTicketAttachment ? (
+                    <div className="supportchat-attachment-pill">
+                      <i className="fas fa-file-arrow-up" />
+                      <span>{newTicketAttachment.fileName}</span>
+                      <small>{formatBytes(newTicketAttachment.sizeBytes)}</small>
+                      <button type="button" onClick={() => setNewTicketAttachment(null)} aria-label="Remove attachment">
+                        <i className="fas fa-xmark" />
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="supportchat-composer-actions">
-                    <button type="button" className="supportchat-ghost-btn" onClick={() => setComposerOpen(false)}>
+                    <button
+                      type="button"
+                      className="supportchat-ghost-btn"
+                      onClick={() => {
+                        setComposerOpen(false);
+                        setNewTicketAttachment(null);
+                      }}
+                    >
                       Cancel
                     </button>
                     <button type="button" className="supportchat-primary-btn" onClick={submitNewTicket} disabled={busyAction === "create-ticket"}>
@@ -606,7 +759,20 @@ export default function SupportChatModal({
                           <strong>{message.senderRole === "admin" ? ( "Rampx Trading") : "You"}</strong>
                           <small>{formatDateTime(message.createdAt)}</small>
                         </header>
-                        <p>{message.messageText}</p>
+                        {message.messageText ? <p>{message.messageText}</p> : null}
+                        {normalizeAttachmentFromMessage(message) ? (
+                          <a
+                            className="supportchat-attachment-link"
+                            href={normalizeAttachmentFromMessage(message)?.fileData}
+                            target="_blank"
+                            rel="noreferrer"
+                            download={normalizeAttachmentFromMessage(message)?.fileName}
+                          >
+                            <i className="fas fa-paperclip" />
+                            <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
+                            <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
+                          </a>
+                        ) : null}
                       </article>
                     ))}
                     {!ticketMessages.length ? <p className="supportchat-muted">No messages yet.</p> : null}
@@ -626,6 +792,15 @@ export default function SupportChatModal({
                       placeholder={normalizeText(selectedTicket.status) === "closed" ? "Reopen ticket to send message" : "Write your message..."}
                       disabled={normalizeText(selectedTicket.status) === "closed"}
                     />
+                    <label className="supportchat-upload-btn" title="Attach file">
+                      <i className="fas fa-paperclip" />
+                      <input
+                        type="file"
+                        accept={SUPPORT_ATTACHMENT_ACCEPT}
+                        onChange={(event) => selectAttachment(event, setTicketReplyAttachment)}
+                        disabled={normalizeText(selectedTicket.status) === "closed"}
+                      />
+                    </label>
                     <button
                       type="button"
                       className="supportchat-primary-btn"
@@ -635,6 +810,16 @@ export default function SupportChatModal({
                       {busyAction === "send-message" ? "Sending..." : "Send"}
                     </button>
                   </footer>
+                  {ticketReplyAttachment ? (
+                    <div className="supportchat-attachment-pill">
+                      <i className="fas fa-file-arrow-up" />
+                      <span>{ticketReplyAttachment.fileName}</span>
+                      <small>{formatBytes(ticketReplyAttachment.sizeBytes)}</small>
+                      <button type="button" onClick={() => setTicketReplyAttachment(null)} aria-label="Remove attachment">
+                        <i className="fas fa-xmark" />
+                      </button>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <div className="supportchat-thread-empty">

@@ -791,11 +791,99 @@
 }
 
 .supportchat-thread-footer {
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
 }
 
 .supportchat-thread-footer .supportchat-primary-btn {
   min-width: 92px;
+}
+
+.supportchat-upload-btn {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(10, 18, 34, 0.82);
+  color: #cde4ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.supportchat-upload-btn input {
+  display: none;
+}
+
+.supportchat-upload-field input[type="file"] {
+  border: 1px dashed rgba(148, 163, 184, 0.34);
+  background: rgba(5, 12, 23, 0.78);
+}
+
+.supportchat-upload-field small {
+  color: #94b2d5;
+  font-size: 0.74rem;
+}
+
+.supportchat-attachment-pill {
+  margin-top: 0.48rem;
+  border-radius: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: rgba(7, 20, 36, 0.72);
+  color: #d9edff;
+  padding: 0.38rem 0.54rem;
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.supportchat-attachment-pill span {
+  flex: 1;
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+.supportchat-attachment-pill small {
+  color: #95b5d8;
+  font-size: 0.72rem;
+}
+
+.supportchat-attachment-pill button {
+  border: none;
+  background: transparent;
+  color: #a8c6e8;
+  cursor: pointer;
+}
+
+.supportchat-attachment-link {
+  margin-top: 0.42rem;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(7, 20, 34, 0.76);
+  color: #cde8ff;
+  text-decoration: none;
+  padding: 0.34rem 0.48rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  max-width: 100%;
+}
+
+.supportchat-attachment-link:hover {
+  border-color: rgba(125, 211, 252, 0.5);
+}
+
+.supportchat-attachment-link span {
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supportchat-attachment-link small {
+  color: #97b5d8;
+  font-size: 0.7rem;
 }
 
 .supportchat-thread {

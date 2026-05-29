@@ -617,6 +617,15 @@ function buildNoticeCenterModel(payload) {
   };
 }
 
+function buildLaunchpadCenterModel(summaryPayload, launchesPayload, settingsPayload, auditPayload) {
+  return {
+    summary: summaryPayload || {},
+    launches: Array.isArray(launchesPayload?.launches) ? launchesPayload.launches : [],
+    settings: settingsPayload?.settings || {},
+    audit: auditPayload || { logs: [], page: 1, limit: 50, total: 0 },
+  };
+}
+
 const DEFAULT_DASHBOARD = {
   metrics: [
     { key: "users", label: "Total Users", value: 0, icon: "fa-users", growth: "No pending KYC", tone: "blue", format: "number" },
@@ -854,6 +863,13 @@ const DEFAULT_NOTICE_CENTER = {
   },
 };
 
+const DEFAULT_LAUNCHPAD_CENTER = {
+  summary: {},
+  launches: [],
+  settings: {},
+  audit: { logs: [], page: 1, limit: 50, total: 0 },
+};
+
 const ADMIN_AUTO_REFRESH_MS = 120000;
 
 export default function AdminSectionPage({ authService, onBackHome, onOpenUserAuth, requireFreshLogin = false }) {
@@ -879,6 +895,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [supportCenter, setSupportCenter] = useState(DEFAULT_SUPPORT_CENTER);
   const [webContent, setWebContent] = useState(DEFAULT_WEB_CONTENT);
   const [noticeCenter, setNoticeCenter] = useState(DEFAULT_NOTICE_CENTER);
+  const [launchpadCenter, setLaunchpadCenter] = useState(DEFAULT_LAUNCHPAD_CENTER);
   const loadInFlightRef = useRef(false);
 
   const clearAuthFeedback = () => {
@@ -1236,6 +1253,32 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
           setNoticeCenter(buildNoticeCenterModel(noticePayload));
         } catch {
           setNoticeCenter(DEFAULT_NOTICE_CENTER);
+        }
+      }
+
+      if (activeSection === "launchpadCenter") {
+        try {
+          const [launchpadSummaryPayload, launchpadLaunchesPayload, launchpadSettingsPayload, launchpadAuditPayload] = await Promise.all([
+            authService.adminGetLaunchpadDashboardSummary({ sessionToken: snapshot.sessionToken }),
+            authService.adminListLaunchpadLaunches({
+              sessionToken: snapshot.sessionToken,
+              page: 1,
+              limit: 120,
+              status: "all",
+            }),
+            authService.adminGetLaunchpadSettings({ sessionToken: snapshot.sessionToken }),
+            authService.adminListLaunchpadAudit({ sessionToken: snapshot.sessionToken, page: 1, limit: 200 }),
+          ]);
+          setLaunchpadCenter(
+            buildLaunchpadCenterModel(
+              launchpadSummaryPayload,
+              launchpadLaunchesPayload,
+              launchpadSettingsPayload,
+              launchpadAuditPayload,
+            ),
+          );
+        } catch {
+          setLaunchpadCenter(DEFAULT_LAUNCHPAD_CENTER);
         }
       }
     } catch (error) {
@@ -1915,7 +1958,15 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService]);
 
-  const replySupportTicket = useCallback(async ({ ticketRef, message, isInternalNote = false }) => {
+  const replySupportTicket = useCallback(async ({
+    ticketRef,
+    message,
+    isInternalNote = false,
+    attachmentFileName,
+    attachmentFileData,
+    attachmentMimeType,
+    attachmentSizeBytes,
+  }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       throw new Error("Admin session expired. Please login again.");
@@ -1925,12 +1976,23 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       ticketRef,
       message,
       isInternalNote,
+      attachmentFileName,
+      attachmentFileData,
+      attachmentMimeType,
+      attachmentSizeBytes,
     });
     await loadAdminData();
     return data;
   }, [authService, loadAdminData]);
 
-  const replySupportLiveThread = useCallback(async ({ threadRef, message }) => {
+  const replySupportLiveThread = useCallback(async ({
+    threadRef,
+    message,
+    attachmentFileName,
+    attachmentFileData,
+    attachmentMimeType,
+    attachmentSizeBytes,
+  }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
       throw new Error("Admin session expired. Please login again.");
@@ -1939,6 +2001,10 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       sessionToken: snapshot.sessionToken,
       threadRef,
       message,
+      attachmentFileName,
+      attachmentFileData,
+      attachmentMimeType,
+      attachmentSizeBytes,
     });
     await loadAdminData();
     return data;
@@ -2037,6 +2103,122 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const createLaunchpadLaunch = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminCreateLaunchpadLaunch({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateLaunchpadLaunch = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateLaunchpadLaunch({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const updateLaunchpadLaunchStatus = useCallback(async ({ launchId, launchRef, status }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateLaunchpadLaunchStatus({
+      sessionToken: snapshot.sessionToken,
+      launchId,
+      launchRef,
+      status,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const saveLaunchpadTiers = useCallback(async ({ launchId, launchRef, tiers }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveLaunchpadTiers({
+      sessionToken: snapshot.sessionToken,
+      launchId,
+      launchRef,
+      tiers,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const saveLaunchpadSettings = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveLaunchpadSettings({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const listLaunchpadOrders = useCallback(async ({ launchId, launchRef, status = "all", page = 1, limit = 120 }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    return authService.adminListLaunchpadOrders({
+      sessionToken: snapshot.sessionToken,
+      launchId,
+      launchRef,
+      status,
+      page,
+      limit,
+    });
+  }, [authService]);
+
+  const releaseLaunchpadOrders = useCallback(async ({ launchId, launchRef, note = "" }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminReleaseLaunchpadOrders({
+      sessionToken: snapshot.sessionToken,
+      launchId,
+      launchRef,
+      note,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
+  const runLaunchpadMarketSync = useCallback(async ({ launchId, launchRef, enableSpot = false, enableConvert = false, enableBinary = false }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminRunLaunchpadMarketSync({
+      sessionToken: snapshot.sessionToken,
+      launchId,
+      launchRef,
+      enableSpot,
+      enableConvert,
+      enableBinary,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
   useEffect(() => {
     refreshAdminSession();
   }, [refreshAdminSession]);
@@ -2121,6 +2303,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       setSupportCenter(DEFAULT_SUPPORT_CENTER);
       setWebContent(DEFAULT_WEB_CONTENT);
       setNoticeCenter(DEFAULT_NOTICE_CENTER);
+      setLaunchpadCenter(DEFAULT_LAUNCHPAD_CENTER);
       clearAuthFeedback();
     }
   };
@@ -2165,6 +2348,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       supportCenter={supportCenter}
       webContent={webContent}
       noticeCenter={noticeCenter}
+      launchpadCenter={launchpadCenter}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
       onRefresh={loadAdminData}
@@ -2230,6 +2414,14 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onUpdateNotice={updateNotice}
       onUpdateNoticeStatus={updateNoticeStatus}
       onQuickPublishNotice={quickPublishNotice}
+      onCreateLaunchpadLaunch={createLaunchpadLaunch}
+      onUpdateLaunchpadLaunch={updateLaunchpadLaunch}
+      onUpdateLaunchpadLaunchStatus={updateLaunchpadLaunchStatus}
+      onSaveLaunchpadTiers={saveLaunchpadTiers}
+      onSaveLaunchpadSettings={saveLaunchpadSettings}
+      onListLaunchpadOrders={listLaunchpadOrders}
+      onReleaseLaunchpadOrders={releaseLaunchpadOrders}
+      onRunLaunchpadMarketSync={runLaunchpadMarketSync}
     />
   );
 }

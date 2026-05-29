@@ -187,6 +187,34 @@ function shortenAddress(value = "") {
   return `${text.slice(0, 12)}...${text.slice(-8)}`;
 }
 
+function buildQrCodeFallback(address = "", symbol = "") {
+  const content = String(address || symbol || "").trim();
+  if (!content) {
+    return "";
+  }
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(content)}`;
+}
+
+function resolveQrCodeSource(rawValue = "", address = "", symbol = "") {
+  const value = String(rawValue || "").trim();
+  if (!value) {
+    return buildQrCodeFallback(address, symbol);
+  }
+  if (/^data:image\//i.test(value)) {
+    return value;
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  if (value.startsWith("/")) {
+    return `${window.location.origin}${value}`;
+  }
+  if (/^[A-Za-z0-9+/=\r\n]+$/.test(value) && value.length > 200) {
+    return `data:image/png;base64,${value.replace(/\s+/g, "")}`;
+  }
+  return buildQrCodeFallback(address, symbol);
+}
+
 function getFirstNameFallback(user) {
   if (user?.firstName) {
     return user.firstName;
@@ -359,6 +387,7 @@ export default function PremiumDashboardPage({
   onOpenBinaryPage,
   onOpenTransactionPage,
   onOpenAssetsPage,
+  onOpenLaunchpadPage,
   onCreateDepositRequest,
   onDepositRecords,
   onLoadSupportTickets,
@@ -420,6 +449,7 @@ export default function PremiumDashboardPage({
   const [walletBalances, setWalletBalances] = useState([]);
   const [depositAssets, setDepositAssets] = useState([]);
   const [marketPrioritySymbols, setMarketPrioritySymbols] = useState([]);
+  const [launchpadSnapshot, setLaunchpadSnapshot] = useState(null);
   const [dashboardSyncError, setDashboardSyncError] = useState("");
 
   const [depositSearch, setDepositSearch] = useState("");
@@ -454,6 +484,9 @@ export default function PremiumDashboardPage({
     }
     if (data?.market) {
       setMarketPrioritySymbols(normalizeMarketPrioritySymbols(data?.market?.prioritySymbols));
+    }
+    if (data?.launchpad) {
+      setLaunchpadSnapshot(data.launchpad);
     }
   };
 
@@ -705,6 +738,9 @@ export default function PremiumDashboardPage({
     : String(kycAuthTag || deriveAuthTagFromStatus(kycStatus))
         .replace(/[_-]+/g, " ")
         .replace(/\b\w/g, (char) => char.toUpperCase());
+  const launchpadFeatured = launchpadSnapshot?.featured || null;
+  const launchpadLiveCount = Number(launchpadSnapshot?.counts?.live || 0);
+  const launchpadWatchlistCount = Number(launchpadSnapshot?.user?.watchlistCount || 0);
 
   const openDrawerRoute = (route) => {
     setDrawerOpen(false);
@@ -1031,6 +1067,16 @@ export default function PremiumDashboardPage({
     }
     setActiveMainTab("transaction");
     setActiveView("transaction");
+  };
+
+  const openLaunchpadPage = () => {
+    if (!isUserKycAuthenticated) {
+      setProfileNotice("KYC authentication pending. Complete authentication before joining launchpad.");
+      return;
+    }
+    if (onOpenLaunchpadPage) {
+      onOpenLaunchpadPage();
+    }
   };
 
   const handleSelectDepositAsset = (assetId) => {
@@ -1385,11 +1431,30 @@ export default function PremiumDashboardPage({
                   </section>
 
                   <section className="prodash-promos">
-                    <article className="prodash-promo-card prodash-promo-primary">
+                    <article
+                      className="prodash-promo-card prodash-promo-primary"
+                      role="button"
+                      tabIndex={0}
+                      onClick={openLaunchpadPage}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openLaunchpadPage();
+                        }
+                      }}
+                    >
                       <div>
                         <h3>Initial coin offer (ICO)</h3>
-                        <p>More wealth awaits you</p>
-                        <small>Tap to view ICO list</small>
+                        <p>
+                          {launchpadFeatured
+                            ? `${launchpadFeatured.coinSymbol} • Hype ${launchpadFeatured.hypePercent}% • ROI ${launchpadFeatured.expectedRoiX.toFixed(2)}x`
+                            : "More wealth awaits you"}
+                        </p>
+                        <small>
+                          {launchpadFeatured
+                            ? `${launchpadFeatured.phase?.toUpperCase() || "UPCOMING"} • Watchlisted ${launchpadFeatured.watchlistCount} • Live ${launchpadLiveCount}`
+                            : `Tap to view ICO list • Watchlist ${launchpadWatchlistCount}`}
+                        </small>
                       </div>
                       <div className="prodash-promo-icon">
                         <i className="fas fa-coins" />
@@ -1776,8 +1841,24 @@ export default function PremiumDashboardPage({
               <div className="prodash-deposit-address-card">
                 <h3>Scan to get the recharge address</h3>
                 <div className="prodash-deposit-qr-wrap">
-                  {selectedDepositAsset.qrCodeData ? (
-                    <img src={selectedDepositAsset.qrCodeData} alt={`${selectedDepositAsset.symbol} QR`} />
+                  {selectedDepositAsset.qrCodeData || selectedDepositAsset.rechargeAddress ? (
+                    <img
+                      src={resolveQrCodeSource(
+                        selectedDepositAsset.qrCodeData,
+                        selectedDepositAsset.rechargeAddress,
+                        selectedDepositAsset.symbol,
+                      )}
+                      alt={`${selectedDepositAsset.symbol} QR`}
+                      onError={(event) => {
+                        const fallback = buildQrCodeFallback(
+                          selectedDepositAsset.rechargeAddress,
+                          selectedDepositAsset.symbol,
+                        );
+                        if (fallback && event.currentTarget.src !== fallback) {
+                          event.currentTarget.src = fallback;
+                        }
+                      }}
+                    />
                   ) : (
                     <div className="prodash-deposit-qr-fallback">No QR</div>
                   )}

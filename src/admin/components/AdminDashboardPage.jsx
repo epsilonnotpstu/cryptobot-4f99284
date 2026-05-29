@@ -18,6 +18,7 @@ import AssetManagementPage from "./AssetManagementPage";
 import SupportManagementPage from "./SupportManagementPage";
 import HomeContentManagementPage from "./HomeContentManagementPage";
 import NoticeManagementPage from "./NoticeManagementPage";
+import LaunchpadManagementPage from "./LaunchpadManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -86,6 +87,7 @@ export default function AdminDashboardPage({
   lumCenter,
   binaryCenter,
   transactionCenter,
+  launchpadCenter,
   assetCenter,
   supportCenter,
   webContent,
@@ -155,6 +157,14 @@ export default function AdminDashboardPage({
   onUpdateNotice,
   onUpdateNoticeStatus,
   onQuickPublishNotice,
+  onCreateLaunchpadLaunch,
+  onUpdateLaunchpadLaunch,
+  onUpdateLaunchpadLaunchStatus,
+  onSaveLaunchpadTiers,
+  onSaveLaunchpadSettings,
+  onListLaunchpadOrders,
+  onReleaseLaunchpadOrders,
+  onRunLaunchpadMarketSync,
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
@@ -206,6 +216,7 @@ export default function AdminDashboardPage({
         "lumCenter",
         "binaryCenter",
         "transactionCenter",
+        "launchpadCenter",
         "assetCenter",
         "supportCenter",
         "webContent",
@@ -223,6 +234,7 @@ export default function AdminDashboardPage({
       lumCenter: formatCompactNumber(lumCenter?.summary?.pendingInvestments || 0),
       binaryCenter: formatCompactNumber(binaryCenter?.summary?.pendingTrades || 0),
       transactionCenter: formatCompactNumber(transactionCenter?.summary?.pendingOrders || 0),
+      launchpadCenter: formatCompactNumber(launchpadCenter?.summary?.stats?.totalPendingOrders || 0),
       assetCenter: formatCompactNumber(dashboard?.approvals?.pendingWithdrawalRequests || 0),
       webContent: "",
       notifications: formatCompactNumber(noticeCenter?.stats?.active || 0),
@@ -240,6 +252,7 @@ export default function AdminDashboardPage({
       supportCenter?.summary?.pendingAdminTickets,
       lumCenter?.summary?.pendingInvestments,
       noticeCenter?.stats?.active,
+      launchpadCenter?.summary?.stats?.totalPendingOrders,
       transactionCenter?.summary?.pendingOrders,
       userDirectory?.stats?.pendingVerifications, 
     ],
@@ -295,6 +308,13 @@ export default function AdminDashboardPage({
         { label: "Open Spot", value: formatCompactNumber(transactionCenter?.summary?.openSpotOrders || 0) },
       ];
     }
+    if (activeSection === "launchpadCenter") {
+      return [
+        { label: "Total Launches", value: formatCompactNumber(launchpadCenter?.summary?.stats?.totalLaunches || 0) },
+        { label: "Live", value: formatCompactNumber(launchpadCenter?.summary?.stats?.live || 0) },
+        { label: "Pending Orders", value: formatCompactNumber(launchpadCenter?.summary?.stats?.totalPendingOrders || 0) },
+      ];
+    }
     if (activeSection === "assetCenter") {
       return [
         { label: "Wallet Rows", value: formatCompactNumber(assetCenter?.walletDesk?.pagination?.total || 0) },
@@ -347,6 +367,9 @@ export default function AdminDashboardPage({
     noticeCenter?.stats?.active,
     noticeCenter?.stats?.critical,
     noticeCenter?.stats?.total,
+    launchpadCenter?.summary?.stats?.totalLaunches,
+    launchpadCenter?.summary?.stats?.live,
+    launchpadCenter?.summary?.stats?.totalPendingOrders,
     transactionCenter?.summary?.openSpotOrders,
     transactionCenter?.summary?.totalConvertOrders,
     transactionCenter?.summary?.totalSpotOrders,
@@ -610,10 +633,12 @@ export default function AdminDashboardPage({
                       ? "Search assets, requests, users..."
                     : activeSection === "lumCenter"
                         ? "Search LUM plans or investments..."
-                      : activeSection === "binaryCenter"
+                    : activeSection === "binaryCenter"
                         ? "Search binary pairs, rules, trades..."
                       : activeSection === "transactionCenter"
                         ? "Search transaction pairs, orders, logs..."
+                      : activeSection === "launchpadCenter"
+                        ? "Search launchpad audit and management records..."
                       : activeSection === "assetCenter"
                         ? "Search wallets, withdrawals, transfers..."
                     : activeSection === "supportCenter"
@@ -778,6 +803,26 @@ export default function AdminDashboardPage({
             onSaveSpotFeedSettings={onSaveTransactionSpotFeedSettings}
           />
         ) : null}
+        {activeSection === "launchpadCenter" ? (
+          <LaunchpadManagementPage
+            summary={launchpadCenter?.summary || {}}
+            launches={Array.isArray(launchpadCenter?.launches) ? launchpadCenter.launches : []}
+            settings={launchpadCenter?.settings || {}}
+            audit={launchpadCenter?.audit || {}}
+            loading={loading}
+            searchValue={adminSearch}
+            onSearchChange={setAdminSearch}
+            onRefresh={onRefresh}
+            onCreateLaunch={onCreateLaunchpadLaunch}
+            onUpdateLaunch={onUpdateLaunchpadLaunch}
+            onUpdateLaunchStatus={onUpdateLaunchpadLaunchStatus}
+            onSaveTiers={onSaveLaunchpadTiers}
+            onSaveSettings={onSaveLaunchpadSettings}
+            onListOrders={onListLaunchpadOrders}
+            onReleaseOrders={onReleaseLaunchpadOrders}
+            onRunMarketSync={onRunLaunchpadMarketSync}
+          />
+        ) : null}
         {activeSection === "assetCenter" ? (
           <AssetManagementPage
             dashboardSummary={assetCenter?.dashboardSummary || {}}
@@ -855,6 +900,7 @@ export default function AdminDashboardPage({
         activeSection !== "lumCenter" &&
         activeSection !== "binaryCenter" &&
         activeSection !== "transactionCenter" &&
+        activeSection !== "launchpadCenter" &&
         activeSection !== "assetCenter" &&
         activeSection !== "supportCenter" &&
         activeSection !== "webContent" &&

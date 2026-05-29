@@ -19,7 +19,8 @@
   background: var(--prodash-bg);
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   color: var(--prodash-text);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .prodash-background-orb {
@@ -50,6 +51,7 @@
   position: relative;
   z-index: 1;
   max-width: 1240px;
+  width: 100%;
   margin: 0 auto;
   border-radius: 28px;
   border: 1px solid var(--prodash-border);
@@ -61,6 +63,7 @@
 
 .prodash-content-area {
   min-height: 320px;
+  min-width: 0;
 }
 
 .prodash-topbar {
@@ -169,6 +172,7 @@
   display: grid;
   grid-template-columns: 1.06fr 0.94fr;
   gap: 0.95rem;
+  min-width: 0;
 }
 
 .prodash-left-column,
@@ -176,6 +180,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  min-width: 0;
 }
 
 .prodash-wallet-card,
@@ -264,6 +269,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.6rem;
+  width: 100%;
 }
 
 .prodash-quick-item {
@@ -1401,7 +1407,7 @@ button.prodash-promo-card {
   }
 
   .prodash-quick-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .prodash-promo-dual {

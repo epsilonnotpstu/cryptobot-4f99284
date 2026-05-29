@@ -755,7 +755,7 @@ export default function BinaryPage({
                       </span>
                     </div>
                     <div className="binary-market-item-right">
-                      <strong>{formatPrice(pair.currentPrice, pair.pricePrecision)}</strong>
+                      <strong>{formatPrice(currentPrice, pair.pricePrecision)}</strong>
                       <em className={isPositive ? "is-up" : "is-down"}>{isPositive ? "+" : ""}{deltaPercent.toFixed(2)}%</em>
                     </div>
                   </button>

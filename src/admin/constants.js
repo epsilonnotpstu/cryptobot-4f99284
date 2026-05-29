@@ -11,6 +11,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "lumCenter", label: "LUM & Gold Mining", icon: "fa-layer-group" },
   { key: "binaryCenter", label: "Binary Management", icon: "fa-chart-simple" },
   { key: "transactionCenter", label: "Transaction Management", icon: "fa-right-left" },
+  { key: "launchpadCenter", label: "Launchpad Management", icon: "fa-rocket" },
   { key: "assetCenter", label: "Asset Management", icon: "fa-wallet" },
   { key: "supportCenter", label: "Support Management", icon: "fa-headset" },
   { key: "webContent", label: "Website Content", icon: "fa-globe" },
@@ -59,6 +60,11 @@ export const ADMIN_SECTION_META = {
     icon: "fa-right-left",
     title: "Transaction Management",
     description: "Manage convert and spot modules, market controls, and order operations in one desk.",
+  },
+  launchpadCenter: {
+    icon: "fa-rocket",
+    title: "Launchpad Management",
+    description: "Create and operate token launches, tiers, hype rules, allocation releases, and market sync controls.",
   },
   assetCenter: {
     icon: "fa-wallet",
