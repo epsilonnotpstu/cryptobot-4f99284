@@ -3821,7 +3821,7 @@ function MobileLoadingPage() {
   );
 }
 
-function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady, liveMarketAssets }) {
+function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   const authService = getAuthService();
   const [activeAppScreen, setActiveAppScreen] = useState("dashboard");
   const [dashboardEntryTab, setDashboardEntryTab] = useState("home");
@@ -4478,7 +4478,6 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady, liveMarketA
       return (
         <BinaryPage
           user={authSnapshot}
-          liveMarketAssets={liveMarketAssets}
           onBack={() => setActiveAppScreen("dashboard")}
           onLoadSummary={handleBinarySummary}
           onLoadPairs={handleBinaryPairs}
@@ -5212,7 +5211,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (route !== ROUTES.home && route !== ROUTES.app) {
+    if (route !== ROUTES.home) {
       return undefined;
     }
 
@@ -5391,7 +5390,6 @@ function App() {
         authSnapshot={authSnapshot}
         onAuthChanged={refreshAuthSnapshot}
         authReady={authReady}
-        liveMarketAssets={assets}
       />
     );
   }

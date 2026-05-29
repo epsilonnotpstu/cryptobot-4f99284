@@ -181,6 +181,19 @@ function randomWalkPrice(currentPrice) {
   return Math.max(0.00000001, next);
 }
 
+function randomWalkPriceAroundAnchor(currentPrice, anchorPrice = 0, maxSwingRatio = 0.0016) {
+  const current = Math.max(0.00000001, toNumber(currentPrice, 0));
+  const anchor = Math.max(0, toNumber(anchorPrice, 0));
+  const swing = Math.max(0.0002, toNumber(maxSwingRatio, 0.0016));
+  const drift = (Math.random() - 0.5) * swing;
+  let next = current * (1 + drift);
+  if (anchor > 0) {
+    // Keep internal ticks gently centered around the latest real metals API price.
+    next = next * 0.84 + anchor * 0.16;
+  }
+  return Math.max(0.00000001, next);
+}
+
 const BINANCE_PRICE_ENDPOINTS = [
   "https://api.binance.com/api/v3/ticker/price",
   "https://api1.binance.com/api/v3/ticker/price",
@@ -192,6 +205,11 @@ const BINANCE_FUTURES_PRICE_ENDPOINTS = [
   "https://fapi.binance.com/fapi/v1/ticker/price",
   "https://fapi1.binance.com/fapi/v1/ticker/price",
 ];
+
+const METALS_DEV_ENDPOINT = String(process.env.METALS_DEV_ENDPOINT || "https://api.metals.dev/v1/latest").trim();
+const METALS_DEV_API_KEY = String(process.env.METALS_DEV_API_KEY || "GEOCUXJRPTVBSR65VCKS15165VCKS").trim();
+const METALS_DEV_SYNC_INTERVAL_MS = 8 * 60 * 60 * 1000; // 3 calls/day
+const METALS_DEV_RETRY_INTERVAL_MS = 20 * 60 * 1000;
 
 const BINANCE_SYMBOL_ALIASES = {
   XAUUSDT: ["XAUTUSDT", "PAXGUSDT"],
@@ -210,6 +228,20 @@ function resolveTickerCandidates(symbol = "") {
   }
   const aliasCandidates = ensureArray(BINANCE_SYMBOL_ALIASES[normalized]).map((item) => normalizeTickerSymbol(item)).filter(Boolean);
   return [...new Set([normalized, ...aliasCandidates])];
+}
+
+function resolveMetalsDevKeyForSymbol(symbol = "") {
+  const normalized = normalizeTickerSymbol(symbol);
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.includes("XAG") || normalized.includes("SILVER")) {
+    return "silver";
+  }
+  if (normalized.includes("XAU") || normalized.includes("XAUT") || normalized.includes("PAXG")) {
+    return "gold";
+  }
+  return "";
 }
 
 function fetchJsonViaHttps(url, timeoutMs = 3800) {
@@ -1717,6 +1749,80 @@ export function createBinaryModule({
 
   let tickEngineTimer = null;
   let tickEngineInFlight = false;
+  let metalsDevLastSuccessAtMs = 0;
+  let metalsDevLastAttemptAtMs = 0;
+  let metalsDevSyncToken = 0;
+  const metalsDevPriceCache = new Map();
+  const metalsDevAppliedSyncTokenByPair = new Map();
+
+  function resolveMetalsDevKeyForPair(pair = {}) {
+    const byAsset = resolveMetalsDevKeyForSymbol(pair.baseAsset || "");
+    if (byAsset) {
+      return byAsset;
+    }
+    const bySource = resolveMetalsDevKeyForSymbol(pair.sourceSymbol || pair.pairCode || "");
+    if (bySource) {
+      return bySource;
+    }
+    return "";
+  }
+
+  function parseMetalsDevResponse(payload) {
+    const metals = payload && typeof payload === "object" ? payload.metals : null;
+    if (!metals || typeof metals !== "object") {
+      return null;
+    }
+    const gold = toNumber(metals.gold, 0);
+    const silver = toNumber(metals.silver, 0);
+    const next = new Map();
+    if (gold > 0) {
+      next.set("gold", gold);
+    }
+    if (silver > 0) {
+      next.set("silver", silver);
+    }
+    return next.size ? next : null;
+  }
+
+  async function fetchMetalsDevPriceMap() {
+    if (!METALS_DEV_API_KEY) {
+      return null;
+    }
+    const separator = METALS_DEV_ENDPOINT.includes("?") ? "&" : "?";
+    const url = `${METALS_DEV_ENDPOINT}${separator}api_key=${encodeURIComponent(METALS_DEV_API_KEY)}&currency=USD&unit=toz`;
+    const payload = await fetchJsonWithTimeout(url, 4200);
+    return parseMetalsDevResponse(payload);
+  }
+
+  async function syncMetalsDevCache({ force = false } = {}) {
+    if (!METALS_DEV_API_KEY) {
+      return false;
+    }
+    const nowMs = nowUnixMs();
+    if (!force) {
+      const hasRecentSuccess = metalsDevLastSuccessAtMs > 0 && nowMs - metalsDevLastSuccessAtMs < METALS_DEV_SYNC_INTERVAL_MS;
+      const hasRecentAttempt = metalsDevLastAttemptAtMs > 0 && nowMs - metalsDevLastAttemptAtMs < METALS_DEV_RETRY_INTERVAL_MS;
+      if (hasRecentSuccess || hasRecentAttempt) {
+        return false;
+      }
+    }
+    metalsDevLastAttemptAtMs = nowMs;
+    try {
+      const snapshot = await fetchMetalsDevPriceMap();
+      if (!snapshot) {
+        return false;
+      }
+      metalsDevPriceCache.clear();
+      for (const [key, value] of snapshot.entries()) {
+        metalsDevPriceCache.set(key, value);
+      }
+      metalsDevLastSuccessAtMs = nowUnixMs();
+      metalsDevSyncToken += 1;
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   async function applyInternalTicks() {
     const settings = mapEngineSettings();
@@ -1728,10 +1834,12 @@ export function createBinaryModule({
     const pairs = listEnabledPairsStatement.all().map((row) => mapPair(row)).filter(Boolean);
     const externalPairs = pairs.filter((pair) => pair.priceSourceType === "external_api");
     const internalPairs = pairs.filter((pair) => pair.priceSourceType !== "external_api");
-    const externalSymbols = externalPairs.map((pair) => normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode));
+    const metalExternalPairs = externalPairs.filter((pair) => Boolean(resolveMetalsDevKeyForPair(pair)));
+    const nonMetalExternalPairs = externalPairs.filter((pair) => !resolveMetalsDevKeyForPair(pair));
+    const externalSymbols = nonMetalExternalPairs.map((pair) => normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode));
     const externalPriceMap = await fetchExternalTickerMap(externalSymbols);
 
-    for (const pair of externalPairs) {
+    for (const pair of nonMetalExternalPairs) {
       const symbolKey = normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode);
       const previous = toNumber(pair?.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
       const externalPrice = toNumber(externalPriceMap.get(symbolKey), 0);
@@ -1751,6 +1859,35 @@ export function createBinaryModule({
         sourceType: externalPrice > 0 ? "external_api" : "internal_feed",
         createdAt: nowIso,
       });
+    }
+
+    await syncMetalsDevCache();
+    for (const pair of metalExternalPairs) {
+      const metalKey = resolveMetalsDevKeyForPair(pair);
+      const realPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+      const previous = toNumber(pair?.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
+      const appliedToken = Number(metalsDevAppliedSyncTokenByPair.get(pair.pairId) || 0);
+      const shouldApplyFreshReal = realPrice > 0 && metalsDevSyncToken > 0 && appliedToken !== metalsDevSyncToken;
+      const nextPrice = shouldApplyFreshReal ? realPrice : randomWalkPriceAroundAnchor(previous, realPrice, 0.0016);
+
+      updatePairPriceStatement.run({
+        id: pair.pairId,
+        previousPrice: previous,
+        currentPrice: nextPrice,
+        updatedAt: nowIso,
+      });
+
+      insertTickStatement.run({
+        pairId: pair.pairId,
+        price: nextPrice,
+        tickTime: nowIso,
+        sourceType: shouldApplyFreshReal ? "external_api" : "internal_feed",
+        createdAt: nowIso,
+      });
+
+      if (shouldApplyFreshReal) {
+        metalsDevAppliedSyncTokenByPair.set(pair.pairId, metalsDevSyncToken);
+      }
     }
 
     for (const pair of internalPairs) {
@@ -1783,11 +1920,36 @@ export function createBinaryModule({
     }
 
     const resolvedMap = new Map();
+    const metalSymbols = [];
+    const nonMetalSymbols = [];
+    for (const symbol of normalizedSymbols) {
+      if (resolveMetalsDevKeyForSymbol(symbol)) {
+        metalSymbols.push(symbol);
+      } else {
+        nonMetalSymbols.push(symbol);
+      }
+    }
+
+    if (metalSymbols.length) {
+      await syncMetalsDevCache();
+      for (const symbol of metalSymbols) {
+        const metalKey = resolveMetalsDevKeyForSymbol(symbol);
+        const metalPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+        if (metalPrice > 0) {
+          resolvedMap.set(symbol, metalPrice);
+        }
+      }
+    }
+
+    if (!nonMetalSymbols.length) {
+      return resolvedMap;
+    }
+
     const directPriceMap = new Map();
     const allPriceEndpoints = [...BINANCE_PRICE_ENDPOINTS, ...BINANCE_FUTURES_PRICE_ENDPOINTS];
     const symbolCandidates = new Map();
 
-    for (const symbol of normalizedSymbols) {
+    for (const symbol of nonMetalSymbols) {
       symbolCandidates.set(symbol, resolveTickerCandidates(symbol));
     }
 
@@ -1806,7 +1968,7 @@ export function createBinaryModule({
     };
 
     for (const endpoint of allPriceEndpoints) {
-      if (resolvedMap.size >= normalizedSymbols.length) {
+      if (nonMetalSymbols.every((symbol) => resolvedMap.has(symbol))) {
         break;
       }
       try {
@@ -1822,7 +1984,7 @@ export function createBinaryModule({
             directPriceMap.set(symbol, price);
           }
         }
-        for (const requestedSymbol of normalizedSymbols) {
+        for (const requestedSymbol of nonMetalSymbols) {
           if (!resolvedMap.has(requestedSymbol)) {
             assignResolvedPrice(requestedSymbol, directPriceMap);
           }
@@ -1832,11 +1994,11 @@ export function createBinaryModule({
       }
     }
 
-    if (resolvedMap.size >= normalizedSymbols.length) {
+    if (nonMetalSymbols.every((symbol) => resolvedMap.has(symbol))) {
       return resolvedMap;
     }
 
-    const unresolvedSymbols = normalizedSymbols.filter((symbol) => !resolvedMap.has(symbol));
+    const unresolvedSymbols = nonMetalSymbols.filter((symbol) => !resolvedMap.has(symbol));
     for (const symbol of unresolvedSymbols) {
       const candidates = symbolCandidates.get(symbol) || [symbol];
       for (const endpoint of allPriceEndpoints) {
@@ -1862,7 +2024,7 @@ export function createBinaryModule({
       }
     }
 
-    for (const symbol of normalizedSymbols) {
+    for (const symbol of nonMetalSymbols) {
       if (resolvedMap.has(symbol)) {
         continue;
       }
@@ -1939,11 +2101,13 @@ export function createBinaryModule({
 
     const externalPairs = pairs.filter((pair) => pair.priceSourceType === "external_api");
     const internalPairs = pairs.filter((pair) => pair.priceSourceType !== "external_api");
-    const symbols = externalPairs.map((pair) => normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode));
+    const metalExternalPairs = externalPairs.filter((pair) => Boolean(resolveMetalsDevKeyForPair(pair)));
+    const nonMetalExternalPairs = externalPairs.filter((pair) => !resolveMetalsDevKeyForPair(pair));
+    const symbols = nonMetalExternalPairs.map((pair) => normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode));
     const externalPriceMap = await fetchExternalTickerMap(symbols);
     const nowIso = toIso(getNow());
 
-    for (const pair of externalPairs) {
+    for (const pair of nonMetalExternalPairs) {
       const key = normalizeTickerSymbol(pair.sourceSymbol || pair.pairCode);
       const previous = toNumber(pair.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
       const resolvedExternal = toNumber(externalPriceMap.get(key), 0);
@@ -1963,6 +2127,35 @@ export function createBinaryModule({
         sourceType: resolvedExternal > 0 ? "external_api" : "internal_feed",
         createdAt: nowIso,
       });
+    }
+
+    await syncMetalsDevCache();
+    for (const pair of metalExternalPairs) {
+      const metalKey = resolveMetalsDevKeyForPair(pair);
+      const realPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+      const previous = toNumber(pair.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
+      const appliedToken = Number(metalsDevAppliedSyncTokenByPair.get(pair.pairId) || 0);
+      const shouldApplyFreshReal = realPrice > 0 && metalsDevSyncToken > 0 && appliedToken !== metalsDevSyncToken;
+      const nextPrice = shouldApplyFreshReal ? realPrice : randomWalkPriceAroundAnchor(previous, realPrice, 0.0016);
+
+      updatePairPriceStatement.run({
+        id: pair.pairId,
+        previousPrice: previous,
+        currentPrice: nextPrice,
+        updatedAt: nowIso,
+      });
+
+      insertTickStatement.run({
+        pairId: pair.pairId,
+        price: nextPrice,
+        tickTime: nowIso,
+        sourceType: shouldApplyFreshReal ? "external_api" : "internal_feed",
+        createdAt: nowIso,
+      });
+
+      if (shouldApplyFreshReal) {
+        metalsDevAppliedSyncTokenByPair.set(pair.pairId, metalsDevSyncToken);
+      }
     }
 
     for (const pair of internalPairs) {
