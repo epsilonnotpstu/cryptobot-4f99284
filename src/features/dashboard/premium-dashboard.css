@@ -2252,3 +2252,68 @@ button.prodash-promo-card {
     padding: 0.46rem;
   }
 }
+
+/* Final mobile hardening pass: prevent horizontal cut/overflow in dashboard */
+.prodash-page,
+.prodash-page *,
+.prodash-page *::before,
+.prodash-page *::after {
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .prodash-page {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
+  .prodash-shell,
+  .prodash-content-area,
+  .prodash-grid,
+  .prodash-left-column,
+  .prodash-right-column,
+  .prodash-topbar,
+  .prodash-brand-block,
+  .prodash-wallet-card,
+  .prodash-wallet-copy,
+  .prodash-market-card,
+  .prodash-panel-card,
+  .prodash-promos,
+  .prodash-promo-card,
+  .prodash-notice,
+  .prodash-notice p,
+  .prodash-page-notice,
+  .prodash-wallet-copy small {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .prodash-wallet-copy small,
+  .prodash-page-notice {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .prodash-notice {
+    align-items: flex-start;
+  }
+
+  .prodash-notice p {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .prodash-floating-nav {
+    left: 0;
+    right: 0;
+    transform: none;
+    margin: 0 auto;
+    width: calc(100% - 14px);
+    max-width: 100%;
+  }
+}
