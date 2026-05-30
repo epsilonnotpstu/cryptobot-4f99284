@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "532626530913",
+    "project_id": "cryptobot-492205",
+    "storage_bucket": "cryptobot-492205.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:532626530913:android:fa96f173ec96e591958020",
+        "android_client_info": {
+          "package_name": "com.rampxtrading.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "532626530913-4t1bg3r1fugdco071557jjncqs22j1qm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rampxtrading.app",
+            "certificate_hash": "aa04990b81d4642870b6717c4816faf74c9b75ac"
+          }
+        },
+        {
+          "client_id": "532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRxnMinvE6BD3STvyTXrEGecvm1eZbp_w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

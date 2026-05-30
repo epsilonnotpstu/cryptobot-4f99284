@@ -1,8 +1,19 @@
 {
-	"appId": "com.cryptobot.prime",
-	"appName": "CryptoBot Prime",
+	"appId": "com.rampxtrading.app",
+	"appName": "RampX Trading",
+	"appVersion": "1.0.0",
 	"webDir": "dist",
 	"bundledWebRuntime": false,
+	"plugins": {
+		"SocialLogin": {
+			"providers": {
+				"google": true,
+				"facebook": false,
+				"apple": false,
+				"twitter": false
+			}
+		}
+	},
 	"packageClassList": [
 		"AppPlugin",
 		"CAPBrowserPlugin"

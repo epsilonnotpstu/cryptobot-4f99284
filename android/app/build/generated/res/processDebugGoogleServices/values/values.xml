@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id" translatable="false">532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">532626530913</string>
+    <string name="google_api_key" translatable="false">AIzaSyDRxnMinvE6BD3STvyTXrEGecvm1eZbp_w</string>
+    <string name="google_app_id" translatable="false">1:532626530913:android:fa96f173ec96e591958020</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDRxnMinvE6BD3STvyTXrEGecvm1eZbp_w</string>
+    <string name="google_storage_bucket" translatable="false">cryptobot-492205.firebasestorage.app</string>
+    <string name="project_id" translatable="false">cryptobot-492205</string>
+</resources>

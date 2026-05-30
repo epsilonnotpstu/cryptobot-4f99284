@@ -180,7 +180,20 @@ export function createTransactionModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks = null,
 }) {
+  function safeNotify(hookName, payload) {
+    const hook = notificationHooks?.[hookName];
+    if (typeof hook !== "function") {
+      return;
+    }
+    try {
+      hook(payload);
+    } catch {
+      // Non-blocking by design: notification failure must not block transaction actions.
+    }
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS convert_pairs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3239,6 +3252,15 @@ export function createTransactionModule({
       }
 
       const result = createConvertOrderForUser({ req, pairRow, amount, note });
+      safeNotify("onConvertCompleted", {
+        order: result.order,
+        quote: result.quote,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
+      });
 
       res.json({
         message: "Conversion completed successfully.",
@@ -3379,6 +3401,16 @@ export function createTransactionModule({
         price,
         note,
       });
+      safeNotify("onSpotOrderPlaced", {
+        order: placed.order,
+        trade: placed.trade,
+        autoFilled: Boolean(placed.autoFilled),
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
+      });
 
       res.json({
         message: placed.autoFilled ? "Market order executed successfully." : "Order placed successfully.",
@@ -3452,6 +3484,14 @@ export function createTransactionModule({
       }
 
       const cancelled = cancelSpotOrder({ orderRow, cancelledBy: req.currentUser.userId, note: req.body?.note || "" });
+      safeNotify("onSpotOrderCancelled", {
+        order: cancelled,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
+      });
 
       res.json({
         message: "Order cancelled successfully.",

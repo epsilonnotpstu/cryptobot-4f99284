@@ -3995,6 +3995,14 @@ export function createAssetsModule({
         amountUsd: parseRequestValue(req, "amountUsd", 0),
         note: parseRequestValue(req, "note", ""),
       });
+      safeNotify("onTransferCompleted", {
+        transfer: result.transfer,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
+      });
 
       res.json({
         message: "Transfer completed successfully.",
@@ -4049,6 +4057,15 @@ export function createAssetsModule({
         toAssetSymbol,
         amount,
         note: parseRequestValue(req, "note", ""),
+      });
+      safeNotify("onConversionCompleted", {
+        conversion: result.conversion,
+        quote: result.quote,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
       });
 
       res.json({

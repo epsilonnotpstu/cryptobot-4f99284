@@ -3,6 +3,9 @@ import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { CapacitorHttp } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import { PushNotifications } from "@capacitor/push-notifications";
+import { StatusBar, Style as StatusBarStyle } from "@capacitor/status-bar";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import PremiumDashboardPage from "./features/dashboard/PremiumDashboardPage";
 import DepositPage from "./features/dashboard/DepositPage";
@@ -72,7 +75,17 @@ const AUTH_STORAGE_KEYS = {
   webGoogleBridgeState: "cryptobot2_web_google_bridge_state",
   transientError: "cryptobot2_auth_transient_error",
   transientNotice: "cryptobot2_auth_transient_notice",
+  launchPopupSeenMap: "cryptobot2_launch_popup_seen_map",
+  notificationLocalDeliveredMap: "cryptobot2_notification_local_delivered_map",
 };
+
+const NATIVE_STATUS_BAR_COLOR = "#071827";
+const NOTIFICATION_POLL_INTERVAL_MS = 25000;
+const DOUBLE_BACK_EXIT_WINDOW_MS = 2000;
+const NOTIFICATION_CHANNEL_ID = "rampx-alerts";
+// Kept disabled by default for now. Re-enable when in-app notification center UI is needed again.
+const ENABLE_NATIVE_NOTIFICATION_OVERLAY_UI = false;
+const ENABLE_NATIVE_LAUNCH_SPLASH = false;
 
 const AUTH_REQUEST_TIMEOUT_MS = 20000;
 const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
@@ -85,7 +98,7 @@ const GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS = sanitizeEnvValue(
   import.meta.env.VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS || "",
 );
 const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
-  import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "cryptobotprime://auth-callback",
+  import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "rampxtrading://auth-callback",
 );
 
 const initialAssets = [
@@ -776,6 +789,201 @@ function goToRoute(route) {
   window.location.hash = normalizeRouteForRuntime(route);
 }
 
+function applyNativeRuntimeClass() {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const root = document.documentElement;
+  const body = document.body;
+  const shouldApply = isNativeAppRuntime();
+  root.classList.toggle("native-app", shouldApply);
+  if (body) {
+    body.classList.toggle("native-app", shouldApply);
+  }
+}
+
+async function configureNativeStatusBar() {
+  if (!isNativeAppRuntime()) {
+    return;
+  }
+  try {
+    await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.setBackgroundColor({ color: NATIVE_STATUS_BAR_COLOR });
+    await StatusBar.setStyle({ style: StatusBarStyle.Light });
+  } catch {
+    // Ignore native status bar setup failures.
+  }
+}
+
+function normalizeNotificationDeepLink(deepLink = null) {
+  let payload = deepLink && typeof deepLink === "object" ? deepLink : {};
+  if (typeof deepLink === "string") {
+    try {
+      const parsed = JSON.parse(deepLink);
+      if (parsed && typeof parsed === "object") {
+        payload = parsed;
+      }
+    } catch {
+      payload = {};
+    }
+  }
+  const screen = String(payload.screen || "dashboard").trim().toLowerCase();
+  const tab = String(payload.tab || "").trim().toLowerCase();
+  const entityId = String(payload.entityId || payload.entity_id || "").trim();
+  return { screen, tab, entityId };
+}
+
+function mapDeepLinkToTarget(deepLink = null) {
+  const normalized = normalizeNotificationDeepLink(deepLink);
+  const screen = normalized.screen;
+  if (!screen || screen === "dashboard" || screen === "home") {
+    return { screen: "dashboard", tab: normalized.tab || "home" };
+  }
+  if (["deposit", "assets", "transaction", "binary", "lum", "goldmining", "gold_mining", "launchpad"].includes(screen)) {
+    return {
+      screen: screen === "gold_mining" ? "goldMining" : screen,
+      tab: normalized.tab,
+      entityId: normalized.entityId,
+    };
+  }
+  if (screen === "kyc") {
+    return { screen: "dashboard", tab: "profile", entityId: normalized.entityId };
+  }
+  if (screen === "support" || screen === "live_chat" || screen === "chat") {
+    return { screen: "dashboard", tab: "support", entityId: normalized.entityId };
+  }
+  if (screen === "notice" || screen === "notices") {
+    return { screen: "dashboard", tab: "home", entityId: normalized.entityId };
+  }
+  return { screen: "dashboard", tab: "home", entityId: normalized.entityId };
+}
+
+function readLaunchPopupSeenMap() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEYS.launchPopupSeenMap) || "{}";
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function markLaunchPopupSeen(dedupeKey = "") {
+  if (typeof window === "undefined" || !dedupeKey) {
+    return;
+  }
+  const next = readLaunchPopupSeenMap();
+  next[dedupeKey] = new Date().toISOString();
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.launchPopupSeenMap, JSON.stringify(next));
+}
+
+function hasLaunchPopupBeenSeen(dedupeKey = "") {
+  if (!dedupeKey) {
+    return false;
+  }
+  const existing = readLaunchPopupSeenMap();
+  return Boolean(existing[dedupeKey]);
+}
+
+function readLocalDeliveredNotificationMap() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEYS.notificationLocalDeliveredMap) || "{}";
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function markLocalNotificationDelivered(fingerprint = "") {
+  if (typeof window === "undefined" || !fingerprint) {
+    return;
+  }
+  const next = readLocalDeliveredNotificationMap();
+  next[fingerprint] = new Date().toISOString();
+  const keys = Object.keys(next);
+  if (keys.length > 250) {
+    keys
+      .slice(0, keys.length - 250)
+      .forEach((key) => {
+        delete next[key];
+      });
+  }
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.notificationLocalDeliveredMap, JSON.stringify(next));
+}
+
+function hasLocalNotificationDelivered(fingerprint = "") {
+  if (!fingerprint) {
+    return false;
+  }
+  const delivered = readLocalDeliveredNotificationMap();
+  return Boolean(delivered[fingerprint]);
+}
+
+function buildNotificationFingerprint(item = null) {
+  if (!item || typeof item !== "object") {
+    return "";
+  }
+  if (item.notificationId) {
+    return `id:${String(item.notificationId)}`;
+  }
+  if (item.dedupeKey) {
+    return `dedupe:${String(item.dedupeKey)}`;
+  }
+  const title = String(item.title || "").trim();
+  const body = String(item.body || "").trim();
+  const createdAt = String(item.createdAt || "").trim();
+  if (title || body || createdAt) {
+    return `fallback:${title}|${body}|${createdAt}`;
+  }
+  return "";
+}
+
+function closeOpenNativeOverlayIfAny() {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const selectors = [
+    ".supportchat-overlay",
+    ".assetspage-modal-overlay",
+    ".binary-pair-panel",
+    ".launchpad-list-panel .launchpad-launch-item.is-selected + *",
+    ".prodash-chat-overlay",
+    ".prodash-modal-overlay",
+  ];
+
+  for (const selector of selectors) {
+    const node = document.querySelector(selector);
+    if (!node) {
+      continue;
+    }
+    if (selector === ".binary-pair-panel") {
+      const trigger = document.querySelector(".binary-pair-trigger");
+      if (trigger instanceof HTMLElement) {
+        trigger.click();
+        return true;
+      }
+    }
+    if (node instanceof HTMLElement) {
+      node.click();
+      return true;
+    }
+  }
+  return false;
+}
+
 function readAuthSnapshot() {
   if (typeof window === "undefined") {
     return {
@@ -1435,6 +1643,10 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken, timeo
             storeApiBase(apiBase);
             return nativeData;
           } catch (nativeHttpError) {
+            const nativeMessage = String(nativeHttpError?.message || "");
+            if (nativeMessage && !/unable to resolve host|failed to connect|network|timeout|timed out|abort/i.test(nativeMessage)) {
+              throw new Error(normalizeAuthErrorMessage(nativeMessage));
+            }
             lastNetworkError = nativeHttpError;
             continue;
           }
@@ -1447,6 +1659,10 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken, timeo
   }
 
   if (lastNetworkError) {
+    const networkMessage = String(lastNetworkError?.message || "");
+    if (networkMessage && !/typeerror|failed to fetch/i.test(networkMessage)) {
+      throw new Error(normalizeAuthErrorMessage(networkMessage));
+    }
     if (lastNetworkError?.name === "AbortError") {
       throw new Error(
         "Request timed out. Check backend server health and API URL.",
@@ -2063,6 +2279,34 @@ const remoteAuthService = {
         attachmentMimeType,
         attachmentSizeBytes,
       },
+    });
+  },
+  async registerNotificationDevice({ sessionToken, token, platform = "android", deviceId = "" }) {
+    return this.requestGatewayAction({
+      action: "notification.device.register",
+      sessionToken,
+      payload: { token, platform, deviceId },
+    });
+  },
+  async getNotificationInbox({ sessionToken, page = 1, limit = 30, unreadOnly = false }) {
+    return this.requestGatewayAction({
+      action: "notification.inbox.list",
+      sessionToken,
+      payload: { page, limit, unreadOnly },
+    });
+  },
+  async markNotificationRead({ sessionToken, notificationId }) {
+    return this.requestGatewayAction({
+      action: "notification.read",
+      sessionToken,
+      payload: { notificationId },
+    });
+  },
+  async markAllNotificationsRead({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "notification.read-all",
+      sessionToken,
+      payload: {},
     });
   },
   async getHomeContent() {
@@ -3249,7 +3493,7 @@ function useAuthFlow({ initialView, authSnapshot, onAuthenticated }) {
     }
 
     if (!hasValidNativeCallbackUrl()) {
-      setError("VITE_NATIVE_AUTH_CALLBACK_URL invalid. Example: cryptobotprime://auth-callback");
+      setError("VITE_NATIVE_AUTH_CALLBACK_URL invalid. Example: rampxtrading://auth-callback");
       return;
     }
 
@@ -4004,11 +4248,385 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   const authService = getAuthService();
   const [activeAppScreen, setActiveAppScreen] = useState("dashboard");
   const [dashboardEntryTab, setDashboardEntryTab] = useState("home");
+  const [screenHistory, setScreenHistory] = useState([]);
+  const [inboxRows, setInboxRows] = useState([]);
+  const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [launchPopup, setLaunchPopup] = useState(null);
+  const [nativeNotice, setNativeNotice] = useState("");
+  const [lastBackPressedAt, setLastBackPressedAt] = useState(0);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const previousScreenRef = useRef("dashboard");
+  const notificationBaselineReadyRef = useRef(false);
+
+  const navigateToScreen = (nextScreen, options = {}) => {
+    const targetScreen = String(nextScreen || "dashboard");
+    const withHistory = options.withHistory !== false;
+    const nextDashboardTab = String(options.dashboardTab || "").trim().toLowerCase();
+    if (nextDashboardTab) {
+      setDashboardEntryTab(nextDashboardTab);
+    }
+    if (withHistory && targetScreen !== activeAppScreen) {
+      setScreenHistory((prev) => [...prev.slice(-20), activeAppScreen]);
+    }
+    setActiveAppScreen(targetScreen);
+  };
+
+  const handleNotificationNavigate = (item) => {
+    const target = mapDeepLinkToTarget(item?.deepLink || item?.payload?.deepLink || {});
+    if (target.tab) {
+      setDashboardEntryTab(target.tab);
+    }
+    navigateToScreen(target.screen || "dashboard", { withHistory: true });
+    setInboxOpen(false);
+  };
+
+  const buildLocalNotificationId = (item = null) => {
+    const rawId = Number(item?.notificationId || 0);
+    if (Number.isInteger(rawId) && rawId > 0) {
+      return (rawId % 2147483000) + 1;
+    }
+    return (Date.now() % 2147483000) + 1;
+  };
+
+  const scheduleLocalNotification = async (item = null) => {
+    if (!isNativeAppRuntime() || !item) {
+      return;
+    }
+    const fingerprint = buildNotificationFingerprint(item);
+    if (!fingerprint || hasLocalNotificationDelivered(fingerprint)) {
+      return;
+    }
+    const title = String(item.title || "RampX Trading").trim() || "RampX Trading";
+    const body = String(item.body || "").trim();
+    const deepLink = normalizeNotificationDeepLink(item.deepLink || item?.payload?.deepLink || {});
+    const payload = item.payload && typeof item.payload === "object" ? item.payload : {};
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: buildLocalNotificationId(item),
+            title,
+            body,
+            channelId: NOTIFICATION_CHANNEL_ID,
+            extra: {
+              notificationId: String(item.notificationId || ""),
+              dedupeKey: String(item.dedupeKey || ""),
+              deepLink: JSON.stringify(deepLink),
+              payload: JSON.stringify(payload),
+            },
+          },
+        ],
+      });
+      markLocalNotificationDelivered(fingerprint);
+    } catch {
+      // Ignore local notification scheduling failures.
+    }
+  };
+
+  const parseNotificationExtras = (raw = null) => {
+    const extra = raw && typeof raw === "object" ? raw : {};
+    let deepLink = extra.deepLink || {};
+    if (typeof deepLink === "string") {
+      try {
+        deepLink = JSON.parse(deepLink);
+      } catch {
+        deepLink = {};
+      }
+    }
+    return {
+      notificationId: extra.notificationId ? Number(extra.notificationId) : 0,
+      dedupeKey: String(extra.dedupeKey || ""),
+      deepLink: normalizeNotificationDeepLink(deepLink),
+    };
+  };
+
+  const refreshNotificationInbox = async ({ unreadOnly = false } = {}) => {
+    if (!authSnapshot?.sessionToken || !authSnapshot?.isLoggedIn) {
+      return;
+    }
+    setNotificationLoading(true);
+    try {
+      const data = await authService.getNotificationInbox({
+        sessionToken: authSnapshot.sessionToken,
+        page: 1,
+        limit: 40,
+        unreadOnly,
+      });
+      const rows = Array.isArray(data?.items) ? data.items : [];
+      setInboxRows(rows);
+      setInboxUnreadCount(Number(data?.unreadCount || 0));
+      const launchItem = rows.find((row) => {
+        const kind = String(row?.type || "").toLowerCase();
+        return kind.includes("launch");
+      });
+      if (ENABLE_NATIVE_LAUNCH_SPLASH && launchItem?.dedupeKey && !hasLaunchPopupBeenSeen(launchItem.dedupeKey)) {
+        setLaunchPopup(launchItem);
+      }
+      if (isNativeAppRuntime()) {
+        if (!notificationBaselineReadyRef.current) {
+          rows.forEach((row) => {
+            const fingerprint = buildNotificationFingerprint(row);
+            if (fingerprint) {
+              markLocalNotificationDelivered(fingerprint);
+            }
+          });
+          notificationBaselineReadyRef.current = true;
+        } else {
+          for (const row of rows) {
+            if (row?.readAt) {
+              continue;
+            }
+            await scheduleLocalNotification(row);
+          }
+        }
+      }
+    } catch {
+      // Ignore notification polling errors to avoid impacting app flows.
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    if (!notificationId || !authSnapshot?.sessionToken) {
+      return;
+    }
+    try {
+      await authService.markNotificationRead({
+        sessionToken: authSnapshot.sessionToken,
+        notificationId,
+      });
+      await refreshNotificationInbox();
+    } catch {
+      // Ignore read acknowledgement failures.
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!authSnapshot?.sessionToken) {
+      return;
+    }
+    try {
+      await authService.markAllNotificationsRead({
+        sessionToken: authSnapshot.sessionToken,
+      });
+      await refreshNotificationInbox();
+    } catch {
+      // Ignore read-all failures.
+    }
+  };
 
   useEffect(() => {
     setActiveAppScreen("dashboard");
     setDashboardEntryTab("home");
+    setScreenHistory([]);
+    setInboxRows([]);
+    setInboxUnreadCount(0);
+    setInboxOpen(false);
+    setLaunchPopup(null);
+    notificationBaselineReadyRef.current = false;
   }, [authSnapshot.sessionToken, authSnapshot.userId]);
+
+  useEffect(() => {
+    previousScreenRef.current = activeAppScreen;
+  }, [activeAppScreen]);
+
+  useEffect(() => {
+    if (!isNativeAppRuntime()) {
+      return undefined;
+    }
+    const pollingInterval = window.setInterval(() => {
+      void refreshNotificationInbox();
+    }, NOTIFICATION_POLL_INTERVAL_MS);
+    void refreshNotificationInbox();
+    return () => window.clearInterval(pollingInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSnapshot.sessionToken, authSnapshot.userId, authSnapshot.isLoggedIn]);
+
+  useEffect(() => {
+    if (!isNativeAppRuntime() || !authSnapshot?.sessionToken || !authSnapshot?.isLoggedIn) {
+      return undefined;
+    }
+
+    let isActive = true;
+    let registrationToken = "";
+
+    const setupPush = async () => {
+      try {
+        const permission = await PushNotifications.requestPermissions();
+        if (!isActive || permission.receive !== "granted") {
+          return;
+        }
+        await LocalNotifications.requestPermissions().catch(() => ({}));
+        if (isNativeAndroidRuntime()) {
+          await PushNotifications.createChannel({
+            id: NOTIFICATION_CHANNEL_ID,
+            name: "RampX Alerts",
+            description: "Account and trading alerts",
+            importance: 5,
+            visibility: 1,
+            sound: "default",
+          }).catch(() => {});
+          await LocalNotifications.createChannel({
+            id: NOTIFICATION_CHANNEL_ID,
+            name: "RampX Alerts",
+            description: "Account and trading alerts",
+            importance: 5,
+            visibility: 1,
+            sound: "default",
+          }).catch(() => {});
+        }
+        await PushNotifications.register();
+      } catch {
+        // Keep polling fallback even if push permission/registration fails.
+      }
+    };
+
+    const registrationListener = PushNotifications.addListener("registration", ({ value }) => {
+      if (!isActive || !value) {
+        return;
+      }
+      registrationToken = String(value || "");
+      void authService
+        .registerNotificationDevice({
+          sessionToken: authSnapshot.sessionToken,
+          token: registrationToken,
+          platform: isNativeAndroidRuntime() ? "android" : "native",
+          deviceId: authSnapshot.userId || "",
+        })
+        .then((result) => {
+          if (!result?.pushConfig?.configured) {
+            setNativeNotice("Push credential missing on backend. Inbox works, status-bar push may not arrive.");
+            window.setTimeout(() => {
+              setNativeNotice("");
+            }, 3500);
+          }
+        })
+        .catch(() => {});
+    });
+
+    const registrationErrorListener = PushNotifications.addListener("registrationError", () => {
+      // Polling remains active as safe fallback.
+    });
+
+    const receiveListener = PushNotifications.addListener("pushNotificationReceived", (event) => {
+      const data = event?.data || event?.notification?.data || {};
+      void scheduleLocalNotification({
+        notificationId: data?.notificationId || data?.id || 0,
+        dedupeKey: data?.dedupeKey || "",
+        title: event?.title || data?.title || "RampX Trading",
+        body: event?.body || data?.body || "",
+        deepLink: data?.deepLink || data,
+        payload: data?.payload || {},
+      });
+      void refreshNotificationInbox();
+    });
+
+    const actionListener = PushNotifications.addListener("pushNotificationActionPerformed", (event) => {
+      const data = event?.notification?.data || {};
+      const target = mapDeepLinkToTarget(data?.deepLink || data);
+      if (target.tab) {
+        setDashboardEntryTab(target.tab);
+      }
+      navigateToScreen(target.screen || "dashboard", { withHistory: true });
+      if (data?.notificationId) {
+        void markNotificationRead(data.notificationId);
+      } else {
+        void refreshNotificationInbox();
+      }
+    });
+
+    const localActionListener = LocalNotifications.addListener("localNotificationActionPerformed", (event) => {
+      const parsed = parseNotificationExtras(event?.notification?.extra || {});
+      const target = mapDeepLinkToTarget(parsed.deepLink || {});
+      if (target.tab) {
+        setDashboardEntryTab(target.tab);
+      }
+      navigateToScreen(target.screen || "dashboard", { withHistory: true });
+      if (parsed.notificationId) {
+        void markNotificationRead(parsed.notificationId);
+      } else {
+        void refreshNotificationInbox();
+      }
+    });
+
+    void setupPush();
+    return () => {
+      isActive = false;
+      Promise.all([
+        registrationListener.then((listener) => listener.remove()),
+        registrationErrorListener.then((listener) => listener.remove()),
+        receiveListener.then((listener) => listener.remove()),
+        actionListener.then((listener) => listener.remove()),
+        localActionListener.then((listener) => listener.remove()),
+      ]).catch(() => {});
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSnapshot.sessionToken, authSnapshot.userId, authSnapshot.isLoggedIn]);
+
+  useEffect(() => {
+    if (!isNativeAndroidRuntime()) {
+      return undefined;
+    }
+    let active = true;
+    const listenerPromise = CapacitorApp.addListener("backButton", async () => {
+      if (!active) {
+        return;
+      }
+      if (inboxOpen) {
+        setInboxOpen(false);
+        return;
+      }
+      if (launchPopup) {
+        markLaunchPopupSeen(launchPopup.dedupeKey || "");
+        setLaunchPopup(null);
+        return;
+      }
+      if (closeOpenNativeOverlayIfAny()) {
+        return;
+      }
+
+      if (screenHistory.length > 0) {
+        const previous = screenHistory[screenHistory.length - 1];
+        setScreenHistory((prev) => prev.slice(0, -1));
+        setActiveAppScreen(previous || "dashboard");
+        return;
+      }
+
+      const isDashboardRoot = activeAppScreen === "dashboard" && dashboardEntryTab === "home";
+      if (!isDashboardRoot) {
+        setDashboardEntryTab("home");
+        setActiveAppScreen("dashboard");
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastBackPressedAt < DOUBLE_BACK_EXIT_WINDOW_MS) {
+        try {
+          await CapacitorApp.minimizeApp();
+        } catch {
+          try {
+            await CapacitorApp.exitApp();
+          } catch {
+            // Ignore exit errors.
+          }
+        }
+        return;
+      }
+
+      setLastBackPressedAt(now);
+      setNativeNotice("Press back again to exit app");
+      window.setTimeout(() => {
+        setNativeNotice("");
+      }, DOUBLE_BACK_EXIT_WINDOW_MS);
+    });
+
+    return () => {
+      active = false;
+      listenerPromise.then((listener) => listener.remove());
+    };
+  }, [activeAppScreen, dashboardEntryTab, screenHistory, inboxOpen, launchPopup, lastBackPressedAt]);
 
   const handleLogout = async () => {
     await authService.logout({ sessionToken: authSnapshot.sessionToken });
@@ -4564,16 +5182,108 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const renderMobileContentWithNativeOverlay = (content) => {
+    if (!isNativeAppRuntime() || !authSnapshot?.isLoggedIn) {
+      return content;
+    }
+    return (
+      <>
+        {content}
+        {ENABLE_NATIVE_NOTIFICATION_OVERLAY_UI ? (
+          <button
+            type="button"
+            className="native-notification-fab"
+            onClick={() => {
+              setInboxOpen((open) => !open);
+              if (!inboxOpen) {
+                void refreshNotificationInbox();
+              }
+            }}
+            aria-label="Open notifications"
+          >
+            <i className="fas fa-bell" />
+            {inboxUnreadCount > 0 ? <span>{inboxUnreadCount > 99 ? "99+" : inboxUnreadCount}</span> : null}
+          </button>
+        ) : null}
+        {ENABLE_NATIVE_NOTIFICATION_OVERLAY_UI && inboxOpen ? (
+          <aside className="native-notification-center" role="dialog" aria-label="Notification Center">
+            <header>
+              <strong>Notifications</strong>
+              <div>
+                <button type="button" onClick={() => void markAllNotificationsRead()}>Read all</button>
+                <button type="button" onClick={() => setInboxOpen(false)}>Close</button>
+              </div>
+            </header>
+            <div className="native-notification-list">
+              {notificationLoading ? <p className="native-notification-empty">Loading...</p> : null}
+              {!notificationLoading && !inboxRows.length ? (
+                <p className="native-notification-empty">No notifications yet.</p>
+              ) : null}
+              {inboxRows.map((item) => (
+                <button
+                  type="button"
+                  key={item.notificationId || `${item.createdAt}-${item.title}`}
+                  className={`native-notification-item ${item.readAt ? "is-read" : "is-unread"}`}
+                  onClick={() => {
+                    if (item.notificationId) {
+                      void markNotificationRead(item.notificationId);
+                    }
+                    handleNotificationNavigate(item);
+                  }}
+                >
+                  <p>{item.title || "Notification"}</p>
+                  <small>{item.body || ""}</small>
+                </button>
+              ))}
+            </div>
+          </aside>
+        ) : null}
+        {ENABLE_NATIVE_LAUNCH_SPLASH && launchPopup ? (
+          <div className="native-launch-popup-overlay">
+            <section className="native-launch-popup">
+              <p className="native-launch-popup-tag">New Launch</p>
+              <h3>{launchPopup.title || "New coin launch is now live"}</h3>
+              <p>{launchPopup.body || "Tap below to open launchpad."}</p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    markLaunchPopupSeen(launchPopup.dedupeKey || "");
+                    setLaunchPopup(null);
+                  }}
+                >
+                  Later
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const item = launchPopup;
+                    markLaunchPopupSeen(item.dedupeKey || "");
+                    setLaunchPopup(null);
+                    handleNotificationNavigate(item);
+                  }}
+                >
+                  Open
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+        {nativeNotice ? <div className="native-back-hint">{nativeNotice}</div> : null}
+      </>
+    );
+  };
+
   if (!authReady) {
     return <MobileLoadingPage />;
   }
 
   if (authSnapshot.hasAccount && authSnapshot.isLoggedIn) {
     if (activeAppScreen === "launchpad") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <LaunchpadPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
           onCatalog={handleLaunchpadCatalog}
           onDetail={handleLaunchpadDetail}
           onWatchlistToggle={handleLaunchpadWatchlistToggle}
@@ -4584,25 +5294,25 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onCountdown={handleLaunchpadCountdown}
           onNavigateTrade={(target) => {
             if (target === "binary") {
-              setActiveAppScreen("binary");
+              navigateToScreen("binary");
               return;
             }
-            setActiveAppScreen("transaction");
+            navigateToScreen("transaction");
           }}
         />
       );
     }
 
     if (activeAppScreen === "deposit") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <DepositPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
           onDashboardSnapshot={handleDashboardSnapshot}
           onCreateDepositRequest={handleCreateDepositRequest}
           onDepositRecords={handleDepositRecords}
           onAfterDepositSuccess={async () => {
-            setActiveAppScreen("dashboard");
+            navigateToScreen("dashboard");
             await onAuthChanged();
           }}
         />
@@ -4610,10 +5320,10 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     }
 
     if (activeAppScreen === "lum") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <LUMPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
           onDashboardSnapshot={handleDashboardSnapshot}
           onLoadAssetsWallets={handleAssetsWallets}
           onLoadSummary={handleLumSummary}
@@ -4630,10 +5340,10 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     }
 
     if (activeAppScreen === "goldMining") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <LUMPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
           onDashboardSnapshot={handleDashboardSnapshot}
           onLoadAssetsWallets={handleAssetsWallets}
           onLoadSummary={handleLumSummary}
@@ -4654,10 +5364,10 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     }
 
     if (activeAppScreen === "binary") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <BinaryPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
           onLoadSummary={handleBinarySummary}
           onLoadPairs={handleBinaryPairs}
           onLoadConfig={handleBinaryConfig}
@@ -4669,29 +5379,28 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onSettleTrade={handleSettleBinaryTrade}
           onNavigateTab={(tabId) => {
             if (tabId === "binary") {
-              setActiveAppScreen("binary");
+              navigateToScreen("binary", { withHistory: false });
               return;
             }
             if (tabId === "transaction") {
-              setActiveAppScreen("transaction");
+              navigateToScreen("transaction");
               return;
             }
             if (tabId === "assets") {
-              setActiveAppScreen("assets");
+              navigateToScreen("assets");
               return;
             }
-            setDashboardEntryTab(tabId);
-            setActiveAppScreen("dashboard");
+            navigateToScreen("dashboard", { dashboardTab: tabId });
           }}
         />
       );
     }
 
     if (activeAppScreen === "transaction") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <TransactionPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
           onLoadConvertPairs={handleTransactionConvertPairs}
           onConvertQuote={handleTransactionConvertQuote}
           onConvertSubmit={handleTransactionConvertSubmit}
@@ -4707,30 +5416,29 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onLoadOrderbook={handleTransactionSpotOrderbook}
           onNavigateTab={(tabId) => {
             if (tabId === "transaction") {
-              setActiveAppScreen("transaction");
+              navigateToScreen("transaction", { withHistory: false });
               return;
             }
             if (tabId === "binary") {
-              setActiveAppScreen("binary");
+              navigateToScreen("binary");
               return;
             }
             if (tabId === "assets") {
-              setActiveAppScreen("assets");
+              navigateToScreen("assets");
               return;
             }
-            setDashboardEntryTab(tabId);
-            setActiveAppScreen("dashboard");
+            navigateToScreen("dashboard", { dashboardTab: tabId });
           }}
         />
       );
     }
 
     if (activeAppScreen === "assets") {
-      return (
+      return renderMobileContentWithNativeOverlay(
         <AssetsPage
           user={authSnapshot}
-          onBack={() => setActiveAppScreen("dashboard")}
-          onOpenDepositPage={() => setActiveAppScreen("deposit")}
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
+          onOpenDepositPage={() => navigateToScreen("deposit")}
           onLoadSummary={handleAssetsSummary}
           onLoadWallets={handleAssetsWallets}
           onLoadHistory={handleAssetsHistory}
@@ -4744,25 +5452,24 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onLoadConversions={handleAssetsConversions}
           onNavigateTab={(tabId) => {
             if (tabId === "assets") {
-              setActiveAppScreen("assets");
+              navigateToScreen("assets", { withHistory: false });
               return;
             }
             if (tabId === "transaction") {
-              setActiveAppScreen("transaction");
+              navigateToScreen("transaction");
               return;
             }
             if (tabId === "binary") {
-              setActiveAppScreen("binary");
+              navigateToScreen("binary");
               return;
             }
-            setDashboardEntryTab(tabId);
-            setActiveAppScreen("dashboard");
+            navigateToScreen("dashboard", { dashboardTab: tabId });
           }}
         />
       );
     }
 
-    return (
+    return renderMobileContentWithNativeOverlay(
       <PremiumDashboardPage
         user={authSnapshot}
         entryMainTab={dashboardEntryTab}
@@ -4773,13 +5480,13 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onKycRefresh={handleKycRefresh}
         onDashboardSnapshot={handleDashboardSnapshot}
         onDismissNotice={handleDismissNotice}
-        onOpenDepositPage={() => setActiveAppScreen("deposit")}
-        onOpenLumPage={() => setActiveAppScreen("lum")}
-        onOpenGoldMiningPage={() => setActiveAppScreen("goldMining")}
-        onOpenBinaryPage={() => setActiveAppScreen("binary")}
-        onOpenTransactionPage={() => setActiveAppScreen("transaction")}
-        onOpenAssetsPage={() => setActiveAppScreen("assets")}
-        onOpenLaunchpadPage={() => setActiveAppScreen("launchpad")}
+        onOpenDepositPage={() => navigateToScreen("deposit")}
+        onOpenLumPage={() => navigateToScreen("lum")}
+        onOpenGoldMiningPage={() => navigateToScreen("goldMining")}
+        onOpenBinaryPage={() => navigateToScreen("binary")}
+        onOpenTransactionPage={() => navigateToScreen("transaction")}
+        onOpenAssetsPage={() => navigateToScreen("assets")}
+        onOpenLaunchpadPage={() => navigateToScreen("launchpad")}
         onCreateDepositRequest={handleCreateDepositRequest}
         onDepositRecords={handleDepositRecords}
         onLoadSupportTickets={handleSupportTicketsList}
@@ -5253,6 +5960,11 @@ function App() {
   const [activeFaq, setActiveFaq] = useState(0);
   const [stats, setStats] = useState({ volume: 0, users: 0, uptime: 0 });
   const canvasRef = useRef(null);
+
+  useEffect(() => {
+    applyNativeRuntimeClass();
+    void configureNativeStatusBar();
+  }, []);
 
   useEffect(() => {
     const onHashChange = () => {

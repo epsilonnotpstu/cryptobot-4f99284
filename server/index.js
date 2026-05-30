@@ -8,7 +8,7 @@ import nodemailer from "nodemailer";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
-import { OAuth2Client } from "google-auth-library";
+import { OAuth2Client, JWT } from "google-auth-library";
 import { list as listBlobFiles, put as putBlobFile } from "@vercel/blob";
 import { createLumModule } from "./lum-module.js";
 import { createBinaryModule } from "./binary-module.js";
@@ -32,6 +32,13 @@ const GOOGLE_CLIENT_IDS = [GOOGLE_CLIENT_ID]
   )
   .filter(Boolean);
 const googleClient = GOOGLE_CLIENT_IDS.length > 0 ? new OAuth2Client() : null;
+const FCM_PROJECT_ID = String(process.env.FCM_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "").trim();
+const FCM_CLIENT_EMAIL = String(process.env.FCM_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL || "").trim();
+const FCM_PRIVATE_KEY = String(process.env.FCM_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY || "")
+  .trim()
+  .replace(/\\n/g, "\n");
+const FCM_SERVICE_ACCOUNT_JSON = String(process.env.FCM_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
+const FCM_SERVER_KEY = String(process.env.FCM_SERVER_KEY || process.env.FIREBASE_SERVER_KEY || "").trim();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -628,6 +635,29 @@ db.exec(`
     note TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS user_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    dedupe_key TEXT NOT NULL DEFAULT '',
+    read_at TEXT,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS user_push_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'android',
+    token TEXT NOT NULL,
+    device_id TEXT NOT NULL DEFAULT '',
+    last_seen_at TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(user_id, token)
+  );
 `);
 
 function ensureUserProfileColumns() {
@@ -703,6 +733,32 @@ function ensureNoticeTablesAndColumns() {
 }
 
 ensureNoticeTablesAndColumns();
+
+function ensureNotificationTablesAndIndexes() {
+  ensureTableColumn("user_notifications", "payload_json", "payload_json TEXT NOT NULL DEFAULT '{}'");
+  ensureTableColumn("user_notifications", "dedupe_key", "dedupe_key TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("user_notifications", "read_at", "read_at TEXT");
+  ensureTableColumn("user_push_tokens", "platform", "platform TEXT NOT NULL DEFAULT 'android'");
+  ensureTableColumn("user_push_tokens", "device_id", "device_id TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("user_push_tokens", "last_seen_at", "last_seen_at TEXT NOT NULL DEFAULT ''");
+  ensureTableColumn("user_push_tokens", "is_active", "is_active INTEGER NOT NULL DEFAULT 1");
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_push_tokens_user_token
+    ON user_push_tokens(user_id, token);
+    CREATE INDEX IF NOT EXISTS idx_user_push_tokens_user_active
+    ON user_push_tokens(user_id, is_active, last_seen_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
+    ON user_notifications(user_id, created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_notifications_user_read
+    ON user_notifications(user_id, read_at, created_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_notifications_dedupe
+    ON user_notifications(user_id, dedupe_key)
+    WHERE dedupe_key <> '';
+  `);
+}
+
+ensureNotificationTablesAndIndexes();
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_admin_user_update_logs_target_created
@@ -1145,6 +1201,123 @@ const listNoticeDismissalsByUserStatement = db.prepare(`
   SELECT notice_id
   FROM platform_notice_dismissals
   WHERE user_id = ?
+`);
+const insertUserNotificationStatement = db.prepare(`
+  INSERT INTO user_notifications (
+    user_id,
+    type,
+    title,
+    body,
+    payload_json,
+    dedupe_key,
+    read_at,
+    created_at
+  )
+  VALUES (
+    @userId,
+    @type,
+    @title,
+    @body,
+    @payloadJson,
+    @dedupeKey,
+    NULL,
+    @createdAt
+  )
+`);
+const findUserNotificationByDedupeStatement = db.prepare(`
+  SELECT *
+  FROM user_notifications
+  WHERE user_id = ? AND dedupe_key = ?
+  LIMIT 1
+`);
+const findUserNotificationByIdStatement = db.prepare(`
+  SELECT *
+  FROM user_notifications
+  WHERE id = ? AND user_id = ?
+  LIMIT 1
+`);
+const listUserNotificationsStatement = db.prepare(`
+  SELECT *
+  FROM user_notifications
+  WHERE user_id = @userId
+    AND (@unreadOnly = 0 OR read_at IS NULL)
+  ORDER BY created_at DESC, id DESC
+  LIMIT @limit OFFSET @offset
+`);
+const countUserNotificationsStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM user_notifications
+  WHERE user_id = @userId
+    AND (@unreadOnly = 0 OR read_at IS NULL)
+`);
+const countUserUnreadNotificationsStatement = db.prepare(`
+  SELECT COUNT(*) AS total
+  FROM user_notifications
+  WHERE user_id = ? AND read_at IS NULL
+`);
+const markUserNotificationReadStatement = db.prepare(`
+  UPDATE user_notifications
+  SET read_at = @readAt
+  WHERE id = @notificationId
+    AND user_id = @userId
+    AND read_at IS NULL
+`);
+const markAllUserNotificationsReadStatement = db.prepare(`
+  UPDATE user_notifications
+  SET read_at = @readAt
+  WHERE user_id = @userId
+    AND read_at IS NULL
+`);
+const upsertUserPushTokenStatement = db.prepare(`
+  INSERT INTO user_push_tokens (
+    user_id,
+    platform,
+    token,
+    device_id,
+    last_seen_at,
+    is_active
+  )
+  VALUES (
+    @userId,
+    @platform,
+    @token,
+    @deviceId,
+    @lastSeenAt,
+    1
+  )
+  ON CONFLICT(user_id, token)
+  DO UPDATE SET
+    platform = excluded.platform,
+    device_id = excluded.device_id,
+    last_seen_at = excluded.last_seen_at,
+    is_active = 1
+`);
+const deactivateUserPushTokenByTokenStatement = db.prepare(`
+  UPDATE user_push_tokens
+  SET is_active = 0
+  WHERE token = ?
+`);
+const deactivateUserPushTokenByUserTokenStatement = db.prepare(`
+  UPDATE user_push_tokens
+  SET is_active = 0
+  WHERE user_id = ? AND token = ?
+`);
+const listActiveUserPushTokensStatement = db.prepare(`
+  SELECT *
+  FROM user_push_tokens
+  WHERE user_id = ?
+    AND is_active = 1
+  ORDER BY last_seen_at DESC, id DESC
+  LIMIT 50
+`);
+const listTargetUsersByKycStatusStatement = db.prepare(`
+  SELECT user_id
+  FROM platform_users
+  WHERE kyc_status = ?
+`);
+const listAllPlatformUserIdsStatement = db.prepare(`
+  SELECT user_id
+  FROM platform_users
 `);
 const getLatestActiveHomePageConfigStatement = db.prepare(`
   SELECT * FROM home_page_configs
@@ -2980,6 +3153,27 @@ const lumModule = createLumModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks: {
+    onInvestmentSettled: ({ investment }) => {
+      const userId = sanitizeShortText(investment?.userId || investment?.user_id || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "lum.maturity.completed",
+        title: "LUM Cycle Completed",
+        body: "Your LUM investment matured and settlement has been credited.",
+        deepLink: { screen: "lum", tab: "investments", entityId: String(investment?.investmentId || "") },
+        dedupeKey: `lum-settled-${investment?.investmentId || ""}-${investment?.settledAt || investment?.updatedAt || ""}`,
+        payload: {
+          investmentId: investment?.investmentId || "",
+          investmentRef: investment?.investmentRef || "",
+          settledAt: investment?.settledAt || investment?.updatedAt || "",
+        },
+      });
+    },
+  },
 });
 
 const {
@@ -3010,6 +3204,51 @@ const binaryModule = createBinaryModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks: {
+    onBinaryTradeOpened: ({ trade, user }) => {
+      const userId = sanitizeShortText(user?.userId || trade?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      const direction = String(trade?.direction || "").toUpperCase();
+      void emitUserNotification({
+        userId,
+        type: "binary.trade.opened",
+        title: "Binary Trade Opened",
+        body: `${direction || "Binary"} trade opened successfully.`,
+        deepLink: { screen: "binary", tab: "active", entityId: String(trade?.tradeId || "") },
+        dedupeKey: `binary-open-${trade?.tradeId || trade?.tradeRef || ""}-${trade?.openedAt || ""}`,
+        payload: {
+          tradeId: trade?.tradeId || "",
+          tradeRef: trade?.tradeRef || "",
+          direction: trade?.direction || "",
+          pairCode: trade?.pairCode || "",
+          stakeAmountUsd: trade?.stakeAmountUsd || 0,
+        },
+      });
+    },
+    onBinaryTradeSettled: ({ trade, user }) => {
+      const userId = sanitizeShortText(user?.userId || trade?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      const result = String(trade?.resultStatus || trade?.result || "").toUpperCase();
+      void emitUserNotification({
+        userId,
+        type: "binary.trade.settled",
+        title: "Binary Trade Settled",
+        body: `Your binary trade result: ${result || "UPDATED"}.`,
+        deepLink: { screen: "binary", tab: "history", entityId: String(trade?.tradeId || "") },
+        dedupeKey: `binary-settle-${trade?.tradeId || trade?.tradeRef || ""}-${trade?.settledAt || trade?.updatedAt || ""}`,
+        payload: {
+          tradeId: trade?.tradeId || "",
+          tradeRef: trade?.tradeRef || "",
+          resultStatus: trade?.resultStatus || trade?.result || "",
+          pnlUsd: trade?.pnlUsd || 0,
+        },
+      });
+    },
+  },
 });
 
 const {
@@ -3050,6 +3289,72 @@ const transactionModule = createTransactionModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks: {
+    onConvertCompleted: ({ order, user }) => {
+      const userId = sanitizeShortText(user?.userId || order?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "transaction.convert.completed",
+        title: "Convert Completed",
+        body: "Your transaction convert order completed successfully.",
+        deepLink: { screen: "transaction", tab: "convert", entityId: String(order?.convertRef || order?.orderId || "") },
+        dedupeKey: `tx-convert-${order?.convertRef || order?.orderId || ""}-${order?.updatedAt || order?.completedAt || ""}`,
+        payload: {
+          convertRef: order?.convertRef || "",
+          pairCode: order?.pairCode || "",
+          fromAsset: order?.fromAsset || "",
+          toAsset: order?.toAsset || "",
+          receiveAmount: order?.receiveAmount || 0,
+        },
+      });
+    },
+    onSpotOrderPlaced: ({ order, trade, autoFilled, user }) => {
+      const userId = sanitizeShortText(user?.userId || order?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: autoFilled ? "transaction.spot.trade.executed" : "transaction.spot.order.placed",
+        title: autoFilled ? "Spot Trade Executed" : "Spot Order Placed",
+        body: autoFilled
+          ? "Your spot market order executed successfully."
+          : "Your spot order has been placed successfully.",
+        deepLink: { screen: "transaction", tab: "spot", entityId: String(order?.orderRef || order?.orderId || "") },
+        dedupeKey: `spot-order-${order?.orderRef || order?.orderId || ""}-${order?.updatedAt || order?.createdAt || ""}`,
+        payload: {
+          orderRef: order?.orderRef || "",
+          orderId: order?.orderId || "",
+          side: order?.side || "",
+          orderType: order?.orderType || "",
+          pairCode: order?.pairCode || "",
+          tradeRef: trade?.tradeRef || "",
+        },
+      });
+    },
+    onSpotOrderCancelled: ({ order, user }) => {
+      const userId = sanitizeShortText(user?.userId || order?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "transaction.spot.order.cancelled",
+        title: "Spot Order Cancelled",
+        body: "Your spot order has been cancelled.",
+        deepLink: { screen: "transaction", tab: "spot", entityId: String(order?.orderRef || order?.orderId || "") },
+        dedupeKey: `spot-cancel-${order?.orderRef || order?.orderId || ""}-${order?.cancelledAt || order?.updatedAt || ""}`,
+        payload: {
+          orderRef: order?.orderRef || "",
+          orderId: order?.orderId || "",
+          pairCode: order?.pairCode || "",
+        },
+      });
+    },
+  },
 });
 
 const {
@@ -3097,12 +3402,69 @@ const assetsModule = createAssetsModule({
   normalizeUsdAmount,
   sanitizeShortText,
   notificationHooks: {
+    onTransferCompleted: ({ transfer, user }) => {
+      const userId = sanitizeShortText(user?.userId || transfer?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "assets.transfer.completed",
+        title: "Transfer Completed",
+        body: "Your wallet transfer completed successfully.",
+        deepLink: { screen: "assets", tab: "transfer", entityId: String(transfer?.transferRef || "") },
+        dedupeKey: `asset-transfer-${transfer?.transferRef || transfer?.transferId || ""}-${transfer?.updatedAt || ""}`,
+        payload: {
+          transferRef: transfer?.transferRef || "",
+          fromWalletSymbol: transfer?.fromWalletSymbol || "",
+          toWalletSymbol: transfer?.toWalletSymbol || "",
+          amountUsd: transfer?.amountUsd || 0,
+        },
+      });
+    },
+    onConversionCompleted: ({ conversion, user }) => {
+      const userId = sanitizeShortText(user?.userId || conversion?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "assets.convert.completed",
+        title: "Assets Convert Completed",
+        body: "Your assets conversion completed successfully.",
+        deepLink: { screen: "assets", tab: "convert", entityId: String(conversion?.conversionRef || "") },
+        dedupeKey: `asset-convert-${conversion?.conversionRef || conversion?.conversionId || ""}-${conversion?.updatedAt || ""}`,
+        payload: {
+          conversionRef: conversion?.conversionRef || "",
+          fromAssetSymbol: conversion?.fromAssetSymbol || "",
+          toAssetSymbol: conversion?.toAssetSymbol || "",
+          sourceAmount: conversion?.sourceAmount || 0,
+          convertedAmount: conversion?.convertedAmount || 0,
+        },
+      });
+    },
     onWithdrawalSubmitted: ({ withdrawal, user }) => {
       const mail = buildAdminWithdrawalRequestMailPayload({ withdrawal, user });
       sendAdminNotificationEmail({
         ...mail,
         metaLabel: "admin-withdrawal-request",
       });
+      const userId = sanitizeShortText(user?.userId || withdrawal?.userId || "", 24);
+      if (userId) {
+        void emitUserNotification({
+          userId,
+          type: "assets.withdrawal.submitted",
+          title: "Withdrawal Submitted",
+          body: "Your withdrawal request has been submitted for admin review.",
+          deepLink: { screen: "assets", tab: "withdraw", entityId: String(withdrawal?.withdrawalRef || "") },
+          dedupeKey: `withdraw-submitted-${withdrawal?.withdrawalRef || withdrawal?.withdrawalId || ""}-${withdrawal?.submittedAt || withdrawal?.createdAt || ""}`,
+          payload: {
+            withdrawalRef: withdrawal?.withdrawalRef || "",
+            status: withdrawal?.status || "pending",
+            amountUsd: withdrawal?.amountUsd || 0,
+          },
+        });
+      }
     },
     onWithdrawalFinalized: ({ withdrawal, decision, user }) => {
       const mail = buildUserWithdrawalFinalMailPayload({ withdrawal, decision });
@@ -3110,6 +3472,18 @@ const assetsModule = createAssetsModule({
         toEmail: user?.email,
         ...mail,
         metaLabel: `user-withdrawal-${decision || withdrawal?.status || "final"}`,
+      });
+      void emitUserNotification({
+        userId: sanitizeShortText(user?.userId || withdrawal?.userId || "", 24),
+        type: "assets.withdrawal.finalized",
+        title: "Withdrawal Update",
+        body: `Your withdrawal is now ${String(decision || withdrawal?.status || "updated").toUpperCase()}.`,
+        deepLink: { screen: "assets", tab: "withdraw", entityId: String(withdrawal?.withdrawalRef || "") },
+        dedupeKey: `withdraw-${withdrawal?.withdrawalRef || withdrawal?.withdrawalId || ""}-${decision || withdrawal?.status || ""}-${withdrawal?.updatedAt || withdrawal?.completedAt || ""}`,
+        payload: {
+          withdrawalRef: withdrawal?.withdrawalRef || "",
+          status: decision || withdrawal?.status || "",
+        },
       });
     },
   },
@@ -3157,6 +3531,40 @@ const supportModule = createSupportModule({
         metaLabel: "admin-live-chat-message",
       });
     },
+    onTicketAdminReply: ({ ticket, messageText }) => {
+      const userId = sanitizeShortText(ticket?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "support.ticket.reply",
+        title: "Support Ticket Reply",
+        body: sanitizeShortText(messageText || "Support team replied to your ticket.", 220) || "Support team replied to your ticket.",
+        deepLink: { screen: "dashboard", tab: "support", entityId: String(ticket?.ticketRef || "") },
+        dedupeKey: `support-ticket-${ticket?.ticketRef || ""}-${ticket?.updatedAt || ""}`,
+        payload: {
+          ticketRef: ticket?.ticketRef || "",
+        },
+      });
+    },
+    onLiveChatAdminReply: ({ thread, messageText }) => {
+      const userId = sanitizeShortText(thread?.userId || "", 24);
+      if (!userId) {
+        return;
+      }
+      void emitUserNotification({
+        userId,
+        type: "support.live.reply",
+        title: "Live Chat Reply",
+        body: sanitizeShortText(messageText || "Support replied in live chat.", 220) || "Support replied in live chat.",
+        deepLink: { screen: "dashboard", tab: "support", entityId: String(thread?.threadRef || "") },
+        dedupeKey: `support-live-${thread?.threadRef || ""}-${thread?.updatedAt || ""}`,
+        payload: {
+          threadRef: thread?.threadRef || "",
+        },
+      });
+    },
   },
 });
 
@@ -3187,6 +3595,39 @@ const launchpadModule = createLaunchpadModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks: {
+    onLaunchStatusChanged: ({ launch, previousStatus, nextStatus }) => {
+      const status = String(nextStatus || "").toLowerCase();
+      if (!["live", "released"].includes(status)) {
+        return;
+      }
+      const userRows = listAllPlatformUserIdsStatement.all();
+      for (const userRow of userRows) {
+        const userId = sanitizeShortText(userRow?.user_id || "", 24);
+        if (!userId) {
+          continue;
+        }
+        void emitUserNotification({
+          userId,
+          type: status === "live" ? "launch.live" : "launch.released",
+          title: status === "live" ? "New Coin Launch Is Live" : "Launch Allocation Released",
+          body:
+            status === "live"
+              ? `${launch?.coinSymbol || "New coin"} launch is now live.`
+              : `${launch?.coinSymbol || "Launch"} allocation is now released.`,
+          deepLink: { screen: "launchpad", tab: "live", entityId: String(launch?.launchId || "") },
+          dedupeKey: `launch-${launch?.launchId || ""}-${status}-${launch?.updatedAt || ""}`,
+          payload: {
+            launchId: launch?.launchId || "",
+            launchRef: launch?.launchRef || "",
+            coinSymbol: launch?.coinSymbol || "",
+            previousStatus: String(previousStatus || ""),
+            nextStatus: status,
+          },
+        });
+      }
+    },
+  },
 });
 
 const {
@@ -3422,6 +3863,417 @@ function resolveNoticesForUser(user = {}) {
     items: applicableItems,
     unreadCount: applicableItems.length,
   };
+}
+
+function parseJsonSafe(value, fallback = null) {
+  try {
+    const parsed = JSON.parse(String(value || ""));
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeNotificationType(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/]+/g, "_")
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 80) || "system";
+}
+
+function normalizeNotificationDeepLink(deepLink = null) {
+  const input = deepLink && typeof deepLink === "object" ? deepLink : {};
+  const screen = sanitizeShortText(input.screen || "dashboard", 40).toLowerCase() || "dashboard";
+  const tab = sanitizeShortText(input.tab || "", 40).toLowerCase();
+  const entityId = sanitizeShortText(input.entityId || input.entity_id || "", 120);
+  return {
+    screen,
+    tab,
+    entityId,
+  };
+}
+
+function mapUserNotificationRow(row = {}) {
+  const payload = parseJsonSafe(row?.payload_json, {}) || {};
+  const deepLink = normalizeNotificationDeepLink(payload.deepLink || payload.deep_link || payload);
+  return {
+    notificationId: Number(row.id || 0),
+    userId: String(row.user_id || ""),
+    type: normalizeNotificationType(row.type || "system"),
+    title: sanitizeShortText(row.title || "", 140) || "Notification",
+    body: sanitizeShortText(row.body || "", 700),
+    payload,
+    deepLink,
+    dedupeKey: sanitizeShortText(row.dedupe_key || "", 160),
+    readAt: String(row.read_at || ""),
+    createdAt: String(row.created_at || ""),
+  };
+}
+
+function buildNotificationDataPayload(notification = null) {
+  if (!notification) {
+    return {};
+  }
+  const deepLink = normalizeNotificationDeepLink(notification.deepLink || notification.payload?.deepLink || {});
+  const payload = notification.payload && typeof notification.payload === "object" ? notification.payload : {};
+  return {
+    notificationId: String(notification.notificationId || ""),
+    type: String(notification.type || "system"),
+    title: String(notification.title || "Notification"),
+    body: String(notification.body || ""),
+    dedupeKey: String(notification.dedupeKey || ""),
+    deepLink: JSON.stringify(deepLink),
+    screen: String(deepLink.screen || "dashboard"),
+    tab: String(deepLink.tab || ""),
+    entityId: String(deepLink.entityId || ""),
+    payload: JSON.stringify(payload),
+    createdAt: String(notification.createdAt || ""),
+  };
+}
+
+function resolveFcmServiceAccount() {
+  if (FCM_SERVICE_ACCOUNT_JSON) {
+    const parsed = parseJsonSafe(FCM_SERVICE_ACCOUNT_JSON, null);
+    if (parsed?.project_id && parsed?.client_email && parsed?.private_key) {
+      return {
+        projectId: String(parsed.project_id),
+        clientEmail: String(parsed.client_email),
+        privateKey: String(parsed.private_key).replace(/\\n/g, "\n"),
+      };
+    }
+  }
+
+  if (FCM_PROJECT_ID && FCM_CLIENT_EMAIL && FCM_PRIVATE_KEY) {
+    return {
+      projectId: FCM_PROJECT_ID,
+      clientEmail: FCM_CLIENT_EMAIL,
+      privateKey: FCM_PRIVATE_KEY,
+    };
+  }
+
+  return null;
+}
+
+const fcmServiceAccount = resolveFcmServiceAccount();
+const fcmJwtClient = fcmServiceAccount
+  ? new JWT({
+      email: fcmServiceAccount.clientEmail,
+      key: fcmServiceAccount.privateKey,
+      scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
+    })
+  : null;
+let fcmMissingConfigWarned = false;
+
+function getPushConfigState() {
+  if (fcmServiceAccount?.projectId) {
+    return { configured: true, mode: "fcm-v1" };
+  }
+  if (FCM_SERVER_KEY) {
+    return { configured: true, mode: "fcm-legacy" };
+  }
+  return { configured: false, mode: "none" };
+}
+
+async function getFcmAccessToken() {
+  if (!fcmJwtClient) {
+    return "";
+  }
+  try {
+    const tokenResponse = await fcmJwtClient.authorize();
+    return String(tokenResponse?.access_token || "");
+  } catch {
+    return "";
+  }
+}
+
+async function sendFcmPushToToken({ token, notification, dataPayload }) {
+  if (!token) {
+    return { ok: false, reason: "missing-config-or-token" };
+  }
+
+  const normalizedDataPayload = Object.entries(dataPayload || {}).reduce((acc, [key, value]) => {
+    acc[String(key)] = String(value ?? "");
+    return acc;
+  }, {});
+
+  if (fcmServiceAccount?.projectId) {
+    const accessToken = await getFcmAccessToken();
+    if (!accessToken) {
+      return { ok: false, reason: "missing-access-token" };
+    }
+
+    const response = await fetch(`https://fcm.googleapis.com/v1/projects/${fcmServiceAccount.projectId}/messages:send`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          token,
+          notification: {
+            title: String(notification?.title || "RampX Trading"),
+            body: String(notification?.body || ""),
+          },
+          data: normalizedDataPayload,
+          android: {
+            priority: "high",
+          },
+        },
+      }),
+    });
+
+    if (response.ok) {
+      return { ok: true };
+    }
+
+    const raw = await response.text().catch(() => "");
+    const invalidToken = response.status === 404 || response.status === 410 || /notregistered|registration token is not a valid|unregistered/i.test(raw);
+    return {
+      ok: false,
+      reason: `http-${response.status}`,
+      invalidToken,
+    };
+  }
+
+  if (!FCM_SERVER_KEY) {
+    return { ok: false, reason: "missing-fcm-credentials" };
+  }
+
+  const legacyResponse = await fetch("https://fcm.googleapis.com/fcm/send", {
+    method: "POST",
+    headers: {
+      Authorization: `key=${FCM_SERVER_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: token,
+      priority: "high",
+      notification: {
+        title: String(notification?.title || "RampX Trading"),
+        body: String(notification?.body || ""),
+      },
+      data: normalizedDataPayload,
+    }),
+  });
+
+  const legacyRaw = await legacyResponse.text().catch(() => "");
+  if (!legacyResponse.ok) {
+    const invalidToken = legacyResponse.status === 404 || legacyResponse.status === 410 || /notregistered|invalidregistration|mismatchsenderid|unregistered/i.test(legacyRaw);
+    return {
+      ok: false,
+      reason: `legacy-http-${legacyResponse.status}`,
+      invalidToken,
+    };
+  }
+
+  if (/\"failure\"\s*:\s*[1-9]/i.test(legacyRaw) || /NotRegistered|InvalidRegistration|MismatchSenderId/i.test(legacyRaw)) {
+    return {
+      ok: false,
+      reason: "legacy-send-failure",
+      invalidToken: /NotRegistered|InvalidRegistration|MismatchSenderId/i.test(legacyRaw),
+    };
+  }
+
+  return { ok: true };
+}
+
+async function pushNotificationToUserTokens({ userId, notification }) {
+  const normalizedUserId = sanitizeShortText(userId || "", 24);
+  if (!normalizedUserId || !notification) {
+    return;
+  }
+
+  const tokens = listActiveUserPushTokensStatement.all(normalizedUserId);
+  if (!tokens.length || (!fcmServiceAccount && !FCM_SERVER_KEY)) {
+    if ((!fcmServiceAccount && !FCM_SERVER_KEY) && !fcmMissingConfigWarned) {
+      fcmMissingConfigWarned = true;
+      // eslint-disable-next-line no-console
+      console.warn("[notifications] Push skipped: missing FCM credentials (service-account or server key).");
+    }
+    return;
+  }
+
+  const dataPayload = buildNotificationDataPayload(notification);
+  for (const row of tokens) {
+    const token = String(row?.token || "").trim();
+    if (!token) {
+      continue;
+    }
+    try {
+      const result = await sendFcmPushToToken({
+        token,
+        notification,
+        dataPayload,
+      });
+      if (!result.ok && result.invalidToken) {
+        deactivateUserPushTokenByTokenStatement.run(token);
+      }
+      if (!result.ok && !result.invalidToken) {
+        // eslint-disable-next-line no-console
+        console.warn(`[notifications] push send failed for user ${normalizedUserId}: ${result.reason || "unknown"}`);
+      }
+    } catch {
+      // Best-effort only. Polling inbox remains source of truth.
+    }
+  }
+}
+
+async function emitUserNotification({
+  userId,
+  type = "system",
+  title = "",
+  body = "",
+  deepLink = null,
+  dedupeKey = "",
+  payload = {},
+  push = true,
+}) {
+  const normalizedUserId = sanitizeShortText(userId || "", 24);
+  if (!normalizedUserId) {
+    return null;
+  }
+
+  const nowIso = toIso(getNow());
+  const normalizedDedupeKey = sanitizeShortText(dedupeKey || "", 160);
+  if (normalizedDedupeKey) {
+    const existing = findUserNotificationByDedupeStatement.get(normalizedUserId, normalizedDedupeKey);
+    if (existing) {
+      return mapUserNotificationRow(existing);
+    }
+  }
+
+  const normalizedType = normalizeNotificationType(type);
+  const normalizedDeepLink = normalizeNotificationDeepLink(deepLink);
+  const safePayload = payload && typeof payload === "object" ? payload : {};
+  const payloadJson = JSON.stringify({
+    ...safePayload,
+    deepLink: normalizedDeepLink,
+  });
+
+  const insertResult = insertUserNotificationStatement.run({
+    userId: normalizedUserId,
+    type: normalizedType,
+    title: sanitizeShortText(title || "Notification", 140) || "Notification",
+    body: sanitizeShortText(body || "", 700),
+    payloadJson,
+    dedupeKey: normalizedDedupeKey,
+    createdAt: nowIso,
+  });
+
+  const notificationRow = db
+    .prepare("SELECT * FROM user_notifications WHERE id = ? LIMIT 1")
+    .get(Number(insertResult.lastInsertRowid || 0));
+  const notification = mapUserNotificationRow(notificationRow || {});
+
+  if (push && notification?.notificationId) {
+    await pushNotificationToUserTokens({
+      userId: normalizedUserId,
+      notification,
+    });
+  }
+
+  return notification;
+}
+
+function resolveTargetUserIdsForNoticeRow(row = null) {
+  if (!row) {
+    return [];
+  }
+
+  const mode = normalizeNoticeTargetMode(row.target_mode || "all");
+  const targetUserIds = resolveNoticeTargetUsers(Number(row.id || 0));
+  const kycStatusRaw = sanitizeShortText(row.target_kyc_status || "", 32);
+  const kycStatus = kycStatusRaw ? normalizeKycStatus(kycStatusRaw) : "";
+  const bucket = new Set();
+
+  if (mode === "all") {
+    listAllPlatformUserIdsStatement.all().forEach((item) => {
+      const userId = sanitizeShortText(item?.user_id || "", 24);
+      if (userId) {
+        bucket.add(userId);
+      }
+    });
+  } else if (mode === "users") {
+    targetUserIds.forEach((userId) => {
+      if (userId) {
+        bucket.add(userId);
+      }
+    });
+  } else if (mode === "kyc") {
+    if (kycStatus) {
+      listTargetUsersByKycStatusStatement.all(kycStatus).forEach((item) => {
+        const userId = sanitizeShortText(item?.user_id || "", 24);
+        if (userId) {
+          bucket.add(userId);
+        }
+      });
+    }
+  } else {
+    targetUserIds.forEach((userId) => {
+      if (userId) {
+        bucket.add(userId);
+      }
+    });
+    if (kycStatus) {
+      listTargetUsersByKycStatusStatement.all(kycStatus).forEach((item) => {
+        const userId = sanitizeShortText(item?.user_id || "", 24);
+        if (userId) {
+          bucket.add(userId);
+        }
+      });
+    }
+  }
+
+  return Array.from(bucket);
+}
+
+async function emitNoticeNotificationToTargets(noticeRow = null) {
+  if (!noticeRow || Number(noticeRow.is_active || 0) !== 1) {
+    return;
+  }
+
+  const nowIso = toIso(getNow());
+  const startsAt = String(noticeRow.starts_at || "");
+  const expiresAt = String(noticeRow.expires_at || "");
+  if (startsAt && startsAt > nowIso) {
+    return;
+  }
+  if (expiresAt && expiresAt <= nowIso) {
+    return;
+  }
+
+  const noticeId = Number(noticeRow.id || 0);
+  if (!noticeId) {
+    return;
+  }
+
+  const targetUserIds = resolveTargetUserIdsForNoticeRow(noticeRow);
+  if (!targetUserIds.length) {
+    return;
+  }
+
+  const title = sanitizeShortText(noticeRow.title || "Platform Notice", 120) || "Platform Notice";
+  const message = sanitizeShortText(noticeRow.message || "", 700);
+  const dedupeSeed = sanitizeShortText(noticeRow.updated_at || noticeRow.created_at || nowIso, 80);
+
+  for (const userId of targetUserIds) {
+    await emitUserNotification({
+      userId,
+      type: "notice.published",
+      title,
+      body: message,
+      deepLink: { screen: "dashboard", tab: "home", entityId: String(noticeId) },
+      dedupeKey: `notice-${noticeId}-${dedupeSeed}-${userId}`,
+      payload: {
+        noticeId,
+        severity: normalizeNoticeSeverity(noticeRow.severity || "info"),
+      },
+      push: true,
+    });
+  }
 }
 
 function ensureNoticeTargetUsersExist(userIds = []) {
@@ -5399,6 +6251,20 @@ async function handleKycSubmit(req, res) {
     const submissionPayload = buildKycSubmissionPayload(latestSubmission);
     const userPayload = buildUserPayload(updatedUser || req.currentUser);
     if (submissionPayload) {
+      void emitUserNotification({
+        userId: req.currentUser.userId,
+        type: "kyc.submitted",
+        title: "KYC Submitted",
+        body: "Your KYC request has been submitted and is pending admin review.",
+        deepLink: { screen: "dashboard", tab: "profile", entityId: String(submissionPayload.requestId || "") },
+        dedupeKey: `kyc-submitted-${submissionPayload.requestId || ""}-${submissionPayload.submittedAt || ""}`,
+        payload: {
+          requestId: submissionPayload.requestId || "",
+          status: submissionPayload.status || "pending",
+        },
+      });
+    }
+    if (submissionPayload) {
       const mail = buildAdminKycSubmissionMailPayload({
         submission: submissionPayload,
         user: userPayload,
@@ -5944,6 +6810,23 @@ async function handleAdminKycReview(req, res) {
           metaLabel: `user-kyc-${decision}`,
         });
       }
+      void emitUserNotification({
+        userId: submission.user_id,
+        type: "kyc.reviewed",
+        title: decision === "authenticated" ? "KYC Approved" : "KYC Rejected",
+        body:
+          decision === "authenticated"
+            ? "Your KYC verification has been approved."
+            : "Your KYC request was rejected. Please review the note and resubmit.",
+        deepLink: { screen: "dashboard", tab: "profile", entityId: String(requestId) },
+        dedupeKey: `kyc-review-${requestId}-${decision}-${reviewedAt}`,
+        payload: {
+          requestId,
+          decision,
+          reviewedAt,
+          note,
+        },
+      });
     }
 
     const responseMessageByDecision = {
@@ -5994,6 +6877,131 @@ function handleDashboardSnapshot(req, res) {
     });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not load dashboard snapshot." });
+  }
+}
+
+async function handleNotificationDeviceRegister(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const token = sanitizeShortText(req.body?.token || "", 4096);
+    const platform = sanitizeShortText(req.body?.platform || "android", 40).toLowerCase() || "android";
+    const deviceId = sanitizeShortText(req.body?.deviceId || "", 120);
+    if (!token) {
+      throw new Error("Device token is required.");
+    }
+
+    const nowIso = toIso(getNow());
+    deactivateUserPushTokenByTokenStatement.run(token);
+    upsertUserPushTokenStatement.run({
+      userId: req.currentUser.userId,
+      platform,
+      token,
+      deviceId,
+      lastSeenAt: nowIso,
+    });
+
+    await persistDbToBlobSafe("notification.device.register");
+    const pushConfig = getPushConfigState();
+    res.json({
+      message: "Device registered for notifications.",
+      registered: true,
+      pushConfig,
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not register notification device." });
+  }
+}
+
+function handleNotificationInboxList(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const pageInput = Number(req.body?.page || req.query?.page || 1);
+    const limitInput = Number(req.body?.limit || req.query?.limit || 30);
+    const unreadOnly = normalizeBoolean(req.body?.unreadOnly ?? req.query?.unreadOnly, false);
+    const page = Number.isFinite(pageInput) && pageInput > 0 ? Math.floor(pageInput) : 1;
+    const limit = Number.isFinite(limitInput) && limitInput > 0 ? Math.min(100, Math.floor(limitInput)) : 30;
+    const offset = (page - 1) * limit;
+
+    const rows = listUserNotificationsStatement.all({
+      userId: req.currentUser.userId,
+      unreadOnly: unreadOnly ? 1 : 0,
+      limit,
+      offset,
+    });
+    const total = Number(
+      countUserNotificationsStatement.get({
+        userId: req.currentUser.userId,
+        unreadOnly: unreadOnly ? 1 : 0,
+      })?.total || 0,
+    );
+    const unreadCount = Number(countUserUnreadNotificationsStatement.get(req.currentUser.userId)?.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    res.json({
+      items: rows.map((row) => mapUserNotificationRow(row)),
+      unreadCount,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore: page < totalPages,
+      },
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not load notification inbox." });
+  }
+}
+
+async function handleNotificationRead(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const notificationId = Number(req.body?.notificationId || req.query?.notificationId || 0);
+    if (!Number.isInteger(notificationId) || notificationId <= 0) {
+      throw new Error("Valid notificationId is required.");
+    }
+
+    const existing = findUserNotificationByIdStatement.get(notificationId, req.currentUser.userId);
+    if (!existing) {
+      res.status(404).json({ error: "Notification not found." });
+      return;
+    }
+
+    const readAt = toIso(getNow());
+    markUserNotificationReadStatement.run({
+      notificationId,
+      userId: req.currentUser.userId,
+      readAt,
+    });
+    await persistDbToBlobSafe("notification.read");
+
+    const updated = findUserNotificationByIdStatement.get(notificationId, req.currentUser.userId);
+    const unreadCount = Number(countUserUnreadNotificationsStatement.get(req.currentUser.userId)?.total || 0);
+    res.json({
+      message: "Notification marked as read.",
+      notification: mapUserNotificationRow(updated || existing),
+      unreadCount,
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not mark notification as read." });
+  }
+}
+
+async function handleNotificationReadAll(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const readAt = toIso(getNow());
+    markAllUserNotificationsReadStatement.run({
+      userId: req.currentUser.userId,
+      readAt,
+    });
+    await persistDbToBlobSafe("notification.read-all");
+    res.json({
+      message: "All notifications marked as read.",
+      unreadCount: 0,
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not mark all notifications as read." });
   }
 }
 
@@ -6053,6 +7061,19 @@ async function handleDepositCreate(req, res) {
     const requestPayload = buildDepositRequestPayload(createdRequest);
     const userPayload = buildUserPayload(req.currentUser || {});
     if (requestPayload) {
+      void emitUserNotification({
+        userId: req.currentUser.userId,
+        type: "deposit.submitted",
+        title: "Deposit Submitted",
+        body: "Your deposit request is submitted and waiting for admin review.",
+        deepLink: { screen: "deposit", tab: "records", entityId: String(requestPayload.requestId || "") },
+        dedupeKey: `deposit-submitted-${requestPayload.requestId || ""}-${requestPayload.submittedAt || ""}`,
+        payload: {
+          requestId: requestPayload.requestId || "",
+          amountUsd: requestPayload.amountUsd || 0,
+          status: requestPayload.status || "pending",
+        },
+      });
       const mail = buildAdminDepositRequestMailPayload({
         request: requestPayload,
         user: userPayload,
@@ -6143,6 +7164,7 @@ async function handleAdminNoticeUpdate(req, res) {
     await persistDbToBlobSafe("admin.notice.update");
     const latestNotice = noticeId ? findNoticeByIdStatement.get(noticeId) : null;
     const targetUsers = noticeId ? resolveNoticeTargetUsers(noticeId) : [];
+    await emitNoticeNotificationToTargets(latestNotice);
     res.json({
       message: "Notice published successfully.",
       notice: buildNoticePayload(latestNotice, { targetUserIds: targetUsers }),
@@ -6291,6 +7313,7 @@ async function handleAdminNoticeCreate(req, res) {
     const noticeId = createTransaction();
     await persistDbToBlobSafe("admin.notice.create");
     const row = noticeId ? findNoticeByIdStatement.get(noticeId) : null;
+    await emitNoticeNotificationToTargets(row);
 
     res.json({
       message: "Notice created successfully.",
@@ -6349,6 +7372,7 @@ async function handleAdminNoticeUpdateV2(req, res) {
     updateTransaction();
     await persistDbToBlobSafe("admin.notice.update.v2");
     const row = findNoticeByIdStatement.get(noticeId);
+    await emitNoticeNotificationToTargets(row);
     res.json({
       message: "Notice updated successfully.",
       notice: buildNoticePayload(row, {
@@ -6396,6 +7420,7 @@ async function handleAdminNoticeStatus(req, res) {
 
     await persistDbToBlobSafe("admin.notice.status");
     const row = findNoticeByIdStatement.get(noticeId);
+    await emitNoticeNotificationToTargets(row);
     res.json({
       message: nextIsActive ? "Notice activated." : "Notice deactivated.",
       notice: buildNoticePayload(row, {
@@ -6914,6 +7939,24 @@ async function handleAdminDepositRequestReview(req, res) {
           metaLabel: `user-deposit-${decision}`,
         });
       }
+      void emitUserNotification({
+        userId: request.user_id,
+        type: "deposit.reviewed",
+        title: decision === "approved" ? "Deposit Approved" : "Deposit Rejected",
+        body:
+          decision === "approved"
+            ? `Your deposit request has been approved. Credited $${approvedAmountUsd.toFixed(2)}.`
+            : "Your deposit request was rejected. Please review the admin note.",
+        deepLink: { screen: "deposit", tab: "records", entityId: String(requestId) },
+        dedupeKey: `deposit-review-${requestId}-${decision}-${reviewedAt}`,
+        payload: {
+          requestId,
+          decision,
+          approvedAmountUsd: decision === "approved" ? approvedAmountUsd : 0,
+          reviewedAt,
+          note: stripDepositApprovalMeta(note),
+        },
+      });
     }
     const responseMessageByDecision = {
       approved:
@@ -7001,6 +8044,18 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "dashboard.snapshot":
       requireSession(req, res, () => handleDashboardSnapshot(req, res));
+      return;
+    case "notification.device.register":
+      requireSession(req, res, () => handleNotificationDeviceRegister(req, res));
+      return;
+    case "notification.inbox.list":
+      requireSession(req, res, () => handleNotificationInboxList(req, res));
+      return;
+    case "notification.read":
+      requireSession(req, res, () => handleNotificationRead(req, res));
+      return;
+    case "notification.read-all":
+      requireSession(req, res, () => handleNotificationReadAll(req, res));
       return;
     case "notice.dismiss":
       requireSession(req, res, () => handleNoticeDismiss(req, res));

@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.cryptobot.prime.app-mergeDebugResources-33:/values-v31/values-v31.xml",
+            "outputFile": "com.rampxtrading.app-mergeDebugResources-40:/values-v31/values-v31.xml",
             "map": [
                 {
-                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/565dd5ff08ff3d40b8f8177197123735/transformed/core-splashscreen-1.0.1/res/values-v31/values-v31.xml",
+                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/af0308c07f71e42789b5c1787bf809f1/transformed/core-splashscreen-1.0.1/res/values-v31/values-v31.xml",
                     "from": {
                         "startLines": "2,9",
                         "startColumns": "4,4",

@@ -1,6 +1,6 @@
 [
     {
-        "merged": "com.cryptobot.prime.app-debug-35:/xml_config.xml.flat",
-        "source": "com.cryptobot.prime.app-main-37:/xml/config.xml"
+        "merged": "com.rampxtrading.app-debug-42:/xml_config.xml.flat",
+        "source": "com.rampxtrading.app-main-44:/xml/config.xml"
     }
 ]

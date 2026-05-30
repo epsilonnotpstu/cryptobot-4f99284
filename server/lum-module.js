@@ -1,4 +1,24 @@
-export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, normalizeUsdAmount, sanitizeShortText }) {
+export function createLumModule({
+  db,
+  getNow,
+  toIso,
+  normalizeAssetSymbol,
+  normalizeUsdAmount,
+  sanitizeShortText,
+  notificationHooks = null,
+}) {
+  function safeNotify(hookName, payload) {
+    const hook = notificationHooks?.[hookName];
+    if (typeof hook !== "function") {
+      return;
+    }
+    try {
+      hook(payload);
+    } catch {
+      // Non-blocking by design: notification failures should not break settlement flow.
+    }
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS lum_plans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -884,7 +904,16 @@ export function createLumModule({ db, getNow, toIso, normalizeAssetSymbol, norma
     });
 
     settleTx();
-    return findInvestmentByIdStatement.get(investmentRow.id);
+    const settledRow = findInvestmentByIdStatement.get(investmentRow.id);
+    if (settledRow) {
+      safeNotify("onInvestmentSettled", {
+        investment: mapInvestment(settledRow, { includeAccount: true }),
+        previousStatus: "active",
+        reason: "maturity",
+        actor: String(actor || "system"),
+      });
+    }
+    return settledRow;
   }
 
   function settleMaturedInvestmentsForUser(userId, actor = "system") {

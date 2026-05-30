@@ -1799,15 +1799,37 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
         throw new Error("Ticket reference is required.");
       }
 
+      const messageText = parseRequestValue(req, "message", "");
+      const isInternalNote = parseRequestValue(req, "isInternalNote", false);
+      const attachment = buildAttachmentFromRequest(req);
       const updatedTicket = sendAdminMessage({
         ticketRef,
-        messageText: parseRequestValue(req, "message", ""),
+        messageText,
         adminUserId: req.currentUser.userId,
         adminEmail: req.currentUser.email,
         senderName: req.currentUser.name,
-        isInternalNote: parseRequestValue(req, "isInternalNote", false),
-        attachment: buildAttachmentFromRequest(req),
+        isInternalNote,
+        attachment,
       });
+
+      if (!normalizeBoolean(isInternalNote, false)) {
+        let safeAttachment = null;
+        try {
+          safeAttachment = sanitizeAttachmentPayload(attachment);
+        } catch {
+          safeAttachment = null;
+        }
+        safeNotify("onTicketAdminReply", {
+          ticket: mapTicketRow(updatedTicket),
+          messageText: sanitizeMessageText(messageText, 3000),
+          attachment: safeAttachment,
+          admin: {
+            userId: String(req.currentUser?.userId || ""),
+            email: String(req.currentUser?.email || ""),
+            name: String(req.currentUser?.name || ""),
+          },
+        });
+      }
 
       res.json({
         message: "Reply sent successfully.",
@@ -1922,13 +1944,33 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
       if (!threadRef) {
         throw new Error("Live thread reference is required.");
       }
+
+      const messageText = parseRequestValue(req, "message", "");
+      const attachment = buildAttachmentFromRequest(req);
       const updatedThread = sendLiveAdminMessage({
         threadRef,
-        messageText: parseRequestValue(req, "message", ""),
+        messageText,
         adminUserId: req.currentUser.userId,
         adminEmail: req.currentUser.email,
         senderName: req.currentUser.name,
-        attachment: buildAttachmentFromRequest(req),
+        attachment,
+      });
+
+      let safeAttachment = null;
+      try {
+        safeAttachment = sanitizeAttachmentPayload(attachment);
+      } catch {
+        safeAttachment = null;
+      }
+      safeNotify("onLiveChatAdminReply", {
+        thread: mapLiveThreadRow(updatedThread),
+        messageText: sanitizeMessageText(messageText, 3000),
+        attachment: safeAttachment,
+        admin: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
       });
       res.json({
         message: "Live chat reply sent successfully.",

@@ -1,20 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.cryptobot.prime.app-mergeDebugResources-33:/values-night-v8/values-night-v8.xml",
+            "outputFile": "com.rampxtrading.app-mergeDebugResources-40:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
-                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/565dd5ff08ff3d40b8f8177197123735/transformed/core-splashscreen-1.0.1/res/values-night-v8/values-night-v8.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "85",
-                        "endOffsets": "136"
-                    }
-                },
-                {
-                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/f17fa524ccbea3a9e4151c7735f01da9/transformed/appcompat-1.7.1/res/values-night-v8/values-night-v8.xml",
+                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/90ea41a39b89a3514b6f8e3a4461381e/transformed/appcompat-1.7.1/res/values-night-v8/values-night-v8.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -23,11 +13,47 @@
                         "endOffsets": "120,204,288,384,486,588,682,771"
                     },
                     "to": {
-                        "startLines": "3,4,5,6,7,8,9,10",
+                        "startLines": "14,15,16,17,18,19,20,21",
                         "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "141,211,295,379,475,577,679,773",
+                        "startOffsets": "795,865,949,1033,1129,1231,1333,1427",
                         "endColumns": "69,83,83,95,101,101,93,88",
-                        "endOffsets": "206,290,374,470,572,674,768,857"
+                        "endOffsets": "860,944,1028,1124,1226,1328,1422,1511"
+                    }
+                },
+                {
+                    "source": "/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/res/values-night/styles.xml",
+                    "from": {
+                        "startLines": "2,13",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,651",
+                        "endLines": "11,13",
+                        "endColumns": "12,59",
+                        "endOffsets": "645,706"
+                    },
+                    "to": {
+                        "startLines": "2,12",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,650",
+                        "endLines": "11,12",
+                        "endColumns": "12,58",
+                        "endOffsets": "645,704"
+                    }
+                },
+                {
+                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/af0308c07f71e42789b5c1787bf809f1/transformed/core-splashscreen-1.0.1/res/values-night-v8/values-night-v8.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "85",
+                        "endOffsets": "136"
+                    },
+                    "to": {
+                        "startLines": "13",
+                        "startColumns": "4",
+                        "startOffsets": "709",
+                        "endColumns": "85",
+                        "endOffsets": "790"
                     }
                 }
             ]

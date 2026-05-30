@@ -337,7 +337,20 @@ export function createBinaryModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks = null,
 }) {
+  function safeNotify(hookName, payload) {
+    const hook = notificationHooks?.[hookName];
+    if (typeof hook !== "function") {
+      return;
+    }
+    try {
+      hook(payload);
+    } catch {
+      // Non-blocking by design: notification failure must not block binary flow.
+    }
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS binary_market_categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2971,6 +2984,15 @@ export function createBinaryModule({
         periodSeconds: req.body.periodSeconds,
         stakeAmountUsd: req.body.stakeAmountUsd,
       });
+      safeNotify("onBinaryTradeOpened", {
+        trade: payload?.trade || null,
+        summary: payload?.summary || null,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
+      });
       res.json({ ok: true, data: payload, ...payload });
     } catch (error) {
       res.status(400).json({ ok: false, error: error.message || "Could not open trade." });
@@ -3033,6 +3055,14 @@ export function createBinaryModule({
       }
 
       const settled = settleBinaryTradeById(tradeId, req.currentUser.userId);
+      safeNotify("onBinaryTradeSettled", {
+        trade: settled || null,
+        user: {
+          userId: String(req.currentUser?.userId || ""),
+          email: String(req.currentUser?.email || ""),
+          name: String(req.currentUser?.name || ""),
+        },
+      });
       res.json({
         ok: true,
         data: {

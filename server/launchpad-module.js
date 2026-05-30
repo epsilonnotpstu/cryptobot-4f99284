@@ -141,7 +141,20 @@ export function createLaunchpadModule({
   normalizeAssetSymbol,
   normalizeUsdAmount,
   sanitizeShortText,
+  notificationHooks = null,
 }) {
+  function safeNotify(hookName, payload) {
+    const hook = notificationHooks?.[hookName];
+    if (typeof hook !== "function") {
+      return;
+    }
+    try {
+      hook(payload);
+    } catch {
+      // Non-blocking by design: launchpad workflow must continue even if notifications fail.
+    }
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS launch_projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1470,6 +1483,15 @@ export function createLaunchpadModule({
     const mapped = mapLaunch(fresh, { includeInternal: true });
     const settings = mapEngineSettings();
 
+    if (nextStatus !== status && mapped) {
+      safeNotify("onLaunchStatusChanged", {
+        launch: mapped,
+        previousStatus: status,
+        nextStatus,
+        source: "system_lifecycle",
+      });
+    }
+
     if (mapped && mapped.phase === "live") {
       maybeInsertSimulatedEvent(mapped, settings);
     }
@@ -2371,6 +2393,7 @@ export function createLaunchpadModule({
       const status = normalizeLaunchStatus(req.body?.status || "draft");
       const nowIso = toIso(getNow());
       const adminId = req.currentUser?.userId || "admin";
+      const previousStatus = normalizeLaunchStatus(launchRow.status || "draft");
 
       q.updateLaunchStatus.run({
         id: launchRow.id,
@@ -2383,8 +2406,18 @@ export function createLaunchpadModule({
         releaseLaunchAllocations({ launchId: launchRow.id, releasedBy: adminId, note: "Status set to released" });
       }
 
+      const updatedLaunch = getLaunchForResponse(q.launchById.get(launchRow.id));
+      if (updatedLaunch && status !== previousStatus) {
+        safeNotify("onLaunchStatusChanged", {
+          launch: updatedLaunch,
+          previousStatus,
+          nextStatus: status,
+          source: "admin_action",
+        });
+      }
+
       writeAudit(adminId, "launch.status", "launch", String(launchRow.id), `Status -> ${status}`);
-      res.json({ message: "Launch status updated.", launch: getLaunchForResponse(q.launchById.get(launchRow.id)) });
+      res.json({ message: "Launch status updated.", launch: updatedLaunch });
     } catch (error) {
       res.status(error?.statusCode || 400).json({ error: error.message || "Could not update launch status." });
     }

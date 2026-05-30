@@ -1,4 +1,4 @@
-com.cryptobot.prime
+com.rampxtrading.app
 anim abc_fade_in
 anim abc_fade_out
 anim abc_grow_fade_in_from_bottom
@@ -442,6 +442,9 @@ color primary_text_default_material_dark
 color primary_text_default_material_light
 color primary_text_disabled_material_dark
 color primary_text_disabled_material_light
+color rampx_background
+color rampx_system_bar
+color rampx_system_bar_nav
 color ripple_material_dark
 color ripple_material_light
 color secondary_text_default_material_dark
@@ -708,6 +711,7 @@ drawable ic_other_sign_in
 drawable ic_passkey
 drawable ic_password
 drawable ic_site_settings
+drawable ic_transparent
 drawable icon_background
 drawable notification_action_background
 drawable notification_bg
@@ -1005,6 +1009,7 @@ layout select_dialog_multichoice_material
 layout select_dialog_singlechoice_material
 layout splash_screen_view
 layout support_simple_spinner_dropdown_item
+raw firebase_common_keep
 string abc_action_bar_home_description
 string abc_action_bar_up_description
 string abc_action_menu_overflow_description
@@ -1064,9 +1069,11 @@ string common_signin_button_text_long
 string confirm_device_credential_password
 string copy_toast_msg
 string default_error_msg
+string default_web_client_id
 string fallback_menu_item_copy_link
 string fallback_menu_item_open_in_browser
 string fallback_menu_item_share_link
+string fcm_fallback_notification_channel_label
 string fingerprint_dialog_touch_sensor
 string fingerprint_error_hw_not_available
 string fingerprint_error_hw_not_present
@@ -1074,13 +1081,19 @@ string fingerprint_error_lockout
 string fingerprint_error_no_fingerprints
 string fingerprint_error_user_canceled
 string fingerprint_not_recognized
+string gcm_defaultSenderId
 string generic_error_no_device_credential
 string generic_error_no_keyguard
 string generic_error_user_canceled
+string google_api_key
+string google_app_id
+string google_crash_reporting_api_key
+string google_storage_bucket
 string manage_space_no_data_toast
 string manage_space_not_supported_toast
 string no_provider_toast
 string no_webview_text
+string project_id
 string search_menu_title
 string status_bar_notification_info_overflow
 string update_chrome_toast
@@ -1089,6 +1102,7 @@ style AlertDialog_AppCompat_Light
 style Animation_AppCompat_Dialog
 style Animation_AppCompat_DropDownUp
 style Animation_AppCompat_Tooltip
+style AppTheme
 style AppTheme_NoActionBar
 style Base_AlertDialog_AppCompat
 style Base_AlertDialog_AppCompat_Light

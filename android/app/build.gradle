@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.cryptobot.prime"
+    namespace "com.rampxtrading.app"
     compileSdk rootProject.ext.compileSdkVersion
 
     defaultConfig {
-        applicationId "com.cryptobot.prime"
+        applicationId "com.rampxtrading.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -48,4 +48,4 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
-
+apply plugin: 'com.google.gms.google-services'

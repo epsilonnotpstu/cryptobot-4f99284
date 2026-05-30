@@ -117,6 +117,9 @@
     <color name="primary_text_default_material_light">#de000000</color>
     <color name="primary_text_disabled_material_dark">#4Dffffff</color>
     <color name="primary_text_disabled_material_light">#39000000</color>
+    <color name="rampx_background">#060F1D</color>
+    <color name="rampx_system_bar">#071827</color>
+    <color name="rampx_system_bar_nav">#071827</color>
     <color name="ripple_material_dark">#33ffffff</color>
     <color name="ripple_material_light">#1f000000</color>
     <color name="secondary_text_default_material_dark">#b3ffffff</color>
@@ -399,9 +402,11 @@
     <string name="confirm_device_credential_password">Use password</string>
     <string name="copy_toast_msg">Link copied to clipboard</string>
     <string name="default_error_msg">Unknown error</string>
+    <string name="default_web_client_id" translatable="false">532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com</string>
     <string name="fallback_menu_item_copy_link">Copy link</string>
     <string name="fallback_menu_item_open_in_browser">Open in browser</string>
     <string name="fallback_menu_item_share_link">Share link</string>
+    <string name="fcm_fallback_notification_channel_label">Miscellaneous</string>
     <string name="fingerprint_dialog_touch_sensor">Touch the fingerprint sensor</string>
     <string name="fingerprint_error_hw_not_available">Fingerprint hardware not available.</string>
     <string name="fingerprint_error_hw_not_present">This device does not have a fingerprint sensor</string>
@@ -409,13 +414,19 @@
     <string name="fingerprint_error_no_fingerprints">No fingerprints enrolled.</string>
     <string name="fingerprint_error_user_canceled">Fingerprint operation canceled by user.</string>
     <string name="fingerprint_not_recognized">Not recognized</string>
+    <string name="gcm_defaultSenderId" translatable="false">532626530913</string>
     <string name="generic_error_no_device_credential">No PIN, pattern, or password set.</string>
     <string name="generic_error_no_keyguard">This device does not support PIN, pattern, or password.</string>
     <string name="generic_error_user_canceled">Authentication canceled by user.</string>
+    <string name="google_api_key" translatable="false">AIzaSyDRxnMinvE6BD3STvyTXrEGecvm1eZbp_w</string>
+    <string name="google_app_id" translatable="false">1:532626530913:android:fa96f173ec96e591958020</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDRxnMinvE6BD3STvyTXrEGecvm1eZbp_w</string>
+    <string name="google_storage_bucket" translatable="false">cryptobot-492205.firebasestorage.app</string>
     <string name="manage_space_no_data_toast">This app holds no browsing data.</string>
     <string name="manage_space_not_supported_toast">This app\'s data is stored in %1$s.</string>
     <string name="no_provider_toast">Please install Chrome Stable 72 or later.</string>
     <string name="no_webview_text">This app requires a WebView to work</string>
+    <string name="project_id" translatable="false">cryptobot-492205</string>
     <string name="search_menu_title">Search</string>
     <string name="status_bar_notification_info_overflow">999+</string>
     <string name="update_chrome_toast">Please update to Chrome Stable 72 or later.</string>
@@ -424,10 +435,17 @@
     <style name="Animation.AppCompat.Dialog" parent="Base.Animation.AppCompat.Dialog"/>
     <style name="Animation.AppCompat.DropDownUp" parent="Base.Animation.AppCompat.DropDownUp"/>
     <style name="Animation.AppCompat.Tooltip" parent="Base.Animation.AppCompat.Tooltip"/>
-    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.NoActionBar">
-        <item name="windowActionBar">false</item>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
         <item name="windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:statusBarColor">@color/rampx_system_bar</item>
+        <item name="android:navigationBarColor">@color/rampx_system_bar_nav</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/rampx_background</item>
     </style>
+    <style name="AppTheme.NoActionBar" parent="AppTheme"/>
     <style name="Base.AlertDialog.AppCompat" parent="android:Widget">
         <item name="android:layout">@layout/abc_alert_dialog_material</item>
         <item name="listLayout">@layout/abc_select_dialog_material</item>
