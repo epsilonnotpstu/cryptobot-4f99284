@@ -1,0 +1,3 @@
+com.rampxtrading.app.test
+style WhiteBackgroundDialogTheme
+style WhiteBackgroundTheme

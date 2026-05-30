@@ -2048,7 +2048,37 @@ export default function PremiumDashboardPage({
                     </div>
                     <p>{item.message}</p>
                     <footer>
-                      <small>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "Now"}</small>
+                      <small>
+  {item.updatedAt
+    ? (() => {
+        const itemDate = new Date(item.updatedAt);
+        const today = new Date();
+
+        const itemDay = new Date(
+          itemDate.getFullYear(),
+          itemDate.getMonth(),
+          itemDate.getDate(),
+        );
+
+        const todayDay = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+        );
+
+        const diffDays = Math.round((todayDay - itemDay) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return "Today";
+        if (diffDays === 1) return "Yesterday";
+
+        return itemDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      })()
+    : "Now"}
+</small>
                       {item.isDismissible && item.noticeId ? (
                         <button
                           type="button"

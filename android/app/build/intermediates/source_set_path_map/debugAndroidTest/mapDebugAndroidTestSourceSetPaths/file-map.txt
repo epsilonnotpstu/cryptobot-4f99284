@@ -1,0 +1,7 @@
+com.rampxtrading.app.test.app-core-1.6.1-0 /home/afridi/.gradle/caches/9.0.0/transforms/2c98f98d4e3c7adb95b5713cd8c64feb/transformed/core-1.6.1/res
+com.rampxtrading.app.test.app-tracing-1.2.0-1 /home/afridi/.gradle/caches/9.0.0/transforms/fad4d1b4300f073422301ae7e61a8bc5/transformed/tracing-1.2.0/res
+com.rampxtrading.app.test.app-androidTest-2 /home/afridi/Documents/cryptobot-4f99284/android/app/build/generated/res/resValues/androidTest/debug
+com.rampxtrading.app.test.app-updated_navigation_xml-3 /home/afridi/Documents/cryptobot-4f99284/android/app/build/generated/updated_navigation_xml/debugAndroidTest
+com.rampxtrading.app.test.app-mergeDebugAndroidTestResources-4 /home/afridi/Documents/cryptobot-4f99284/android/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
+com.rampxtrading.app.test.app-mergeDebugAndroidTestResources-5 /home/afridi/Documents/cryptobot-4f99284/android/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
+com.rampxtrading.app.test.app-debugAndroidTest-6 /home/afridi/Documents/cryptobot-4f99284/android/app/build/intermediates/merged_res/debugAndroidTest/mergeDebugAndroidTestResources
