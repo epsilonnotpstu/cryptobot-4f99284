@@ -736,8 +736,8 @@ export default function PremiumDashboardPage({
   const authTagLabel = isKycNotSubmitted
     ? "Please submit KYC"
     : String(kycAuthTag || deriveAuthTagFromStatus(kycStatus))
-        .replace(/[_-]+/g, " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   const launchpadFeatured = launchpadSnapshot?.featured || null;
   const launchpadLiveCount = Number(launchpadSnapshot?.counts?.live || 0);
   const launchpadWatchlistCount = Number(launchpadSnapshot?.user?.watchlistCount || 0);
@@ -923,15 +923,15 @@ export default function PremiumDashboardPage({
       setKycForm((prev) =>
         part === "front"
           ? {
-              ...prev,
-              frontFileName: file.name,
-              frontFileData: fileData,
-            }
+            ...prev,
+            frontFileName: file.name,
+            frontFileData: fileData,
+          }
           : {
-              ...prev,
-              backFileName: file.name,
-              backFileData: fileData,
-            },
+            ...prev,
+            backFileName: file.name,
+            backFileData: fileData,
+          },
       );
     } catch (fileError) {
       setKycError(fileError.message || "Could not read selected file.");
@@ -1294,9 +1294,9 @@ export default function PremiumDashboardPage({
                           ? "Confirm Deposit"
                           : showDepositRecords
                             ? "Deposit Records"
-                  : activeMainTab === "home"
-                    ? "Professional Trading Dashboard"
-                    : placeholderCopy.title}
+                            : activeMainTab === "home"
+                              ? "Professional Trading Dashboard"
+                              : placeholderCopy.title}
             </strong>
           </div>
 
@@ -1321,7 +1321,36 @@ export default function PremiumDashboardPage({
 
               {profileNotice ? <p className="prodash-page-notice">{profileNotice}</p> : null}
               {dashboardNoticeUpdatedAt ? (
-                <p className="prodash-page-notice">Notice updated: {new Date(dashboardNoticeUpdatedAt).toLocaleString()}</p>
+                <p className="prodash-page-notice">
+                  Notice updated:{" "}
+                  {(() => {
+                    const noticeDate = new Date(dashboardNoticeUpdatedAt);
+                    const today = new Date();
+
+                    const noticeDay = new Date(
+                      noticeDate.getFullYear(),
+                      noticeDate.getMonth(),
+                      noticeDate.getDate(),
+                    );
+
+                    const todayDay = new Date(
+                      today.getFullYear(),
+                      today.getMonth(),
+                      today.getDate(),
+                    );
+
+                    const diffDays = Math.round((todayDay - noticeDay) / (1000 * 60 * 60 * 24));
+
+                    if (diffDays === 0) return "Today";
+                    if (diffDays === 1) return "Yesterday";
+
+                    return noticeDate.toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    });
+                  })()}
+                </p>
               ) : null}
               {dashboardSyncError ? <p className="prodash-form-error">{dashboardSyncError}</p> : null}
 
@@ -1380,11 +1409,11 @@ export default function PremiumDashboardPage({
                             ? openLumPage
                             : action.id === "binary"
                               ? openBinaryPage
-                            : action.id === "transaction"
-                              ? openTransactionPage
-                            : action.id === "recharge"
-                              ? openDepositAssetSelector
-                              : undefined
+                              : action.id === "transaction"
+                                ? openTransactionPage
+                                : action.id === "recharge"
+                                  ? openDepositAssetSelector
+                                  : undefined
                         }
                       >
                         <span>
@@ -2092,12 +2121,12 @@ export default function PremiumDashboardPage({
       ) : null}
 
       {kycSuccessPopup ? (
-        <div className="prodash-popup-overlay" onClick={() => setKycSuccessPopup("") }>
+        <div className="prodash-popup-overlay" onClick={() => setKycSuccessPopup("")}>
           <section className="prodash-success-popup" role="alertdialog" onClick={(event) => event.stopPropagation()}>
             <i className="fas fa-circle-check" />
             <h3>Submitted successfully</h3>
             <p>{kycSuccessPopup}</p>
-            <button type="button" onClick={() => setKycSuccessPopup("") }>
+            <button type="button" onClick={() => setKycSuccessPopup("")}>
               OK
             </button>
           </section>

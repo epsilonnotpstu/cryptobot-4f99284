@@ -1,8 +1,16 @@
 R_DEF: Internal format may change without notice
 local
 color rampx_background
+color rampx_notification_accent
 color rampx_system_bar
 color rampx_system_bar_nav
+drawable ic_notification_logo
+drawable ic_stat_rampx
+drawable splash
+mipmap ic_launcher
+mipmap ic_launcher_background
+mipmap ic_launcher_foreground
+mipmap ic_launcher_round
 string default_web_client_id
 string gcm_defaultSenderId
 string google_api_key

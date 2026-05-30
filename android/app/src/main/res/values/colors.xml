@@ -3,4 +3,5 @@
     <color name="rampx_system_bar">#071827</color>
     <color name="rampx_system_bar_nav">#071827</color>
     <color name="rampx_background">#060F1D</color>
+    <color name="rampx_notification_accent">#1DB7E9</color>
 </resources>

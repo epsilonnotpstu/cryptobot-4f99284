@@ -4309,6 +4309,8 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
             title,
             body,
             channelId: NOTIFICATION_CHANNEL_ID,
+            smallIcon: "ic_stat_rampx",
+            largeIcon: "ic_notification_logo",
             extra: {
               notificationId: String(item.notificationId || ""),
               dedupeKey: String(item.dedupeKey || ""),
