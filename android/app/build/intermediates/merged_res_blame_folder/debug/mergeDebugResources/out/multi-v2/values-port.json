@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.cryptobot.prime.app-mergeDebugResources-27:/values-port/values-port.xml",
+            "outputFile": "com.cryptobot.prime.app-mergeDebugResources-33:/values-port/values-port.xml",
             "map": [
                 {
                     "source": "/home/afridi/.gradle/caches/9.0.0/transforms/f17fa524ccbea3a9e4151c7735f01da9/transformed/appcompat-1.7.1/res/values-port/values-port.xml",

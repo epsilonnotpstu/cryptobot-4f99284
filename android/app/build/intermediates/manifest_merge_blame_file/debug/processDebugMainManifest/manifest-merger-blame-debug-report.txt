@@ -20,163 +20,290 @@
 15-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-90
 15-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:21-87
 16        </intent>
-17    </queries>
-18
-19    <permission
-19-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
-20        android:name="com.cryptobot.prime.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-20-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:23:9-81
-21        android:protectionLevel="signature" />
-21-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:24:9-44
-22
-23    <uses-permission android:name="com.cryptobot.prime.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-23-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:26:5-97
-23-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:26:22-94
-24
-25    <application
-25-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:4:5-29:19
-26        android:allowBackup="true"
-26-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:5:9-35
-27        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-27-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:28:18-86
-28        android:debuggable="true"
-29        android:extractNativeLibs="false"
-30        android:label="CryptoBot Prime"
-30-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:6:9-40
-31        android:supportsRtl="true"
-31-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:7:9-35
-32        android:testOnly="true"
-33        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-33-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:9:9-71
-34        android:usesCleartextTraffic="true" >
-34-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:8:9-44
-35        <activity
-35-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:10:9-28:20
-36            android:name="com.cryptobot.prime.MainActivity"
-36-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:11:13-41
-37            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
-37-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:16:13-140
-38            android:exported="true"
-38-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:12:13-36
-39            android:label="CryptoBot Prime"
-39-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:14:13-44
-40            android:launchMode="singleTask"
-40-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:13:13-44
-41            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" >
-41-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:15:13-75
-42            <intent-filter>
-42-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:17:13-20:29
-43                <action android:name="android.intent.action.MAIN" />
-43-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:18:17-69
-43-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:18:25-66
-44
-45                <category android:name="android.intent.category.LAUNCHER" />
-45-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:19:17-77
-45-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:19:27-74
-46            </intent-filter>
-47            <intent-filter>
-47-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:21:13-27:29
-48                <action android:name="android.intent.action.VIEW" />
-48-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:17-69
-48-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:25-66
-49
-50                <category android:name="android.intent.category.DEFAULT" />
-50-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:23:17-76
-50-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:23:27-73
-51                <category android:name="android.intent.category.BROWSABLE" />
-51-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:17-78
-51-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:27-75
-52
-53                <data
-53-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:17-86
-54                    android:host="auth-callback"
-54-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:55-83
-55                    android:scheme="cryptobotprime" />
-55-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:23-54
-56                <data
-56-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:17-86
-57                    android:host="auth-callback"
-57-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:55-83
-58                    android:scheme="cryptobot" />
-58-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:23-54
-59            </intent-filter>
-60        </activity>
-61        <activity
-61-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:14:9-18:75
-62            android:name="com.capacitorjs.plugins.browser.BrowserControllerActivity"
-62-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:15:13-85
-63            android:exported="false"
-63-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:16:13-37
-64            android:launchMode="singleTask"
-64-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:17:13-44
-65            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-65-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:18:13-72
-66
-67        <provider
-67-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
-68            android:name="androidx.startup.InitializationProvider"
-68-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
-69            android:authorities="com.cryptobot.prime.androidx-startup"
-69-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
-70            android:exported="false" >
-70-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
-71            <meta-data
-71-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
-72                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-72-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
-73                android:value="androidx.startup" />
-73-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
-74            <meta-data
-74-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/9b8e34f8f9cd2aecdbe042c06daf9b1a/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
-75                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-75-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/9b8e34f8f9cd2aecdbe042c06daf9b1a/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
-76                android:value="androidx.startup" />
-76-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/9b8e34f8f9cd2aecdbe042c06daf9b1a/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
-77            <meta-data
-77-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
-78                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-78-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
-79                android:value="androidx.startup" />
-79-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
-80        </provider>
-81
-82        <receiver
-82-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
-83            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-83-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
-84            android:directBootAware="false"
-84-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
-85            android:enabled="true"
-85-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
-86            android:exported="true"
-86-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
-87            android:permission="android.permission.DUMP" >
-87-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
-88            <intent-filter>
-88-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
-89                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-89-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
-89-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
-90            </intent-filter>
-91            <intent-filter>
-91-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
-92                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-92-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
-92-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
-93            </intent-filter>
-94            <intent-filter>
-94-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
-95                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-95-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
-95-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
-96            </intent-filter>
-97            <intent-filter>
-97-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
-98                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-98-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
-98-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
-99            </intent-filter>
-100        </receiver>
-101    </application>
-102
-103</manifest>
+17        <intent>
+17-->[com.google.androidbrowserhelper:androidbrowserhelper:2.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/9c86d1eb148a12cb0e185b33a1a8d2da/transformed/androidbrowserhelper-2.5.0/AndroidManifest.xml:27:9-33:18
+18            <action android:name="android.intent.action.VIEW" />
+18-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:17-69
+18-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:25-66
+19
+20            <category android:name="android.intent.category.BROWSABLE" />
+20-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:17-78
+20-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:27-75
+21
+22            <data android:scheme="https" />
+22-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:17-86
+22-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:23-54
+23        </intent>
+24    </queries>
+25
+26    <uses-permission android:name="android.permission.USE_CREDENTIALS" />
+26-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:5-74
+26-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:22-71
+27    <uses-permission android:name="android.permission.USE_BIOMETRIC" /> <!-- suppress DeprecatedClassUsageInspection -->
+27-->[androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/478ecd79a85228ae69664080e75f55ef/transformed/biometric-1.1.0/AndroidManifest.xml:24:5-72
+27-->[androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/478ecd79a85228ae69664080e75f55ef/transformed/biometric-1.1.0/AndroidManifest.xml:24:22-69
+28    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+28-->[androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/478ecd79a85228ae69664080e75f55ef/transformed/biometric-1.1.0/AndroidManifest.xml:27:5-74
+28-->[androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/478ecd79a85228ae69664080e75f55ef/transformed/biometric-1.1.0/AndroidManifest.xml:27:22-71
+29
+30    <permission
+30-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
+31        android:name="com.cryptobot.prime.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+31-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:23:9-81
+32        android:protectionLevel="signature" />
+32-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:24:9-44
+33
+34    <uses-permission android:name="com.cryptobot.prime.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+34-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:26:5-97
+34-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:26:22-94
+35
+36    <application
+36-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:4:5-29:19
+37        android:allowBackup="true"
+37-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:5:9-35
+38        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+38-->[androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/b5b83952fade60b19060858c95b59e51/transformed/core-1.16.0/AndroidManifest.xml:28:18-86
+39        android:debuggable="true"
+40        android:extractNativeLibs="false"
+41        android:label="CryptoBot Prime"
+41-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:6:9-40
+42        android:supportsRtl="true"
+42-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:7:9-35
+43        android:testOnly="true"
+44        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+44-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:9:9-71
+45        android:usesCleartextTraffic="true" >
+45-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:8:9-44
+46        <activity
+46-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:10:9-28:20
+47            android:name="com.cryptobot.prime.MainActivity"
+47-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:11:13-41
+48            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
+48-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:16:13-140
+49            android:exported="true"
+49-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:12:13-36
+50            android:label="CryptoBot Prime"
+50-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:14:13-44
+51            android:launchMode="singleTask"
+51-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:13:13-44
+52            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" >
+52-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:15:13-75
+53            <intent-filter>
+53-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:17:13-20:29
+54                <action android:name="android.intent.action.MAIN" />
+54-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:18:17-69
+54-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:18:25-66
+55
+56                <category android:name="android.intent.category.LAUNCHER" />
+56-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:19:17-77
+56-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:19:27-74
+57            </intent-filter>
+58            <intent-filter>
+58-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:21:13-27:29
+59                <action android:name="android.intent.action.VIEW" />
+59-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:17-69
+59-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:25-66
+60
+61                <category android:name="android.intent.category.DEFAULT" />
+61-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:23:17-76
+61-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:23:27-73
+62                <category android:name="android.intent.category.BROWSABLE" />
+62-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:17-78
+62-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:27-75
+63
+64                <data
+64-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:17-86
+65                    android:host="auth-callback"
+65-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:55-83
+66                    android:scheme="cryptobotprime" />
+66-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:23-54
+67                <data
+67-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:17-86
+68                    android:host="auth-callback"
+68-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:55-83
+69                    android:scheme="cryptobot" />
+69-->/home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:23-54
+70            </intent-filter>
+71        </activity>
+72        <activity
+72-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:14:9-18:75
+73            android:name="com.capacitorjs.plugins.browser.BrowserControllerActivity"
+73-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:15:13-85
+74            android:exported="false"
+74-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:16:13-37
+75            android:launchMode="singleTask"
+75-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:17:13-44
+76            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+76-->[:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:18:13-72
+77        <activity
+77-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:18:9-21:84
+78            android:name="ee.forgr.capacitor.social.login.TwitterLoginActivity"
+78-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:19:13-80
+79            android:exported="false"
+79-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:20:13-37
+80            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
+80-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:21:13-81
+81        <activity
+81-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:22:9-25:84
+82            android:name="ee.forgr.capacitor.social.login.OAuth2LoginActivity"
+82-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:23:13-79
+83            android:exported="false"
+83-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:24:13-37
+84            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
+84-->[:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:25:13-81
+85
+86        <service
+86-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:24:9-32:19
+87            android:name="androidx.credentials.playservices.CredentialProviderMetadataHolder"
+87-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:25:13-94
+88            android:enabled="true"
+88-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:26:13-35
+89            android:exported="false" >
+89-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:27:13-37
+90            <meta-data
+90-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:29:13-31:104
+91                android:name="androidx.credentials.CREDENTIAL_PROVIDER_KEY"
+91-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:30:17-76
+92                android:value="androidx.credentials.playservices.CredentialProviderPlayServicesImpl" />
+92-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:31:17-101
+93        </service>
+94
+95        <activity
+95-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:34:9-41:20
+96            android:name="androidx.credentials.playservices.HiddenActivity"
+96-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:35:13-76
+97            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+97-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:36:13-87
+98            android:enabled="true"
+98-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:37:13-35
+99            android:exported="false"
+99-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:38:13-37
+100            android:fitsSystemWindows="true"
+100-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:39:13-45
+101            android:theme="@style/Theme.Hidden" >
+101-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:40:13-48
+102        </activity>
+103        <activity
+103-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:42:9-49:20
+104            android:name="androidx.credentials.playservices.IdentityCredentialApiHiddenActivity"
+104-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:43:13-97
+105            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+105-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:44:13-87
+106            android:enabled="true"
+106-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:45:13-35
+107            android:exported="false"
+107-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:46:13-37
+108            android:fitsSystemWindows="true"
+108-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:47:13-45
+109            android:theme="@style/Theme.Hidden" >
+109-->[androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/042070aa6071c700191b8c9956348a88/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:48:13-48
+110        </activity>
+111        <activity
+111-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:23:9-27:75
+112            android:name="com.google.android.gms.auth.api.signin.internal.SignInHubActivity"
+112-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:24:13-93
+113            android:excludeFromRecents="true"
+113-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:25:13-46
+114            android:exported="false"
+114-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:26:13-37
+115            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+115-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:27:13-72
+116        <!--
+117            Service handling Google Sign-In user revocation. For apps that do not integrate with
+118            Google Sign-In, this service will never be started.
+119        -->
+120        <service
+120-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:33:9-37:51
+121            android:name="com.google.android.gms.auth.api.signin.RevocationBoundService"
+121-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:34:13-89
+122            android:exported="true"
+122-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:35:13-36
+123            android:permission="com.google.android.gms.auth.api.signin.permission.REVOCATION_NOTIFICATION"
+123-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:36:13-107
+124            android:visibleToInstantApps="true" />
+124-->[com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/583ea5ab8ba61f1e439d7a8578744c22/transformed/play-services-auth-21.4.0/AndroidManifest.xml:37:13-48
+125
+126        <activity
+126-->[com.google.android.gms:play-services-base:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/e0435601a9971ae8b39529046916a8f9/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+127            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+127-->[com.google.android.gms:play-services-base:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/e0435601a9971ae8b39529046916a8f9/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+128            android:exported="false"
+128-->[com.google.android.gms:play-services-base:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/e0435601a9971ae8b39529046916a8f9/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+129            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+129-->[com.google.android.gms:play-services-base:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/e0435601a9971ae8b39529046916a8f9/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+130
+131        <meta-data
+131-->[com.google.android.gms:play-services-basement:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/5bce0b13ac6e5e6f07108290ccc697ec/transformed/play-services-basement-18.5.0/AndroidManifest.xml:21:9-23:69
+132            android:name="com.google.android.gms.version"
+132-->[com.google.android.gms:play-services-basement:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/5bce0b13ac6e5e6f07108290ccc697ec/transformed/play-services-basement-18.5.0/AndroidManifest.xml:22:13-58
+133            android:value="@integer/google_play_services_version" />
+133-->[com.google.android.gms:play-services-basement:18.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/5bce0b13ac6e5e6f07108290ccc697ec/transformed/play-services-basement-18.5.0/AndroidManifest.xml:23:13-66
+134
+135        <provider
+135-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+136            android:name="androidx.startup.InitializationProvider"
+136-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+137            android:authorities="com.cryptobot.prime.androidx-startup"
+137-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+138            android:exported="false" >
+138-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+139            <meta-data
+139-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+140                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+140-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+141                android:value="androidx.startup" />
+141-->[androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/5cd4e2a7dac4f8451e343e0c0949b13b/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+142            <meta-data
+142-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/9b8e34f8f9cd2aecdbe042c06daf9b1a/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+143                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+143-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/9b8e34f8f9cd2aecdbe042c06daf9b1a/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+144                android:value="androidx.startup" />
+144-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/9b8e34f8f9cd2aecdbe042c06daf9b1a/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+145            <meta-data
+145-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+146                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+146-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+147                android:value="androidx.startup" />
+147-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+148        </provider>
+149
+150        <receiver
+150-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+151            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+151-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+152            android:directBootAware="false"
+152-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+153            android:enabled="true"
+153-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+154            android:exported="true"
+154-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+155            android:permission="android.permission.DUMP" >
+155-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+156            <intent-filter>
+156-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+157                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+157-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+157-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+158            </intent-filter>
+159            <intent-filter>
+159-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+160                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+160-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+160-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+161            </intent-filter>
+162            <intent-filter>
+162-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+163                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+163-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+163-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+164            </intent-filter>
+165            <intent-filter>
+165-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+166                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+166-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+166-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/dbf1fccac2c83649d8f8e1eaf62e9f81/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+167            </intent-filter>
+168        </receiver>
+169    </application>
+170
+171</manifest>

@@ -2,6 +2,8 @@ import { Component, useEffect, useRef, useState } from "react";
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
+import { CapacitorHttp } from "@capacitor/core";
+import { SocialLogin } from "@capgo/capacitor-social-login";
 import PremiumDashboardPage from "./features/dashboard/PremiumDashboardPage";
 import DepositPage from "./features/dashboard/DepositPage";
 import LUMPage from "./features/lum/LUMPage";
@@ -18,6 +20,7 @@ const ROUTES = {
   admin: "/admin",
   app: "/app",
 };
+const NATIVE_ALLOWED_ROUTES = new Set([ROUTES.app, ROUTES.login, ROUTES.signup]);
 
 class GoogleAuthRenderBoundary extends Component {
   constructor(props) {
@@ -75,11 +78,14 @@ const AUTH_REQUEST_TIMEOUT_MS = 20000;
 const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
 const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
 const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
+const GOOGLE_ANDROID_WEB_CLIENT_ID = sanitizeEnvValue(
+  import.meta.env.VITE_GOOGLE_ANDROID_WEB_CLIENT_ID || GOOGLE_WEB_CLIENT_ID,
+);
 const GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS = sanitizeEnvValue(
   import.meta.env.VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS || "",
 );
 const NATIVE_AUTH_CALLBACK_URL = sanitizeEnvUrl(
-  import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "rampxtrading://auth-callback",
+  import.meta.env.VITE_NATIVE_AUTH_CALLBACK_URL || "cryptobotprime://auth-callback",
 );
 
 const initialAssets = [
@@ -688,6 +694,64 @@ function isNativeAppRuntime() {
   return hasCapacitorBridge && isNativePlatform;
 }
 
+function isNativeAndroidRuntime() {
+  if (!isNativeAppRuntime()) {
+    return false;
+  }
+  return window.Capacitor?.getPlatform?.() === "android";
+}
+
+let nativeGoogleInitialized = false;
+
+async function loginWithNativeAndroidGoogle() {
+  if (!isNativeAndroidRuntime()) {
+    return null;
+  }
+
+  if (!GOOGLE_ANDROID_WEB_CLIENT_ID) {
+    throw new Error("Android Google login requires `VITE_GOOGLE_CLIENT_ID` (Web Client ID).");
+  }
+
+  if (!nativeGoogleInitialized) {
+    await SocialLogin.initialize({
+      google: {
+        webClientId: GOOGLE_ANDROID_WEB_CLIENT_ID,
+        mode: "online",
+      },
+    });
+    nativeGoogleInitialized = true;
+  }
+
+  const loginResult = await SocialLogin.login({
+    provider: "google",
+  });
+  const idToken = loginResult?.result?.idToken || "";
+
+  if (!idToken) {
+    throw new Error("Google sign-in did not return a valid ID token.");
+  }
+
+  return idToken;
+}
+
+function isGoogleLoginCancelledByUser(error) {
+  const code = String(error?.code || "").toUpperCase();
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    code === "USER_CANCELLED" ||
+    message.includes("cancelled") ||
+    message.includes("canceled") ||
+    message.includes("user closed")
+  );
+}
+
+function normalizeRouteForRuntime(route) {
+  if (isNativeAppRuntime() && !NATIVE_ALLOWED_ROUTES.has(route)) {
+    return ROUTES.app;
+  }
+  return route;
+}
+
 function parseHashRouteState() {
   if (typeof window === "undefined") {
     return { route: ROUTES.app, query: new URLSearchParams() };
@@ -696,7 +760,8 @@ function parseHashRouteState() {
   const defaultRoute = isNativeAppRuntime() ? ROUTES.app : ROUTES.home;
   const hashContent = window.location.hash.replace(/^#/, "") || defaultRoute;
   const [rawRoute, rawQuery = ""] = hashContent.split("?");
-  const route = Object.values(ROUTES).includes(rawRoute) ? rawRoute : defaultRoute;
+  const parsedRoute = Object.values(ROUTES).includes(rawRoute) ? rawRoute : defaultRoute;
+  const route = normalizeRouteForRuntime(parsedRoute);
   return { route, query: new URLSearchParams(rawQuery) };
 }
 
@@ -708,7 +773,7 @@ function goToRoute(route) {
   if (typeof window === "undefined") {
     return;
   }
-  window.location.hash = route;
+  window.location.hash = normalizeRouteForRuntime(route);
 }
 
 function readAuthSnapshot() {
@@ -1231,6 +1296,60 @@ function isRetryableFetchError(error) {
   return error instanceof TypeError || error?.name === "AbortError";
 }
 
+function parseNativeHttpData(rawData) {
+  if (!rawData) {
+    return {};
+  }
+  if (typeof rawData === "string") {
+    try {
+      return JSON.parse(rawData);
+    } catch {
+      return { message: rawData };
+    }
+  }
+  if (typeof rawData === "object") {
+    return rawData;
+  }
+  return {};
+}
+
+async function requestAuthWithNativeHttp({
+  apiBase,
+  endpoint,
+  method = "GET",
+  body,
+  sessionToken,
+  timeoutMs = AUTH_REQUEST_TIMEOUT_MS,
+}) {
+  const response = await CapacitorHttp.request({
+    url: buildAuthUrl(apiBase, endpoint),
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+    },
+    ...(body ? { data: body } : {}),
+    connectTimeout: timeoutMs,
+    readTimeout: timeoutMs,
+    responseType: "json",
+  });
+
+  const status = Number(response?.status || 0);
+  const payload = parseNativeHttpData(response?.data);
+  const isOk = status >= 200 && status < 300;
+
+  if (!isOk) {
+    const fallbackMessage =
+      payload?.error ||
+      payload?.message ||
+      (typeof response?.data === "string" ? response.data : "") ||
+      `HTTP ${status || "0"} Request failed`;
+    throw new Error(normalizeAuthErrorMessage(fallbackMessage));
+  }
+
+  return payload;
+}
+
 async function fetchWithTimeout(url, options) {
   const timeoutMs = Math.max(1000, Number(options?.timeoutMs || AUTH_REQUEST_TIMEOUT_MS));
   const controller = new AbortController();
@@ -1303,6 +1422,23 @@ async function requestAuth(endpoint, { method = "GET", body, sessionToken, timeo
       return data;
     } catch (error) {
       if (isRetryableFetchError(error)) {
+        if (isNativeAppRuntime()) {
+          try {
+            const nativeData = await requestAuthWithNativeHttp({
+              apiBase,
+              endpoint,
+              method,
+              body,
+              sessionToken,
+              timeoutMs,
+            });
+            storeApiBase(apiBase);
+            return nativeData;
+          } catch (nativeHttpError) {
+            lastNetworkError = nativeHttpError;
+            continue;
+          }
+        }
         lastNetworkError = error;
         continue;
       }
@@ -3059,6 +3195,47 @@ function useAuthFlow({ initialView, authSnapshot, onAuthenticated }) {
   const handleMobileGoogleAuth = async (targetView) => {
     clearFeedback();
 
+    if (isNativeAndroidRuntime()) {
+      const openBrowserFallback = async () => {
+        if (!PUBLIC_AUTH_BASE_URL || !hasValidHttpsPublicAuthBase() || !hasValidNativeCallbackUrl()) {
+          return false;
+        }
+        const state = createNativeGoogleState(targetView);
+        const publicUrl = getPublicGoogleAuthUrl(targetView, {
+          callbackUrl: NATIVE_AUTH_CALLBACK_URL,
+          state,
+        });
+        return openExternalAuthUrl(publicUrl);
+      };
+
+      setSubmitting(true);
+      try {
+        const token = await loginWithNativeAndroidGoogle();
+        if (!token) {
+          throw new Error("Google sign-in failed. No token was returned.");
+        }
+        await authService.googleAuth({ token });
+        await finishAuth();
+      } catch (submitError) {
+        if (isGoogleLoginCancelledByUser(submitError)) {
+          if (await openBrowserFallback()) {
+            setNotice("Native Google account selection cancelled. Secure browser sign-in opened.");
+          } else {
+            setNotice("Google sign-in was cancelled.");
+          }
+        } else {
+          if (await openBrowserFallback()) {
+            setNotice("Native Google sign-in failed. Secure browser sign-in opened.");
+          } else {
+            setError(submitError?.message || "Google authentication failed on Android.");
+          }
+        }
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     if (!PUBLIC_AUTH_BASE_URL) {
       setError(
         "For mobile Google sign-in, set `VITE_PUBLIC_AUTH_BASE_URL` in .env to a public HTTPS tunnel/domain, then rebuild the app.",
@@ -3072,7 +3249,7 @@ function useAuthFlow({ initialView, authSnapshot, onAuthenticated }) {
     }
 
     if (!hasValidNativeCallbackUrl()) {
-      setError("VITE_NATIVE_AUTH_CALLBACK_URL invalid. Example: rampxtrading://auth-callback");
+      setError("VITE_NATIVE_AUTH_CALLBACK_URL invalid. Example: cryptobotprime://auth-callback");
       return;
     }
 
@@ -3349,9 +3526,11 @@ function AuthForms({ flow, classes }) {
         <p className="auth-social-label">{googleButtonText}</p>
         <p className="auth-social-copy">
           {isNativeRuntime
-            ? hasNativeGoogleUrl
-              ? "Google sign-in will open in a secure browser on native app."
-              : "Native app Google sign-in runs in secure browser and requires a public HTTPS tunnel/domain."
+            ? isNativeAndroidRuntime()
+              ? "Google sign-in will use your Android device account directly."
+              : hasNativeGoogleUrl
+                ? "Google sign-in will open in a secure browser on native app."
+                : "Native app Google sign-in runs in secure browser and requires a public HTTPS tunnel/domain."
             : "Use your verified Google account for instant access."}
         </p>
         {isNativeRuntime ? (
@@ -3360,7 +3539,7 @@ function AuthForms({ flow, classes }) {
             className="btn btn-ghost auth-mobile-google-btn"
             onClick={() => flow.handleMobileGoogleAuth(flow.view)}
           >
-            Open Secure Google Sign-In
+            {isNativeAndroidRuntime() ? "Continue with Google" : "Open Secure Google Sign-In"}
           </button>
         ) : (
           <div className="auth-google-button">
