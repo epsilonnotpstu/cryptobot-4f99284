@@ -16,6 +16,11 @@
 	},
 	"packageClassList": [
 		"AppPlugin",
-		"CAPBrowserPlugin"
+		"CAPBrowserPlugin",
+		"LocalNotificationsPlugin",
+		"PushNotificationsPlugin",
+		"StatusBarPlugin",
+		"NativeBiometricPlugin",
+		"SocialLoginPlugin"
 	]
 }

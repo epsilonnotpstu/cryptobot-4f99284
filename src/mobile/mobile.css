@@ -286,3 +286,43 @@ html.native-app #root {
   padding: 0.38rem 0.72rem;
   font-size: 0.78rem;
 }
+
+/* Native-only auth spacing and biometric polish (visual only) */
+.native-app .mobile-auth-shell {
+  padding-top: max(0.62rem, env(safe-area-inset-top));
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.95rem);
+}
+
+.native-app .mobile-auth-card {
+  border-color: rgba(80, 128, 182, 0.56);
+  box-shadow: 0 30px 70px rgba(2, 8, 28, 0.62);
+}
+
+.native-app .mobile-biometric-card {
+  padding: 0.95rem;
+  border-radius: 16px;
+  border-color: rgba(88, 126, 173, 0.58);
+  background:
+    radial-gradient(circle at 100% 4%, rgba(56, 189, 248, 0.16), transparent 38%),
+    linear-gradient(160deg, rgba(22, 36, 61, 0.92), rgba(27, 43, 70, 0.86));
+}
+
+.native-app .mobile-biometric-card strong {
+  font-size: 0.98rem;
+}
+
+.native-app .mobile-biometric-card p {
+  color: #b4c8e3;
+  font-size: 0.83rem;
+}
+
+.native-app .mobile-biometric-btn {
+  min-height: 46px;
+  border-radius: 12px;
+  border-color: rgba(91, 129, 175, 0.72);
+  background: rgba(23, 35, 63, 0.88);
+}
+
+.native-app .mobile-biometric-btn:disabled {
+  opacity: 0.72;
+}
