@@ -911,3 +911,114 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Support hard-polish + mobile/app footer clipping fix */
+.supportchat-modal {
+  height: min(780px, 96dvh);
+  max-height: 96dvh;
+  padding-bottom: max(0.82rem, env(safe-area-inset-bottom));
+}
+
+.supportchat-live-thread,
+.supportchat-layout .supportchat-thread,
+.supportchat-thread.supportchat-live-thread.supportchat-telegram-thread {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.supportchat-compose-zone {
+  display: grid;
+  gap: 0.45rem;
+  align-content: end;
+  padding-bottom: max(0.18rem, env(safe-area-inset-bottom));
+}
+
+.supportchat-thread-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.48rem;
+  align-items: center;
+}
+
+.supportchat-thread-footer input {
+  min-width: 0;
+  width: 100%;
+  min-height: 46px;
+}
+
+.supportchat-thread-footer .supportchat-primary-btn {
+  min-width: 96px;
+  min-height: 46px;
+}
+
+.supportchat-upload-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+}
+
+.supportchat-messages {
+  min-height: 0;
+  padding-bottom: 0.42rem;
+}
+
+.supportchat-message {
+  cursor: pointer;
+  user-select: none;
+}
+
+.supportchat-message:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.7);
+  outline-offset: 1px;
+}
+
+.supportchat-message header small {
+  display: none;
+}
+
+.supportchat-message-meta {
+  color: #9fb9da;
+  font-size: 0.71rem;
+  line-height: 1.35;
+  margin-top: 0.1rem;
+  padding-top: 0.12rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.supportchat-message.is-meta-open {
+  border-color: rgba(125, 211, 252, 0.5);
+  box-shadow: 0 10px 22px rgba(2, 10, 24, 0.3);
+}
+
+@media (max-width: 760px) {
+  .supportchat-modal {
+    height: min(820px, 97dvh);
+    max-height: 97dvh;
+    padding-bottom: max(0.72rem, env(safe-area-inset-bottom));
+  }
+
+  .supportchat-thread-footer {
+    grid-template-columns: minmax(0, 1fr) 44px 84px;
+    gap: 0.4rem;
+  }
+
+  .supportchat-thread-footer .supportchat-primary-btn {
+    min-width: 84px;
+    min-height: 44px;
+    padding-inline: 0.65rem;
+  }
+
+  .supportchat-thread-footer input {
+    min-height: 44px;
+  }
+
+  .supportchat-compose-zone {
+    padding-bottom: max(0.22rem, env(safe-area-inset-bottom));
+  }
+
+  .supportchat-message {
+    max-width: 92%;
+  }
+}

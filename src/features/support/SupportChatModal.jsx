@@ -125,6 +125,8 @@ export default function SupportChatModal({
   const [liveThreadDetail, setLiveThreadDetail] = useState({});
   const [liveMessageInput, setLiveMessageInput] = useState("");
   const [liveReplyAttachment, setLiveReplyAttachment] = useState(null);
+  const [expandedLiveMessageMeta, setExpandedLiveMessageMeta] = useState(() => new Set());
+  const [expandedTicketMessageMeta, setExpandedTicketMessageMeta] = useState(() => new Set());
 
   const ticketMessagesRef = useRef(null);
   const liveMessagesRef = useRef(null);
@@ -452,6 +454,34 @@ export default function SupportChatModal({
     return [...tickets].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }, [tickets]);
 
+  const buildMessageKey = (message, index) => {
+    return `${message?.messageId || "msg"}-${message?.createdAt || ""}-${index}`;
+  };
+
+  const toggleLiveMessageMeta = (messageKey) => {
+    setExpandedLiveMessageMeta((prev) => {
+      const next = new Set(prev);
+      if (next.has(messageKey)) {
+        next.delete(messageKey);
+      } else {
+        next.add(messageKey);
+      }
+      return next;
+    });
+  };
+
+  const toggleTicketMessageMeta = (messageKey) => {
+    setExpandedTicketMessageMeta((prev) => {
+      const next = new Set(prev);
+      if (next.has(messageKey)) {
+        next.delete(messageKey);
+      } else {
+        next.add(messageKey);
+      }
+      return next;
+    });
+  };
+
   if (!open) {
     return null;
   }
@@ -532,14 +562,26 @@ export default function SupportChatModal({
               </div>
 
               <div className="supportchat-messages" ref={liveMessagesRef}>
-                {liveMessages.map((message) => (
+                {liveMessages.map((message, index) => {
+                  const messageKey = buildMessageKey(message, index);
+                  const isMetaExpanded = expandedLiveMessageMeta.has(messageKey);
+                  return (
                   <article
-                    key={`${message.messageId}-${message.createdAt}`}
-                    className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
+                    key={messageKey}
+                    className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"} ${isMetaExpanded ? "is-meta-open" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Toggle message time"
+                    onClick={() => toggleLiveMessageMeta(messageKey)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        toggleLiveMessageMeta(messageKey);
+                      }
+                    }}
                   >
                     <header>
                       <strong>{message.senderRole === "admin" ? ( "Rampx Trading") : "You"}</strong>
-                      <small>{formatDateTime(message.createdAt)}</small>
                     </header>
                     {message.messageText ? <p>{message.messageText}</p> : null}
                     {normalizeAttachmentFromMessage(message) ? (
@@ -549,57 +591,61 @@ export default function SupportChatModal({
                         target="_blank"
                         rel="noreferrer"
                         download={normalizeAttachmentFromMessage(message)?.fileName}
+                        onClick={(event) => event.stopPropagation()}
                       >
                         <i className="fas fa-paperclip" />
                         <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
                         <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
                       </a>
                     ) : null}
+                    {isMetaExpanded ? <small className="supportchat-message-meta">{formatDateTime(message.createdAt)}</small> : null}
                   </article>
-                ))}
+                )})}
                 {!liveMessages.length ? <p className="supportchat-muted">Start the conversation with the support team.</p> : null}
               </div>
 
-              <footer className="supportchat-thread-footer">
-                <input
-                  type="text"
-                  value={liveMessageInput}
-                  onChange={(event) => setLiveMessageInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      sendLiveChatMessage();
-                    }
-                  }}
-                  placeholder="Write your live message..."
-                />
-                <label className="supportchat-upload-btn" title="Attach file">
-                  <i className="fas fa-paperclip" />
+              <div className="supportchat-compose-zone">
+                <footer className="supportchat-thread-footer">
                   <input
-                    type="file"
-                    accept={SUPPORT_ATTACHMENT_ACCEPT}
-                    onChange={(event) => selectAttachment(event, setLiveReplyAttachment)}
+                    type="text"
+                    value={liveMessageInput}
+                    onChange={(event) => setLiveMessageInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        sendLiveChatMessage();
+                      }
+                    }}
+                    placeholder="Write your live message..."
                   />
-                </label>
-                <button
-                  type="button"
-                  className="supportchat-primary-btn"
-                  onClick={sendLiveChatMessage}
-                  disabled={busyAction === "live-send"}
-                >
-                  {busyAction === "live-send" ? "Sending..." : "Send"}
-                </button>
-              </footer>
-              {liveReplyAttachment ? (
-                <div className="supportchat-attachment-pill">
-                  <i className="fas fa-file-arrow-up" />
-                  <span>{liveReplyAttachment.fileName}</span>
-                  <small>{formatBytes(liveReplyAttachment.sizeBytes)}</small>
-                  <button type="button" onClick={() => setLiveReplyAttachment(null)} aria-label="Remove attachment">
-                    <i className="fas fa-xmark" />
+                  <label className="supportchat-upload-btn" title="Attach file">
+                    <i className="fas fa-paperclip" />
+                    <input
+                      type="file"
+                      accept={SUPPORT_ATTACHMENT_ACCEPT}
+                      onChange={(event) => selectAttachment(event, setLiveReplyAttachment)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="supportchat-primary-btn"
+                    onClick={sendLiveChatMessage}
+                    disabled={busyAction === "live-send"}
+                  >
+                    {busyAction === "live-send" ? "Sending..." : "Send"}
                   </button>
-                </div>
-              ) : null}
+                </footer>
+                {liveReplyAttachment ? (
+                  <div className="supportchat-attachment-pill">
+                    <i className="fas fa-file-arrow-up" />
+                    <span>{liveReplyAttachment.fileName}</span>
+                    <small>{formatBytes(liveReplyAttachment.sizeBytes)}</small>
+                    <button type="button" onClick={() => setLiveReplyAttachment(null)} aria-label="Remove attachment">
+                      <i className="fas fa-xmark" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </section>
           </div>
         ) : (
@@ -750,14 +796,26 @@ export default function SupportChatModal({
                   </div>
 
                   <div className="supportchat-messages" ref={ticketMessagesRef}>
-                    {ticketMessages.map((message) => (
+                    {ticketMessages.map((message, index) => {
+                      const messageKey = buildMessageKey(message, index);
+                      const isMetaExpanded = expandedTicketMessageMeta.has(messageKey);
+                      return (
                       <article
-                        key={`${message.messageId}-${message.createdAt}`}
-                        className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
+                        key={messageKey}
+                        className={`supportchat-message ${message.senderRole === "admin" ? "is-admin" : "is-user"} ${isMetaExpanded ? "is-meta-open" : ""}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Toggle message time"
+                        onClick={() => toggleTicketMessageMeta(messageKey)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            toggleTicketMessageMeta(messageKey);
+                          }
+                        }}
                       >
                         <header>
                           <strong>{message.senderRole === "admin" ? ( "Rampx Trading") : "You"}</strong>
-                          <small>{formatDateTime(message.createdAt)}</small>
                         </header>
                         {message.messageText ? <p>{message.messageText}</p> : null}
                         {normalizeAttachmentFromMessage(message) ? (
@@ -767,59 +825,63 @@ export default function SupportChatModal({
                             target="_blank"
                             rel="noreferrer"
                             download={normalizeAttachmentFromMessage(message)?.fileName}
+                            onClick={(event) => event.stopPropagation()}
                           >
                             <i className="fas fa-paperclip" />
                             <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
                             <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
                           </a>
                         ) : null}
+                        {isMetaExpanded ? <small className="supportchat-message-meta">{formatDateTime(message.createdAt)}</small> : null}
                       </article>
-                    ))}
+                    )})}
                     {!ticketMessages.length ? <p className="supportchat-muted">No messages yet.</p> : null}
                   </div>
 
-                  <footer className="supportchat-thread-footer">
-                    <input
-                      type="text"
-                      value={messageInput}
-                      onChange={(event) => setMessageInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          sendTicketMessage();
-                        }
-                      }}
-                      placeholder={normalizeText(selectedTicket.status) === "closed" ? "Reopen ticket to send message" : "Write your message..."}
-                      disabled={normalizeText(selectedTicket.status) === "closed"}
-                    />
-                    <label className="supportchat-upload-btn" title="Attach file">
-                      <i className="fas fa-paperclip" />
+                  <div className="supportchat-compose-zone">
+                    <footer className="supportchat-thread-footer">
                       <input
-                        type="file"
-                        accept={SUPPORT_ATTACHMENT_ACCEPT}
-                        onChange={(event) => selectAttachment(event, setTicketReplyAttachment)}
+                        type="text"
+                        value={messageInput}
+                        onChange={(event) => setMessageInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            sendTicketMessage();
+                          }
+                        }}
+                        placeholder={normalizeText(selectedTicket.status) === "closed" ? "Reopen ticket to send message" : "Write your message..."}
                         disabled={normalizeText(selectedTicket.status) === "closed"}
                       />
-                    </label>
-                    <button
-                      type="button"
-                      className="supportchat-primary-btn"
-                      onClick={sendTicketMessage}
-                      disabled={busyAction === "send-message" || normalizeText(selectedTicket.status) === "closed"}
-                    >
-                      {busyAction === "send-message" ? "Sending..." : "Send"}
-                    </button>
-                  </footer>
-                  {ticketReplyAttachment ? (
-                    <div className="supportchat-attachment-pill">
-                      <i className="fas fa-file-arrow-up" />
-                      <span>{ticketReplyAttachment.fileName}</span>
-                      <small>{formatBytes(ticketReplyAttachment.sizeBytes)}</small>
-                      <button type="button" onClick={() => setTicketReplyAttachment(null)} aria-label="Remove attachment">
-                        <i className="fas fa-xmark" />
+                      <label className="supportchat-upload-btn" title="Attach file">
+                        <i className="fas fa-paperclip" />
+                        <input
+                          type="file"
+                          accept={SUPPORT_ATTACHMENT_ACCEPT}
+                          onChange={(event) => selectAttachment(event, setTicketReplyAttachment)}
+                          disabled={normalizeText(selectedTicket.status) === "closed"}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="supportchat-primary-btn"
+                        onClick={sendTicketMessage}
+                        disabled={busyAction === "send-message" || normalizeText(selectedTicket.status) === "closed"}
+                      >
+                        {busyAction === "send-message" ? "Sending..." : "Send"}
                       </button>
-                    </div>
-                  ) : null}
+                    </footer>
+                    {ticketReplyAttachment ? (
+                      <div className="supportchat-attachment-pill">
+                        <i className="fas fa-file-arrow-up" />
+                        <span>{ticketReplyAttachment.fileName}</span>
+                        <small>{formatBytes(ticketReplyAttachment.sizeBytes)}</small>
+                        <button type="button" onClick={() => setTicketReplyAttachment(null)} aria-label="Remove attachment">
+                          <i className="fas fa-xmark" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </>
               ) : (
                 <div className="supportchat-thread-empty">
