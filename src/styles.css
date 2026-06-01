@@ -966,6 +966,7 @@
 .mobile-auth-brand {
 	font-size: clamp(1rem, 2vw, 1.08rem);
 	margin-bottom: 1.05rem;
+	color:white;
 }
 
 .mobile-auth-copy h1 {
