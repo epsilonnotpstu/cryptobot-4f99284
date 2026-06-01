@@ -364,7 +364,7 @@ const DEFAULT_HOME_PAGE_CONTENT = {
         },
         {
           icon: "fab fa-google-play",
-          labelTop: "Get it on",
+          labelTop: "Download for",
           labelBottom: "Android",
           href: ANDROID_APK_DOWNLOAD_URL,
         },
