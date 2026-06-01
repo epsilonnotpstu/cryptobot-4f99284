@@ -60,3 +60,6 @@ Expected result:
 3. If OTP mail fails, check SMTP sender credentials and provider restrictions.
 4. For non-Vercel hosting with persistent disk, set `AUTH_DATA_DIR` (example: `/data`) and `SERVE_STATIC=true`.
 5. See full free + paid hosting playbook: `docs/deployment-hosting-guide.md`.
+
+
+just cheek
