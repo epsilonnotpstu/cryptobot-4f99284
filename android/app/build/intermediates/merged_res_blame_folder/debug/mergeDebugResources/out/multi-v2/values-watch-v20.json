@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.rampxtrading.app-mergeDebugResources-40:/values-watch-v20/values-watch-v20.xml",
+            "outputFile": "com.rampxtrading.app-mergeDebugResources-59:/values-watch-v20/values-watch-v20.xml",
             "map": [
                 {
                     "source": "/home/afridi/.gradle/caches/9.0.0/transforms/391b8cb696d37a7d2c942ea8e3763a27/transformed/play-services-auth-21.4.0/res/values-watch-v20/values.xml",

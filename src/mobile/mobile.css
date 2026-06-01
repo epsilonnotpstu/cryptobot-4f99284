@@ -75,6 +75,34 @@ html.native-app #root {
   overflow-x: hidden;
 }
 
+.native-app .mobile-biometric-card {
+  margin-bottom: 0.85rem;
+  padding: 0.8rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: linear-gradient(155deg, rgba(8, 16, 30, 0.72), rgba(11, 24, 44, 0.62));
+  display: grid;
+  gap: 0.45rem;
+}
+
+.native-app .mobile-biometric-card strong {
+  color: #e7f5ff;
+  font-size: 0.94rem;
+  letter-spacing: 0.02em;
+}
+
+.native-app .mobile-biometric-card p {
+  margin: 0;
+  color: #99b4cd;
+  font-size: 0.8rem;
+}
+
+.native-app .mobile-biometric-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+}
+
 .native-app .native-notification-fab {
   position: fixed;
   z-index: 1400;

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.rampxtrading.app-mergeDebugResources-40:/values-en-rXC/values-en-rXC.xml",
+            "outputFile": "com.rampxtrading.app-mergeDebugResources-59:/values-en-rXC/values-en-rXC.xml",
             "map": [
                 {
                     "source": "/home/afridi/.gradle/caches/9.0.0/transforms/d53dcb6c481c9f5212c27601dba09cf3/transformed/browser-1.9.0/res/values-en-rXC/values-en-rXC.xml",

@@ -843,6 +843,65 @@ button.prodash-promo-card {
   max-width: 680px;
 }
 
+.prodash-biometric-card {
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 16px;
+  background: rgba(10, 20, 36, 0.72);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.prodash-biometric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.prodash-biometric-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #eaf8ff;
+}
+
+.prodash-biometric-status {
+  border-radius: 999px;
+  padding: 0.2rem 0.56rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.prodash-biometric-status.is-enabled {
+  color: #29e09b;
+  border-color: rgba(41, 224, 155, 0.36);
+  background: rgba(12, 54, 41, 0.5);
+}
+
+.prodash-biometric-status.is-disabled {
+  color: #a6bed8;
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(12, 22, 40, 0.5);
+}
+
+.prodash-biometric-status.is-unsupported {
+  color: #ffb8b8;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(71, 26, 34, 0.5);
+}
+
+.prodash-biometric-card p {
+  margin: 0;
+  color: #97b2cd;
+}
+
+.prodash-biometric-toggle {
+  margin-top: 0.2rem;
+}
+
 .prodash-kyc-form {
   gap: 0.8rem;
 }

@@ -388,6 +388,9 @@ export default function PremiumDashboardPage({
   onOpenTransactionPage,
   onOpenAssetsPage,
   onOpenLaunchpadPage,
+  biometricAuthState = null,
+  onEnableBiometricLogin = null,
+  onDisableBiometricLogin = null,
   onCreateDepositRequest,
   onDepositRecords,
   onLoadSupportTickets,
@@ -451,6 +454,9 @@ export default function PremiumDashboardPage({
   const [marketPrioritySymbols, setMarketPrioritySymbols] = useState([]);
   const [launchpadSnapshot, setLaunchpadSnapshot] = useState(null);
   const [dashboardSyncError, setDashboardSyncError] = useState("");
+  const biometricState = biometricAuthState && typeof biometricAuthState === "object"
+    ? biometricAuthState
+    : { supported: false, enabled: false, checking: false, processing: false, message: "" };
 
   const [depositSearch, setDepositSearch] = useState("");
   const [selectedDepositAssetId, setSelectedDepositAssetId] = useState(null);
@@ -741,6 +747,12 @@ export default function PremiumDashboardPage({
   const launchpadFeatured = launchpadSnapshot?.featured || null;
   const launchpadLiveCount = Number(launchpadSnapshot?.counts?.live || 0);
   const launchpadWatchlistCount = Number(launchpadSnapshot?.user?.watchlistCount || 0);
+  const showBiometricControls = typeof onEnableBiometricLogin === "function" && typeof onDisableBiometricLogin === "function";
+  const biometricStatusLabel = biometricState.supported
+    ? biometricState.enabled
+      ? "Enabled"
+      : "Disabled"
+    : "Not supported";
 
   const openDrawerRoute = (route) => {
     setDrawerOpen(false);
@@ -1734,6 +1746,34 @@ export default function PremiumDashboardPage({
                 </button>
                 <h2>KYC Form</h2>
               </header>
+
+              {showBiometricControls ? (
+                <section className="prodash-biometric-card">
+                  <div className="prodash-biometric-head">
+                    <h3>App Fingerprint Login</h3>
+                    <span className={`prodash-biometric-status ${biometricState.supported ? (biometricState.enabled ? "is-enabled" : "is-disabled") : "is-unsupported"}`}>
+                      {biometricStatusLabel}
+                    </span>
+                  </div>
+                  <p>Fingerprint unlock uses your device biometric security.</p>
+                  {!biometricState.supported ? (
+                    <p className="prodash-form-notice">Fingerprint not available on this device.</p>
+                  ) : null}
+                  {biometricState.message ? <p className="prodash-form-notice">{biometricState.message}</p> : null}
+                  <button
+                    type="button"
+                    className="prodash-submit-btn prodash-biometric-toggle"
+                    onClick={biometricState.enabled ? onDisableBiometricLogin : onEnableBiometricLogin}
+                    disabled={Boolean(biometricState.processing) || Boolean(biometricState.checking) || !biometricState.supported}
+                  >
+                    {biometricState.processing
+                      ? "Please wait..."
+                      : biometricState.enabled
+                        ? "Disable Fingerprint"
+                        : "Enable Fingerprint"}
+                  </button>
+                </section>
+              ) : null}
 
               <form className="prodash-form prodash-kyc-form" onSubmit={submitKyc}>
                 <label>

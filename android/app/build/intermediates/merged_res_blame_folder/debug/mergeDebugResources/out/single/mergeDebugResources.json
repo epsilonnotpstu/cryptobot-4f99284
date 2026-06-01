@@ -1,222 +1,222 @@
 [
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-mdpi_ic_launcher.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-mdpi/ic_launcher.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xhdpi/ic_launcher.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-night-mdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-night-mdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-mdpi_ic_launcher_foreground.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-mdpi/ic_launcher_foreground.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-night-xxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-night-xxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-hdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-hdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-ldpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-ldpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xhdpi_ic_launcher_foreground.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xhdpi/ic_launcher_foreground.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-night-ldpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-night-ldpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/xml_config.xml.flat",
+        "source": "com.rampxtrading.app-main-63:/xml/config.xml"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-anydpi-v26/ic_launcher_round.xml"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-mdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-mdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-hdpi_ic_launcher_background.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-hdpi/ic_launcher_background.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-hdpi/ic_launcher_round.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-ldpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-ldpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-mdpi/ic_launcher.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-ldpi_ic_launcher_round.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-ldpi/ic_launcher_round.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-night-ldpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-night-ldpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-xxxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-xxxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xhdpi_ic_launcher_background.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xhdpi/ic_launcher_background.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxxhdpi/ic_launcher_round.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-anydpi-v26/ic_launcher_round.xml"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxxhdpi_ic_launcher_background.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxxhdpi/ic_launcher_background.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-night-xhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-night-xhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-night-hdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-night-hdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-night-xxxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-night-xxxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxhdpi_ic_launcher_background.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxhdpi/ic_launcher_background.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-xxxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-xxxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-ldpi_ic_launcher_background.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-ldpi/ic_launcher_background.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-night-xhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-night-xhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-xhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-xhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-hdpi_ic_launcher_foreground.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-hdpi/ic_launcher_foreground.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable_ic_notification_logo.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable/ic_notification_logo.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-night_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-night/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-ldpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-ldpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xhdpi_ic_launcher_round.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xhdpi/ic_launcher_round.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-hdpi/ic_launcher.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-night-xxxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-night-xxxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-xhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-xhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-night-mdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-night-mdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-night-hdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-night-hdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-night-xhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-night-xhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-night-mdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-night-mdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-mdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-mdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-hdpi_ic_launcher_foreground.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-hdpi/ic_launcher_foreground.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/xml_config.xml.flat",
-        "source": "com.rampxtrading.app-main-44:/xml/config.xml"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-night_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-night/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-hdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-hdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxxhdpi_ic_launcher_foreground.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxxhdpi/ic_launcher_foreground.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable_ic_notification_logo.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable/ic_notification_logo.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxhdpi_ic_launcher_foreground.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxhdpi/ic_launcher_foreground.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-night-xhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-night-xhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-ldpi_ic_launcher_background.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-ldpi/ic_launcher_background.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxhdpi_ic_launcher_round.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxhdpi/ic_launcher_round.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xhdpi_ic_launcher.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xhdpi/ic_launcher.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-xxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-xxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-xhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-xhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxxhdpi/ic_launcher.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xhdpi_ic_launcher_background.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xhdpi/ic_launcher_background.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxhdpi_ic_launcher_background.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxhdpi/ic_launcher_background.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-xxxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-xxxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-xxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-xxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable_ic_stat_rampx.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable/ic_stat_rampx.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxhdpi/ic_launcher.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-xxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-xxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-night-ldpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-night-ldpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-ldpi_ic_launcher.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-ldpi/ic_launcher.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-hdpi_ic_launcher_background.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-hdpi/ic_launcher_background.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-ldpi_ic_launcher_foreground.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-ldpi/ic_launcher_foreground.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-ldpi_ic_launcher.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-ldpi/ic_launcher.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-mdpi_ic_launcher_background.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-mdpi/ic_launcher_background.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-ldpi_ic_launcher_round.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-ldpi/ic_launcher_round.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xhdpi_ic_launcher_foreground.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xhdpi/ic_launcher_foreground.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-night-xxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-night-xxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-xxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-xxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-night-xxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-night-xxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxhdpi_ic_launcher_foreground.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxhdpi/ic_launcher_foreground.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-mdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-mdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-hdpi_ic_launcher_round.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-hdpi/ic_launcher_round.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-ldpi_ic_launcher_foreground.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-ldpi/ic_launcher_foreground.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-port-night-xxxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-port-night-xxxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxxhdpi_ic_launcher_background.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxxhdpi/ic_launcher_background.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-hdpi_ic_launcher.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-hdpi/ic_launcher.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-xhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-xhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-night-ldpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-night-ldpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-mdpi/ic_launcher_round.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-mdpi_ic_launcher_foreground.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-mdpi/ic_launcher_foreground.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable_ic_stat_rampx.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable/ic_stat_rampx.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxhdpi_ic_launcher.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxhdpi/ic_launcher.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-hdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-hdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-xxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-mdpi_ic_launcher_round.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-mdpi/ic_launcher_round.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-xxxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-xxxhdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxxhdpi_ic_launcher_foreground.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxxhdpi/ic_launcher_foreground.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-night-mdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-night-mdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/mipmap-xxxhdpi_ic_launcher.png.flat",
-        "source": "com.rampxtrading.app-main-44:/mipmap-xxxhdpi/ic_launcher.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-mdpi_ic_launcher_background.png.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-mdpi/ic_launcher_background.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.rampxtrading.app-main-63:/mipmap-anydpi-v26/ic_launcher.xml"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-mdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-mdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-hdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-hdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-night-hdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-night-hdpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-night-xxhdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-night-xxhdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-land-ldpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-land-ldpi/splash.png"
     },
     {
-        "merged": "com.rampxtrading.app-debug-42:/drawable-land-night-hdpi_splash.png.flat",
-        "source": "com.rampxtrading.app-main-44:/drawable-land-night-hdpi/splash.png"
+        "merged": "com.rampxtrading.app-debug-61:/drawable-port-night-xxxhdpi_splash.png.flat",
+        "source": "com.rampxtrading.app-main-63:/drawable-port-night-xxxhdpi/splash.png"
     }
 ]

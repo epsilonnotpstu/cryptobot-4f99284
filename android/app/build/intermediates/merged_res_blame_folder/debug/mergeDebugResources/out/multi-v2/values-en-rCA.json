@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.rampxtrading.app-mergeDebugResources-40:/values-en-rCA/values-en-rCA.xml",
+            "outputFile": "com.rampxtrading.app-mergeDebugResources-59:/values-en-rCA/values-en-rCA.xml",
             "map": [
                 {
                     "source": "/home/afridi/.gradle/caches/9.0.0/transforms/570fbd268230632b194ccf9e1687eedc/transformed/credentials-1.5.0/res/values-en-rCA/values-en-rCA.xml",

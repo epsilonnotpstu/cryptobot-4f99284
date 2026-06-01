@@ -1,14 +1,15 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-41:12
-INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-41:12
-INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-41:12
-INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-41:12
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-42:12
+INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-42:12
+INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-42:12
+INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:1:1-42:12
 MERGED from [:capacitor-app] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/app/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-21:12
 MERGED from [:capacitor-local-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/local-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-26:12
 MERGED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/push-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-17:12
 MERGED from [:capacitor-status-bar] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/status-bar/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
+MERGED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-14:12
 MERGED from [:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-28:12
 MERGED from [:capacitor-android] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/android/capacitor/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-cordova-android-plugins] /home/afridi/Documents/cryptobot-4f99284/android/capacitor-cordova-android-plugins/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-11:12
@@ -18,10 +19,14 @@ MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /home/af
 MERGED from [com.google.android.libraries.identity.googleid:googleid:1.1.1] /home/afridi/.gradle/caches/9.0.0/transforms/1d418c33c07d7824361c9008ea98ad05/transformed/googleid-1.1.1/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.credentials:credentials:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/570fbd268230632b194ccf9e1687eedc/transformed/credentials-1.5.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:17:1-29:12
+MERGED from [androidx.navigation:navigation-ui:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/8a9b10a92eb84ddc7f3119ab4c914c2c/transformed/navigation-ui-2.5.3/AndroidManifest.xml:17:1-24:12
+MERGED from [com.google.android.material:material:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/f3a597ee22b2a63f416a085bd6b95dd2/transformed/material-1.9.0/AndroidManifest.xml:17:1-26:12
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/afridi/.gradle/caches/9.0.0/transforms/e9f71708a45d1262cfd63cdc28a095b9/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat:1.7.1] /home/afridi/.gradle/caches/9.0.0/transforms/90ea41a39b89a3514b6f8e3a4461381e/transformed/appcompat-1.7.1/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/998a70a4951360a9f78985b595a8a536/transformed/coordinatorlayout-1.3.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.core:core-splashscreen:1.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/af0308c07f71e42789b5c1787bf809f1/transformed/core-splashscreen-1.0.1/AndroidManifest.xml:17:1-24:12
 MERGED from [com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/391b8cb696d37a7d2c942ea8e3763a27/transformed/play-services-auth-21.4.0/AndroidManifest.xml:17:1-40:12
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/a3edd7f2cb25f3fc66a5fb99c4839bdc/transformed/viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
 MERGED from [com.google.firebase:firebase-messaging:25.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/f86e4126d74929db2dd5b2a9cf587efc/transformed/firebase-messaging-25.0.1/AndroidManifest.xml:17:1-66:12
 MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.2] /home/afridi/.gradle/caches/9.0.0/transforms/03d1720ebac5c8b1f70f1624631b4261/transformed/play-services-auth-api-phone-18.0.2/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.gms:play-services-auth-base:18.0.10] /home/afridi/.gradle/caches/9.0.0/transforms/5917ee5d334928f6969e58ec80b52d6c/transformed/play-services-auth-base-18.0.10/AndroidManifest.xml:2:1-7:12
@@ -35,25 +40,39 @@ MERGED from [com.google.firebase:firebase-iid-interop:17.1.0] /home/afridi/.grad
 MERGED from [com.google.firebase:firebase-measurement-connector:19.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed26afa1fdb998ea87988c2b98cc387d/transformed/firebase-measurement-connector-19.0.0/AndroidManifest.xml:17:1-25:12
 MERGED from [com.google.android.gms:play-services-cloud-messaging:17.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/601cb682abc58d93e63b82899970302b/transformed/play-services-cloud-messaging-17.2.0/AndroidManifest.xml:2:1-13:12
 MERGED from [com.google.android.gms:play-services-stats:17.0.2] /home/afridi/.gradle/caches/9.0.0/transforms/ed82ec611795217efdf01babf1e4ca1c/transformed/play-services-stats-17.0.2/AndroidManifest.xml:2:1-9:12
-MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/1c4217cfe834ce7546b94e9810f83517/transformed/drawerlayout-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/06e3b71daceeb11b3648aaf1839cc896/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/0836414013f1cb66789e405023dbc450/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/0f48bc74f50b1808c84d2c49ea4b72e6/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.customview:customview:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/e9d3c230c85610071dc99b21a209c4e5/transformed/customview-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.webkit:webkit:1.12.1] /home/afridi/.gradle/caches/9.0.0/transforms/aee67fc9b8e6a8bea8c5903e81b1a959/transformed/webkit-1.12.1/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.browser:browser:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/d53dcb6c481c9f5212c27601dba09cf3/transformed/browser-1.9.0/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.androidbrowserhelper:androidbrowserhelper:2.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/aefe49bde90a398785940252556d67fd/transformed/androidbrowserhelper-2.5.0/AndroidManifest.xml:17:1-36:12
 MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/0d9419344e882401f3e5ba017ab09edf/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/cfff683d29c7423f74de1553e0a0da9a/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.navigation:navigation-fragment:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/deb675eb63afbb0d88c9f70722cb8124/transformed/navigation-fragment-2.5.3/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.fragment:fragment-ktx:1.8.6] /home/afridi/.gradle/caches/9.0.0/transforms/bd7fce4c2aa766823854f576ad76162c/transformed/fragment-ktx-1.8.6/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.navigation:navigation-runtime:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/07bd98d78bad958f80aa7b0e009d4526/transformed/navigation-runtime-2.5.3/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.navigation:navigation-common:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/43de766709a50b38d8cdfa7a6e3da0cc/transformed/navigation-common-2.5.3/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.core:core-ktx:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/7336721472dadd46e7348ddfb3562402/transformed/core-ktx-1.16.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/0f48bc74f50b1808c84d2c49ea4b72e6/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/afridi/.gradle/caches/9.0.0/transforms/8e1d84cab53cce34a461846d6b2f0d78/transformed/drawerlayout-1.1.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/35cc4bbedd97909d915e9ac325a68fae/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/0d440e0eac245b7087947888f97d9e2b/transformed/slidingpanelayout-1.2.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/a7031d5e61b79d08181368b6aea06430/transformed/recyclerview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.customview:customview:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9ca5f0d7b14646da6923ada629371606/transformed/customview-1.1.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/9b0cae69160296f8dcdc9dee889680d7/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.loader:loader:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/a44e56a844ae1d4c3bda4ac4445194a1/transformed/loader-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.transition:transition:1.4.1] /home/afridi/.gradle/caches/9.0.0/transforms/8de436e5a21ae362f05f9cd8747de3c4/transformed/transition-1.4.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:17:1-33:12
 MERGED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.activity:activity-ktx:1.11.0] /home/afridi/.gradle/caches/9.0.0/transforms/a29803fd55a1ac85ec4da69a2dcb4103/transformed/activity-ktx-1.11.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/1aec59b52b54da9a48865a85056ce233/transformed/lifecycle-livedata-core-ktx-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/c9dc7c405ea2df71c986f969c8cdaaf3/transformed/lifecycle-viewmodel-ktx-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/250ad9443a6dc4a98ebf2442e093b8d4/transformed/lifecycle-runtime-ktx-2.6.2/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/d09e747ff6bc04c31cadb814df7cf63b/transformed/lifecycle-viewmodel-2.6.2/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/540fc7e0948c81cdb505ae4806029d57/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:17:1-35:12
 MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/4efdb636dd1899e1131a9364957ebb94/transformed/lifecycle-livedata-core-2.6.2/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/13a45c5e3bec4906a5ebd67997368193/transformed/lifecycle-runtime-2.6.2/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/c99c025d20b85c3755df48c3262cfed5/transformed/lifecycle-viewmodel-savedstate-2.6.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/afridi/.gradle/caches/9.0.0/transforms/6bd38cce16d5f309cc1f1adbed6ce2c3/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.savedstate:savedstate:1.2.1] /home/afridi/.gradle/caches/9.0.0/transforms/c1399f1a068197281248e4e0fbd0bb14/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.datastore:datastore-core-android:1.1.7] /home/afridi/.gradle/caches/9.0.0/transforms/1515f5148b34acd66be4c8f5cf305843/transformed/datastore-core-release/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.datastore:datastore-preferences-core-android:1.1.7] /home/afridi/.gradle/caches/9.0.0/transforms/6cc5f69bd04d8fac4f6ae87adc9fedbc/transformed/datastore-preferences-core-release/AndroidManifest.xml:2:1-7:12
@@ -77,6 +96,7 @@ MERGED from [com.google.android.datatransport:transport-backend-cct:3.1.9] /home
 MERGED from [com.google.firebase:firebase-encoders-json:18.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/768457204a96ba357676feff93553d40/transformed/firebase-encoders-json-18.0.0/AndroidManifest.xml:15:1-23:12
 MERGED from [com.google.android.datatransport:transport-runtime:3.1.9] /home/afridi/.gradle/caches/9.0.0/transforms/8c6f1583140ec8593ecde1d6f8526d3d/transformed/transport-runtime-3.1.9/AndroidManifest.xml:15:1-41:12
 MERGED from [com.google.android.datatransport:transport-api:3.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/cc4fd8d5d63772b826090f4c5289c72b/transformed/transport-api-3.1.0/AndroidManifest.xml:15:1-20:12
+MERGED from [androidx.cardview:cardview:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/082b4edb74adaf4007a2efb8ef92f635/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/b4a625fdac28a1d0e63efc3fdc28bb1b/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.documentfile:documentfile:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/8ba819e854e3171e3f64ca76af6ce1f6/transformed/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/a019e0b17c1cba16b8dec670ca296022/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
@@ -111,21 +131,33 @@ MERGED from [com.google.firebase:firebase-messaging:25.0.1] /home/afridi/.gradle
 MERGED from [com.google.firebase:firebase-messaging:25.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/f86e4126d74929db2dd5b2a9cf587efc/transformed/firebase-messaging-25.0.1/AndroidManifest.xml:23:5-77
 	android:name
 		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:3:22-74
+uses-permission#android.permission.USE_BIOMETRIC
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:4:5-72
+MERGED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:24:5-72
+MERGED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:24:5-72
+	android:name
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:4:22-69
 application
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:5:5-40:19
-INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:5:5-40:19
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:6:5-41:19
+INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:6:5-41:19
 MERGED from [:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:13:5-19:19
 MERGED from [:capacitor-browser] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/browser/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:13:5-19:19
 MERGED from [:capacitor-local-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/local-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:5-24:19
 MERGED from [:capacitor-local-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/local-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:5-24:19
 MERGED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/push-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-15:19
 MERGED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/push-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-15:19
+MERGED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-12:19
+MERGED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:7:5-12:19
 MERGED from [:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:5-26:19
 MERGED from [:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:5-26:19
 MERGED from [:capacitor-cordova-android-plugins] /home/afridi/Documents/cryptobot-4f99284/android/capacitor-cordova-android-plugins/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:5-9:19
 MERGED from [:capacitor-cordova-android-plugins] /home/afridi/Documents/cryptobot-4f99284/android/capacitor-cordova-android-plugins/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:5-9:19
 MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed45350008477fc0c09c5f4b3125c514/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:23:5-50:19
 MERGED from [androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed45350008477fc0c09c5f4b3125c514/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:23:5-50:19
+MERGED from [com.google.android.material:material:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/f3a597ee22b2a63f416a085bd6b95dd2/transformed/material-1.9.0/AndroidManifest.xml:24:5-20
+MERGED from [com.google.android.material:material:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/f3a597ee22b2a63f416a085bd6b95dd2/transformed/material-1.9.0/AndroidManifest.xml:24:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/afridi/.gradle/caches/9.0.0/transforms/e9f71708a45d1262cfd63cdc28a095b9/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/afridi/.gradle/caches/9.0.0/transforms/e9f71708a45d1262cfd63cdc28a095b9/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
 MERGED from [com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/391b8cb696d37a7d2c942ea8e3763a27/transformed/play-services-auth-21.4.0/AndroidManifest.xml:22:5-38:19
 MERGED from [com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/391b8cb696d37a7d2c942ea8e3763a27/transformed/play-services-auth-21.4.0/AndroidManifest.xml:22:5-38:19
 MERGED from [com.google.firebase:firebase-messaging:25.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/f86e4126d74929db2dd5b2a9cf587efc/transformed/firebase-messaging-25.0.1/AndroidManifest.xml:28:5-64:19
@@ -148,6 +180,8 @@ MERGED from [com.google.android.gms:play-services-stats:17.0.2] /home/afridi/.gr
 MERGED from [com.google.android.gms:play-services-stats:17.0.2] /home/afridi/.gradle/caches/9.0.0/transforms/ed82ec611795217efdf01babf1e4ca1c/transformed/play-services-stats-17.0.2/AndroidManifest.xml:7:5-20
 MERGED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/0836414013f1cb66789e405023dbc450/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
 MERGED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/0836414013f1cb66789e405023dbc450/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:24:5-31:19
+MERGED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:24:5-31:19
 MERGED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:28:5-89
 MERGED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:28:5-89
 MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/540fc7e0948c81cdb505ae4806029d57/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:23:5-33:19
@@ -173,81 +207,81 @@ MERGED from [com.google.android.datatransport:transport-runtime:3.1.9] /home/afr
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:8:9-35
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:9:9-35
 	android:label
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:7:9-38
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:8:9-38
 	android:roundIcon
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:12:9-54
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:13:9-54
 	android:icon
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:11:9-43
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:12:9-43
 	android:allowBackup
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:6:9-35
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:7:9-35
 	android:theme
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:10:9-52
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:11:9-52
 	android:usesCleartextTraffic
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:9:9-44
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:10:9-44
 meta-data#com.google.firebase.messaging.default_notification_channel_id
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:13:9-15:44
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:14:9-16:44
 	android:value
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:15:13-41
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:16:13-41
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:14:13-89
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:15:13-89
 meta-data#com.google.firebase.messaging.default_notification_icon
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:16:9-18:58
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:17:9-19:58
 	android:resource
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:18:13-55
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:19:13-55
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:17:13-83
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:18:13-83
 meta-data#com.google.firebase.messaging.default_notification_color
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:19:9-21:67
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:20:9-22:67
 	android:resource
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:21:13-64
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:13-64
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:20:13-84
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:21:13-84
 activity#com.rampxtrading.app.MainActivity
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:22:9-39:20
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:23:9-40:20
 	android:label
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:26:13-42
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:27:13-42
 	android:launchMode
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:13-44
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:26:13-44
 	android:exported
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:13-36
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:25:13-36
 	android:configChanges
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:28:13-140
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:29:13-140
 	android:theme
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:27:13-56
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:28:13-56
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:23:13-41
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:24:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:29:13-32:29
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:30:13-33:29
 action#android.intent.action.MAIN
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:30:17-69
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:31:17-69
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:30:25-66
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:31:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:31:17-77
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:32:17-77
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:31:27-74
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:32:27-74
 intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:auth-callback+data:scheme:rampxtrading
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:33:13-38:29
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:34:13-39:29
 action#android.intent.action.VIEW
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:34:17-69
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:35:17-69
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:34:25-66
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:35:25-66
 category#android.intent.category.DEFAULT
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:35:17-76
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:36:17-76
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:35:27-73
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:36:27-73
 category#android.intent.category.BROWSABLE
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:36:17-78
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:37:17-78
 	android:name
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:36:27-75
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:37:27-75
 data
-ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:37:17-84
+ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:38:17-84
 	android:host
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:37:53-81
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:38:53-81
 	android:scheme
-		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:37:23-52
+		ADDED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml:38:23-52
 uses-sdk
 INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/afridi/Documents/cryptobot-4f99284/android/app/src/main/AndroidManifest.xml
@@ -262,6 +296,8 @@ MERGED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f9
 MERGED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/push-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [:capacitor-status-bar] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/status-bar/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [:capacitor-status-bar] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/status-bar/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:6:5-44
 MERGED from [:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:6:5-44
 MERGED from [:capacitor-android] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/android/capacitor/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
@@ -280,6 +316,12 @@ MERGED from [androidx.credentials:credentials:1.5.0] /home/afridi/.gradle/caches
 MERGED from [androidx.credentials:credentials:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/570fbd268230632b194ccf9e1687eedc/transformed/credentials-1.5.0/AndroidManifest.xml:5:5-44
 MERGED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-ui:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/8a9b10a92eb84ddc7f3119ab4c914c2c/transformed/navigation-ui-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-ui:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/8a9b10a92eb84ddc7f3119ab4c914c2c/transformed/navigation-ui-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.material:material:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/f3a597ee22b2a63f416a085bd6b95dd2/transformed/material-1.9.0/AndroidManifest.xml:20:5-22:41
+MERGED from [com.google.android.material:material:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/f3a597ee22b2a63f416a085bd6b95dd2/transformed/material-1.9.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/afridi/.gradle/caches/9.0.0/transforms/e9f71708a45d1262cfd63cdc28a095b9/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/afridi/.gradle/caches/9.0.0/transforms/e9f71708a45d1262cfd63cdc28a095b9/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
 MERGED from [androidx.appcompat:appcompat:1.7.1] /home/afridi/.gradle/caches/9.0.0/transforms/90ea41a39b89a3514b6f8e3a4461381e/transformed/appcompat-1.7.1/AndroidManifest.xml:5:5-44
 MERGED from [androidx.appcompat:appcompat:1.7.1] /home/afridi/.gradle/caches/9.0.0/transforms/90ea41a39b89a3514b6f8e3a4461381e/transformed/appcompat-1.7.1/AndroidManifest.xml:5:5-44
 MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/998a70a4951360a9f78985b595a8a536/transformed/coordinatorlayout-1.3.0/AndroidManifest.xml:5:5-44
@@ -288,6 +330,8 @@ MERGED from [androidx.core:core-splashscreen:1.0.1] /home/afridi/.gradle/caches/
 MERGED from [androidx.core:core-splashscreen:1.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/af0308c07f71e42789b5c1787bf809f1/transformed/core-splashscreen-1.0.1/AndroidManifest.xml:20:5-22:41
 MERGED from [com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/391b8cb696d37a7d2c942ea8e3763a27/transformed/play-services-auth-21.4.0/AndroidManifest.xml:20:5-44
 MERGED from [com.google.android.gms:play-services-auth:21.4.0] /home/afridi/.gradle/caches/9.0.0/transforms/391b8cb696d37a7d2c942ea8e3763a27/transformed/play-services-auth-21.4.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/a3edd7f2cb25f3fc66a5fb99c4839bdc/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/a3edd7f2cb25f3fc66a5fb99c4839bdc/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
 MERGED from [com.google.firebase:firebase-messaging:25.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/f86e4126d74929db2dd5b2a9cf587efc/transformed/firebase-messaging-25.0.1/AndroidManifest.xml:20:5-44
 MERGED from [com.google.firebase:firebase-messaging:25.0.1] /home/afridi/.gradle/caches/9.0.0/transforms/f86e4126d74929db2dd5b2a9cf587efc/transformed/firebase-messaging-25.0.1/AndroidManifest.xml:20:5-44
 MERGED from [com.google.android.gms:play-services-auth-api-phone:18.0.2] /home/afridi/.gradle/caches/9.0.0/transforms/03d1720ebac5c8b1f70f1624631b4261/transformed/play-services-auth-api-phone-18.0.2/AndroidManifest.xml:5:5-44
@@ -314,16 +358,10 @@ MERGED from [com.google.android.gms:play-services-cloud-messaging:17.2.0] /home/
 MERGED from [com.google.android.gms:play-services-cloud-messaging:17.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/601cb682abc58d93e63b82899970302b/transformed/play-services-cloud-messaging-17.2.0/AndroidManifest.xml:5:5-44
 MERGED from [com.google.android.gms:play-services-stats:17.0.2] /home/afridi/.gradle/caches/9.0.0/transforms/ed82ec611795217efdf01babf1e4ca1c/transformed/play-services-stats-17.0.2/AndroidManifest.xml:5:5-44
 MERGED from [com.google.android.gms:play-services-stats:17.0.2] /home/afridi/.gradle/caches/9.0.0/transforms/ed82ec611795217efdf01babf1e4ca1c/transformed/play-services-stats-17.0.2/AndroidManifest.xml:5:5-44
-MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/1c4217cfe834ce7546b94e9810f83517/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.drawerlayout:drawerlayout:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/1c4217cfe834ce7546b94e9810f83517/transformed/drawerlayout-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/06e3b71daceeb11b3648aaf1839cc896/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
 MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/06e3b71daceeb11b3648aaf1839cc896/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
 MERGED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/0836414013f1cb66789e405023dbc450/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
 MERGED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/0836414013f1cb66789e405023dbc450/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/0f48bc74f50b1808c84d2c49ea4b72e6/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/0f48bc74f50b1808c84d2c49ea4b72e6/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.customview:customview:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/e9d3c230c85610071dc99b21a209c4e5/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.customview:customview:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/e9d3c230c85610071dc99b21a209c4e5/transformed/customview-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.webkit:webkit:1.12.1] /home/afridi/.gradle/caches/9.0.0/transforms/aee67fc9b8e6a8bea8c5903e81b1a959/transformed/webkit-1.12.1/AndroidManifest.xml:5:5-44
 MERGED from [androidx.webkit:webkit:1.12.1] /home/afridi/.gradle/caches/9.0.0/transforms/aee67fc9b8e6a8bea8c5903e81b1a959/transformed/webkit-1.12.1/AndroidManifest.xml:5:5-44
 MERGED from [androidx.browser:browser:1.9.0] /home/afridi/.gradle/caches/9.0.0/transforms/d53dcb6c481c9f5212c27601dba09cf3/transformed/browser-1.9.0/AndroidManifest.xml:5:5-44
@@ -334,14 +372,46 @@ MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/afridi
 MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/0d9419344e882401f3e5ba017ab09edf/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/cfff683d29c7423f74de1553e0a0da9a/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/cfff683d29c7423f74de1553e0a0da9a/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-fragment:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/deb675eb63afbb0d88c9f70722cb8124/transformed/navigation-fragment-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-fragment:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/deb675eb63afbb0d88c9f70722cb8124/transformed/navigation-fragment-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment-ktx:1.8.6] /home/afridi/.gradle/caches/9.0.0/transforms/bd7fce4c2aa766823854f576ad76162c/transformed/fragment-ktx-1.8.6/AndroidManifest.xml:5:5-44
+MERGED from [androidx.fragment:fragment-ktx:1.8.6] /home/afridi/.gradle/caches/9.0.0/transforms/bd7fce4c2aa766823854f576ad76162c/transformed/fragment-ktx-1.8.6/AndroidManifest.xml:5:5-44
+MERGED from [androidx.navigation:navigation-runtime:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/07bd98d78bad958f80aa7b0e009d4526/transformed/navigation-runtime-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-runtime:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/07bd98d78bad958f80aa7b0e009d4526/transformed/navigation-runtime-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-common:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/43de766709a50b38d8cdfa7a6e3da0cc/transformed/navigation-common-2.5.3/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.navigation:navigation-common:2.5.3] /home/afridi/.gradle/caches/9.0.0/transforms/43de766709a50b38d8cdfa7a6e3da0cc/transformed/navigation-common-2.5.3/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.core:core-ktx:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/7336721472dadd46e7348ddfb3562402/transformed/core-ktx-1.16.0/AndroidManifest.xml:5:5-44
 MERGED from [androidx.core:core-ktx:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/7336721472dadd46e7348ddfb3562402/transformed/core-ktx-1.16.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/0f48bc74f50b1808c84d2c49ea4b72e6/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/0f48bc74f50b1808c84d2c49ea4b72e6/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/afridi/.gradle/caches/9.0.0/transforms/8e1d84cab53cce34a461846d6b2f0d78/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/afridi/.gradle/caches/9.0.0/transforms/8e1d84cab53cce34a461846d6b2f0d78/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/35cc4bbedd97909d915e9ac325a68fae/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/35cc4bbedd97909d915e9ac325a68fae/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/0d440e0eac245b7087947888f97d9e2b/transformed/slidingpanelayout-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.slidingpanelayout:slidingpanelayout:1.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/0d440e0eac245b7087947888f97d9e2b/transformed/slidingpanelayout-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/a7031d5e61b79d08181368b6aea06430/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/a7031d5e61b79d08181368b6aea06430/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9ca5f0d7b14646da6923ada629371606/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9ca5f0d7b14646da6923ada629371606/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/9b0cae69160296f8dcdc9dee889680d7/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/9b0cae69160296f8dcdc9dee889680d7/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.loader:loader:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/a44e56a844ae1d4c3bda4ac4445194a1/transformed/loader-1.1.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.loader:loader:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/a44e56a844ae1d4c3bda4ac4445194a1/transformed/loader-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.4.1] /home/afridi/.gradle/caches/9.0.0/transforms/8de436e5a21ae362f05f9cd8747de3c4/transformed/transition-1.4.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.4.1] /home/afridi/.gradle/caches/9.0.0/transforms/8de436e5a21ae362f05f9cd8747de3c4/transformed/transition-1.4.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity-ktx:1.11.0] /home/afridi/.gradle/caches/9.0.0/transforms/a29803fd55a1ac85ec4da69a2dcb4103/transformed/activity-ktx-1.11.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.11.0] /home/afridi/.gradle/caches/9.0.0/transforms/a29803fd55a1ac85ec4da69a2dcb4103/transformed/activity-ktx-1.11.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/1aec59b52b54da9a48865a85056ce233/transformed/lifecycle-livedata-core-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/1aec59b52b54da9a48865a85056ce233/transformed/lifecycle-livedata-core-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/c9dc7c405ea2df71c986f969c8cdaaf3/transformed/lifecycle-viewmodel-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/c9dc7c405ea2df71c986f969c8cdaaf3/transformed/lifecycle-viewmodel-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/250ad9443a6dc4a98ebf2442e093b8d4/transformed/lifecycle-runtime-ktx-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/250ad9443a6dc4a98ebf2442e093b8d4/transformed/lifecycle-runtime-ktx-2.6.2/AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/d09e747ff6bc04c31cadb814df7cf63b/transformed/lifecycle-viewmodel-2.6.2/AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/d09e747ff6bc04c31cadb814df7cf63b/transformed/lifecycle-viewmodel-2.6.2/AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-process:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/540fc7e0948c81cdb505ae4806029d57/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:21:5-44
@@ -352,6 +422,8 @@ MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.2] /home/afridi/.gradle/ca
 MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/13a45c5e3bec4906a5ebd67997368193/transformed/lifecycle-runtime-2.6.2/AndroidManifest.xml:5:5-44
 MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/c99c025d20b85c3755df48c3262cfed5/transformed/lifecycle-viewmodel-savedstate-2.6.2/AndroidManifest.xml:20:5-44
 MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.2] /home/afridi/.gradle/caches/9.0.0/transforms/c99c025d20b85c3755df48c3262cfed5/transformed/lifecycle-viewmodel-savedstate-2.6.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/afridi/.gradle/caches/9.0.0/transforms/6bd38cce16d5f309cc1f1adbed6ce2c3/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/afridi/.gradle/caches/9.0.0/transforms/6bd38cce16d5f309cc1f1adbed6ce2c3/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
 MERGED from [androidx.savedstate:savedstate:1.2.1] /home/afridi/.gradle/caches/9.0.0/transforms/c1399f1a068197281248e4e0fbd0bb14/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
 MERGED from [androidx.savedstate:savedstate:1.2.1] /home/afridi/.gradle/caches/9.0.0/transforms/c1399f1a068197281248e4e0fbd0bb14/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
 MERGED from [androidx.datastore:datastore-core-android:1.1.7] /home/afridi/.gradle/caches/9.0.0/transforms/1515f5148b34acd66be4c8f5cf305843/transformed/datastore-core-release/AndroidManifest.xml:5:5-44
@@ -398,6 +470,8 @@ MERGED from [com.google.android.datatransport:transport-runtime:3.1.9] /home/afr
 MERGED from [com.google.android.datatransport:transport-runtime:3.1.9] /home/afridi/.gradle/caches/9.0.0/transforms/8c6f1583140ec8593ecde1d6f8526d3d/transformed/transport-runtime-3.1.9/AndroidManifest.xml:18:5-20:41
 MERGED from [com.google.android.datatransport:transport-api:3.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/cc4fd8d5d63772b826090f4c5289c72b/transformed/transport-api-3.1.0/AndroidManifest.xml:18:5-44
 MERGED from [com.google.android.datatransport:transport-api:3.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/cc4fd8d5d63772b826090f4c5289c72b/transformed/transport-api-3.1.0/AndroidManifest.xml:18:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/082b4edb74adaf4007a2efb8ef92f635/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/082b4edb74adaf4007a2efb8ef92f635/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/b4a625fdac28a1d0e63efc3fdc28bb1b/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/afridi/.gradle/caches/9.0.0/transforms/b4a625fdac28a1d0e63efc3fdc28bb1b/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.documentfile:documentfile:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/8ba819e854e3171e3f64ca76af6ce1f6/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
@@ -488,6 +562,14 @@ action#com.google.firebase.MESSAGING_EVENT
 ADDED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/push-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:12:17-78
 	android:name
 		ADDED from [:capacitor-push-notifications] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capacitor/push-notifications/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:12:25-75
+activity#ee.forgr.biometric.AuthActivity
+ADDED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:9-11:59
+	android:label
+		ADDED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:10:13-65
+	android:theme
+		ADDED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:11:13-56
+	android:name
+		ADDED from [:capgo-capacitor-native-biometric] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-native-biometric/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:9:13-59
 uses-permission#android.permission.USE_CREDENTIALS
 ADDED from [:capgo-capacitor-social-login] /home/afridi/Documents/cryptobot-4f99284/node_modules/@capgo/capacitor-social-login/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:8:5-74
 	android:name
@@ -562,10 +644,6 @@ ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /home/afr
 		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed45350008477fc0c09c5f4b3125c514/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:48:13-48
 	android:name
 		ADDED from [androidx.credentials:credentials-play-services-auth:1.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed45350008477fc0c09c5f4b3125c514/transformed/credentials-play-services-auth-1.5.0/AndroidManifest.xml:43:13-97
-uses-permission#android.permission.USE_BIOMETRIC
-ADDED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:24:5-72
-	android:name
-		ADDED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:24:22-69
 uses-permission#android.permission.USE_FINGERPRINT
 ADDED from [androidx.biometric:biometric:1.1.0] /home/afridi/.gradle/caches/9.0.0/transforms/9cb54401cb094273dd342095d9528502/transformed/biometric-1.1.0/AndroidManifest.xml:27:5-74
 	android:name
@@ -726,6 +804,18 @@ ADDED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/tran
 		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/afridi/.gradle/caches/9.0.0/transforms/0836414013f1cb66789e405023dbc450/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
 intent#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+data:scheme:https
 ADDED from [com.google.androidbrowserhelper:androidbrowserhelper:2.5.0] /home/afridi/.gradle/caches/9.0.0/transforms/aefe49bde90a398785940252556d67fd/transformed/androidbrowserhelper-2.5.0/AndroidManifest.xml:27:9-33:18
+uses-library#androidx.window.extensions
+ADDED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:25:9-27:40
+	android:required
+		ADDED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:27:13-37
+	android:name
+		ADDED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:26:13-54
+uses-library#androidx.window.sidecar
+ADDED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:28:9-30:40
+	android:required
+		ADDED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:30:13-37
+	android:name
+		ADDED from [androidx.window:window:1.0.0] /home/afridi/.gradle/caches/9.0.0/transforms/ed4bdca9a463352de464f68fd544f3c5/transformed/window-1.0.0/AndroidManifest.xml:29:13-51
 permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.16.0] /home/afridi/.gradle/caches/9.0.0/transforms/6b5824b10904fb4f9ca7f060132eab41/transformed/core-1.16.0/AndroidManifest.xml:22:5-24:47
 	android:protectionLevel

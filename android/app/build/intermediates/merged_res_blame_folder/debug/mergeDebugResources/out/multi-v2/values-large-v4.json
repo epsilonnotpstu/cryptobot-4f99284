@@ -1,8 +1,27 @@
 {
     "logs": [
         {
-            "outputFile": "com.rampxtrading.app-mergeDebugResources-40:/values-large-v4/values-large-v4.xml",
+            "outputFile": "com.rampxtrading.app-mergeDebugResources-59:/values-large-v4/values-large-v4.xml",
             "map": [
+                {
+                    "source": "/home/afridi/.gradle/caches/9.0.0/transforms/f3a597ee22b2a63f416a085bd6b95dd2/transformed/material-1.9.0/res/values-large-v4/values-large-v4.xml",
+                    "from": {
+                        "startLines": "2,3,4,10",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "55,177,311,752",
+                        "endLines": "2,3,9,15",
+                        "endColumns": "121,133,10,10",
+                        "endOffsets": "172,306,747,1190"
+                    },
+                    "to": {
+                        "startLines": "11,12,13,19",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "752,874,1008,1449",
+                        "endLines": "11,12,18,24",
+                        "endColumns": "121,133,10,10",
+                        "endOffsets": "869,1003,1444,1887"
+                    }
+                },
                 {
                     "source": "/home/afridi/.gradle/caches/9.0.0/transforms/90ea41a39b89a3514b6f8e3a4461381e/transformed/appcompat-1.7.1/res/values-large-v4/values-large-v4.xml",
                     "from": {

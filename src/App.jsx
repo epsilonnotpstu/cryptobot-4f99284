@@ -3,6 +3,7 @@ import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { CapacitorHttp } from "@capacitor/core";
+import { AccessControl, BiometryType, NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { StatusBar, Style as StatusBarStyle } from "@capacitor/status-bar";
@@ -24,6 +25,8 @@ const ROUTES = {
   app: "/app",
 };
 const NATIVE_ALLOWED_ROUTES = new Set([ROUTES.app, ROUTES.login, ROUTES.signup]);
+const ANDROID_APK_DOWNLOAD_URL =
+  "https://github.com/epsilonnotpstu/cryptobot-4f99284/releases/latest/download/rampxtrading-latest.apk";
 
 class GoogleAuthRenderBoundary extends Component {
   constructor(props) {
@@ -77,12 +80,14 @@ const AUTH_STORAGE_KEYS = {
   transientNotice: "cryptobot2_auth_transient_notice",
   launchPopupSeenMap: "cryptobot2_launch_popup_seen_map",
   notificationLocalDeliveredMap: "cryptobot2_notification_local_delivered_map",
+  biometricPref: "cryptobot2_biometric_pref",
 };
 
 const NATIVE_STATUS_BAR_COLOR = "#071827";
 const NOTIFICATION_POLL_INTERVAL_MS = 25000;
 const DOUBLE_BACK_EXIT_WINDOW_MS = 2000;
 const NOTIFICATION_CHANNEL_ID = "rampx-alerts";
+const BIOMETRIC_CREDENTIAL_SERVER = "com.rampxtrading.app.session-token";
 // Kept disabled by default for now. Re-enable when in-app notification center UI is needed again.
 const ENABLE_NATIVE_NOTIFICATION_OVERLAY_UI = false;
 const ENABLE_NATIVE_LAUNCH_SPLASH = false;
@@ -360,8 +365,8 @@ const DEFAULT_HOME_PAGE_CONTENT = {
         {
           icon: "fab fa-google-play",
           labelTop: "Get it on",
-          labelBottom: "Google Play",
-          href: "#download",
+          labelBottom: "Android",
+          href: ANDROID_APK_DOWNLOAD_URL,
         },
         {
           icon: "fas fa-desktop",
@@ -536,12 +541,22 @@ function normalizeHomePageContent(payload) {
           String(sectionsInput?.download?.description || base.sections.download.description).trim() ||
           base.sections.download.description,
         buttons: normalizeItems(sectionsInput?.download?.buttons, base.sections.download.buttons)
-          .map((button) => ({
-            icon: String(button?.icon || "fas fa-link").trim() || "fas fa-link",
-            labelTop: String(button?.labelTop || "").trim(),
-            labelBottom: String(button?.labelBottom || "").trim(),
-            href: normalizeLinkHref(button?.href, "#download"),
-          }))
+          .map((button) => {
+            const icon = String(button?.icon || "fas fa-link").trim() || "fas fa-link";
+            const labelTop = String(button?.labelTop || "").trim();
+            const rawLabelBottom = String(button?.labelBottom || "").trim();
+            const labelBottomLower = rawLabelBottom.toLowerCase();
+            const isAndroidButton =
+              icon.includes("google-play") ||
+              labelBottomLower.includes("google play") ||
+              labelBottomLower.includes("android");
+            return {
+              icon,
+              labelTop,
+              labelBottom: isAndroidButton ? "Android" : rawLabelBottom,
+              href: isAndroidButton ? ANDROID_APK_DOWNLOAD_URL : normalizeLinkHref(button?.href, "#download"),
+            };
+          })
           .filter((button) => button.labelBottom),
       },
       faq: {
@@ -889,6 +904,135 @@ function hasLaunchPopupBeenSeen(dedupeKey = "") {
   }
   const existing = readLaunchPopupSeenMap();
   return Boolean(existing[dedupeKey]);
+}
+
+function readBiometricPreference() {
+  if (typeof window === "undefined") {
+    return { enabled: false, userId: "", email: "", updatedAt: "" };
+  }
+  try {
+    const raw = window.localStorage.getItem(AUTH_STORAGE_KEYS.biometricPref) || "{}";
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { enabled: false, userId: "", email: "", updatedAt: "" };
+    }
+    return {
+      enabled: Boolean(parsed.enabled),
+      userId: String(parsed.userId || "").trim(),
+      email: String(parsed.email || "").trim().toLowerCase(),
+      updatedAt: String(parsed.updatedAt || ""),
+    };
+  } catch {
+    return { enabled: false, userId: "", email: "", updatedAt: "" };
+  }
+}
+
+function writeBiometricPreference({ enabled = false, userId = "", email = "" } = {}) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const payload = {
+    enabled: Boolean(enabled),
+    userId: String(userId || "").trim(),
+    email: String(email || "").trim().toLowerCase(),
+    updatedAt: new Date().toISOString(),
+  };
+  window.localStorage.setItem(AUTH_STORAGE_KEYS.biometricPref, JSON.stringify(payload));
+}
+
+function clearBiometricPreference() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(AUTH_STORAGE_KEYS.biometricPref);
+}
+
+function doesBiometricPrefMatchUser(preference, user = null) {
+  const pref = preference && typeof preference === "object" ? preference : {};
+  if (!pref.enabled) {
+    return false;
+  }
+  const userId = String(user?.userId || "").trim();
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (pref.userId && userId) {
+    return pref.userId === userId;
+  }
+  if (pref.email && email) {
+    return pref.email === email;
+  }
+  return false;
+}
+
+function resolveBiometricCredentialUsername(user = null) {
+  const userId = String(user?.userId || "").trim();
+  if (userId) {
+    return `uid:${userId}`;
+  }
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (email) {
+    return `email:${email}`;
+  }
+  return "";
+}
+
+function isBiometricTypeFingerprintLike(value) {
+  return value === BiometryType.FINGERPRINT || value === BiometryType.MULTIPLE;
+}
+
+async function detectNativeBiometricCapability() {
+  if (!isNativeAppRuntime()) {
+    return { supported: false, message: "", available: null };
+  }
+  try {
+    const available = await NativeBiometric.isAvailable({ useFallback: false });
+    const hasFingerprint = isBiometricTypeFingerprintLike(available?.biometryType);
+    const secureDevice = Boolean(available?.deviceIsSecure);
+    const supported = Boolean(available?.isAvailable) && hasFingerprint && secureDevice;
+    if (!supported) {
+      return {
+        supported: false,
+        message: "Fingerprint not available on this device.",
+        available,
+      };
+    }
+    return { supported: true, message: "", available };
+  } catch {
+    return {
+      supported: false,
+      message: "Fingerprint not available on this device.",
+      available: null,
+    };
+  }
+}
+
+async function clearNativeBiometricCredential() {
+  if (!isNativeAppRuntime()) {
+    clearBiometricPreference();
+    return;
+  }
+  try {
+    await NativeBiometric.deleteCredentials({
+      server: BIOMETRIC_CREDENTIAL_SERVER,
+    });
+  } catch {
+    // Ignore secure credential delete failures.
+  } finally {
+    clearBiometricPreference();
+  }
+}
+
+async function hasNativeBiometricCredentialSaved() {
+  if (!isNativeAppRuntime()) {
+    return false;
+  }
+  try {
+    const result = await NativeBiometric.isCredentialsSaved({
+      server: BIOMETRIC_CREDENTIAL_SERVER,
+    });
+    return Boolean(result?.isSaved);
+  } catch {
+    return false;
+  }
 }
 
 function readLocalDeliveredNotificationMap() {
@@ -4180,12 +4324,25 @@ function AuthPage({ mode, authSnapshot, onAuthenticated, onBackHome }) {
   );
 }
 
-function MobileAuthPage({ authSnapshot, onAuthenticated }) {
+function MobileAuthPage({
+  authSnapshot,
+  onAuthenticated,
+  biometricAuthState = {},
+  biometricUnlockMessage = "",
+  onBiometricUnlock = null,
+}) {
   const flow = useAuthFlow({
     initialView: "login",
     authSnapshot,
     onAuthenticated,
   });
+  const canShowBiometricSection = isNativeAppRuntime();
+  const canUseBiometricNow =
+    canShowBiometricSection &&
+    !authSnapshot?.isLoggedIn &&
+    Boolean(biometricAuthState?.enabled) &&
+    Boolean(biometricAuthState?.supported) &&
+    typeof onBiometricUnlock === "function";
 
   return (
     <main className="mobile-auth-shell">
@@ -4212,6 +4369,30 @@ function MobileAuthPage({ authSnapshot, onAuthenticated }) {
             Sign Up
           </button>
         </div>
+
+        {canShowBiometricSection ? (
+          <section className="mobile-biometric-card">
+            <strong>Fingerprint Login</strong>
+            <p>Fingerprint unlock uses your device biometric security.</p>
+            {canUseBiometricNow ? (
+              <button
+                type="button"
+                className="btn btn-ghost mobile-biometric-btn"
+                onClick={() => {
+                  onBiometricUnlock();
+                }}
+                disabled={Boolean(biometricAuthState?.processing)}
+              >
+                {biometricAuthState?.processing ? "Checking..." : "Unlock with Fingerprint"}
+              </button>
+            ) : (
+              <button type="button" className="btn btn-ghost mobile-biometric-btn" disabled>
+                Fingerprint not enabled
+              </button>
+            )}
+            {biometricUnlockMessage ? <p className="mobile-auth-notice">{biometricUnlockMessage}</p> : null}
+          </section>
+        ) : null}
 
         <AuthForms flow={flow} classes={mobileAuthClasses} />
 
@@ -4256,6 +4437,15 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   const [nativeNotice, setNativeNotice] = useState("");
   const [lastBackPressedAt, setLastBackPressedAt] = useState(0);
   const [notificationLoading, setNotificationLoading] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState({
+    supported: false,
+    enabled: false,
+    checking: false,
+    processing: false,
+    message: "",
+  });
+  const [biometricUnlockMessage, setBiometricUnlockMessage] = useState("");
+  const [biometricAutoPromptTried, setBiometricAutoPromptTried] = useState(false);
   const previousScreenRef = useRef("dashboard");
   const notificationBaselineReadyRef = useRef(false);
 
@@ -4279,6 +4469,210 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     }
     navigateToScreen(target.screen || "dashboard", { withHistory: true });
     setInboxOpen(false);
+  };
+
+  const refreshBiometricStatus = async ({ keepMessage = false } = {}) => {
+    if (!isNativeAppRuntime()) {
+      setBiometricStatus({
+        supported: false,
+        enabled: false,
+        checking: false,
+        processing: false,
+        message: "",
+      });
+      return;
+    }
+
+    const preference = readBiometricPreference();
+    const prefEnabledForUser = doesBiometricPrefMatchUser(preference, authSnapshot);
+
+    setBiometricStatus((prev) => ({
+      ...prev,
+      checking: true,
+      enabled: prefEnabledForUser,
+      message: keepMessage ? prev.message : "",
+    }));
+
+    const hasSavedCredential = prefEnabledForUser ? await hasNativeBiometricCredentialSaved() : false;
+    const enabledForUser = prefEnabledForUser && hasSavedCredential;
+    if (prefEnabledForUser && !hasSavedCredential) {
+      clearBiometricPreference();
+    }
+
+    const capability = await detectNativeBiometricCapability();
+    setBiometricStatus((prev) => ({
+      ...prev,
+      supported: capability.supported,
+      checking: false,
+      enabled: enabledForUser,
+      message: capability.supported ? (keepMessage ? prev.message : "") : capability.message,
+    }));
+  };
+
+  const setBiometricMessage = (message = "") => {
+    setBiometricStatus((prev) => ({ ...prev, message: String(message || "") }));
+    setBiometricUnlockMessage(String(message || ""));
+  };
+
+  const enableBiometricLogin = async () => {
+    if (!isNativeAppRuntime()) {
+      return;
+    }
+    if (!authSnapshot?.sessionToken || !authSnapshot?.isLoggedIn) {
+      setBiometricMessage("Please login first, then enable fingerprint.");
+      return;
+    }
+    const credentialUsername = resolveBiometricCredentialUsername(authSnapshot);
+    if (!credentialUsername) {
+      setBiometricMessage("Could not identify this account for fingerprint login.");
+      return;
+    }
+
+    setBiometricStatus((prev) => ({ ...prev, processing: true, message: "" }));
+    setBiometricUnlockMessage("");
+    try {
+      const capability = await detectNativeBiometricCapability();
+      if (!capability.supported) {
+        throw new Error("Fingerprint not available on this device.");
+      }
+      await NativeBiometric.verifyIdentity({
+        reason: "Enable fingerprint login for this account",
+        title: "RampX Trading",
+        subtitle: "Fingerprint Authentication",
+        description: "Confirm your identity to enable fingerprint unlock.",
+        negativeButtonText: "Cancel",
+      });
+      await NativeBiometric.setCredentials({
+        username: credentialUsername,
+        password: String(authSnapshot.sessionToken || ""),
+        server: BIOMETRIC_CREDENTIAL_SERVER,
+        accessControl: AccessControl.BIOMETRY_ANY,
+      });
+      writeBiometricPreference({
+        enabled: true,
+        userId: authSnapshot.userId || "",
+        email: authSnapshot.email || "",
+      });
+      setBiometricStatus((prev) => ({
+        ...prev,
+        supported: true,
+        enabled: true,
+        processing: false,
+        message: "Fingerprint login enabled successfully.",
+      }));
+      setBiometricUnlockMessage("Fingerprint login enabled successfully.");
+    } catch (error) {
+      const message = String(error?.message || "");
+      setBiometricStatus((prev) => ({
+        ...prev,
+        processing: false,
+        message: /cancel/i.test(message)
+          ? "Fingerprint setup cancelled."
+          : "Could not enable fingerprint login. Please try again.",
+      }));
+    }
+  };
+
+  const disableBiometricLogin = async () => {
+    if (!isNativeAppRuntime()) {
+      return;
+    }
+    setBiometricStatus((prev) => ({ ...prev, processing: true }));
+    await clearNativeBiometricCredential();
+    setBiometricStatus((prev) => ({
+      ...prev,
+      enabled: false,
+      processing: false,
+      message: "Fingerprint login disabled.",
+    }));
+    setBiometricUnlockMessage("Fingerprint login disabled.");
+  };
+
+  const unlockWithBiometric = async ({ autoPrompt = false } = {}) => {
+    if (!isNativeAppRuntime() || authSnapshot?.isLoggedIn) {
+      return;
+    }
+
+    const preference = readBiometricPreference();
+    const enabledForCurrentUser = doesBiometricPrefMatchUser(preference, authSnapshot);
+    if (!enabledForCurrentUser) {
+      return;
+    }
+    const hasSavedCredential = await hasNativeBiometricCredentialSaved();
+    if (!hasSavedCredential) {
+      clearBiometricPreference();
+      setBiometricStatus((prev) => ({ ...prev, enabled: false, processing: false }));
+      return;
+    }
+
+    setBiometricStatus((prev) => ({ ...prev, processing: true }));
+    if (!autoPrompt) {
+      setBiometricUnlockMessage("");
+    }
+
+    try {
+      const capability = await detectNativeBiometricCapability();
+      if (!capability.supported) {
+        throw new Error("Fingerprint not available on this device.");
+      }
+
+      const secureCredentials = await NativeBiometric.getSecureCredentials({
+        server: BIOMETRIC_CREDENTIAL_SERVER,
+        reason: "Unlock your account with fingerprint",
+        title: "RampX Trading",
+        subtitle: "Fingerprint Login",
+        description: "Authenticate to continue.",
+        negativeButtonText: "Cancel",
+      });
+      const sessionToken = String(secureCredentials?.password || "").trim();
+      if (!sessionToken) {
+        throw new Error("Fingerprint credential missing.");
+      }
+
+      storeSessionToken(sessionToken);
+      const data = await authService.getSession(sessionToken);
+      if (data?.user) {
+        storeAuthUser(data.user);
+      }
+      await onAuthChanged();
+      setBiometricUnlockMessage("");
+      setBiometricStatus((prev) => ({
+        ...prev,
+        enabled: true,
+        supported: true,
+        processing: false,
+        message: "",
+      }));
+    } catch (error) {
+      const rawMessage = String(error?.message || "");
+      const lower = rawMessage.toLowerCase();
+      const cancelled = /cancel|user_cancel|user fallback|authentication canceled/.test(lower);
+      const expired = /expired|invalid|session|credential missing|not found/.test(lower);
+
+      if (expired) {
+        await clearNativeBiometricCredential();
+        clearSessionToken();
+        await onAuthChanged();
+        setBiometricStatus((prev) => ({
+          ...prev,
+          enabled: false,
+          processing: false,
+          message: "Fingerprint login expired. Please login again.",
+        }));
+        setBiometricUnlockMessage("Fingerprint login expired. Please login again.");
+        return;
+      }
+
+      setBiometricStatus((prev) => ({
+        ...prev,
+        processing: false,
+      }));
+      if (cancelled) {
+        setBiometricUnlockMessage("Fingerprint unlock cancelled. Use password login.");
+      } else {
+        setBiometricUnlockMessage("Fingerprint unlock failed. Use password login.");
+      }
+    }
   };
 
   const buildLocalNotificationId = (item = null) => {
@@ -4427,8 +4821,15 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     setInboxUnreadCount(0);
     setInboxOpen(false);
     setLaunchPopup(null);
+    setBiometricAutoPromptTried(false);
+    setBiometricUnlockMessage("");
     notificationBaselineReadyRef.current = false;
   }, [authSnapshot.sessionToken, authSnapshot.userId]);
+
+  useEffect(() => {
+    void refreshBiometricStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSnapshot.userId, authSnapshot.email, authSnapshot.isLoggedIn]);
 
   useEffect(() => {
     previousScreenRef.current = activeAppScreen;
@@ -4445,6 +4846,18 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     return () => window.clearInterval(pollingInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authSnapshot.sessionToken, authSnapshot.userId, authSnapshot.isLoggedIn]);
+
+  useEffect(() => {
+    if (!isNativeAppRuntime() || authSnapshot?.isLoggedIn || !authReady) {
+      return;
+    }
+    if (biometricAutoPromptTried) {
+      return;
+    }
+    setBiometricAutoPromptTried(true);
+    void unlockWithBiometric({ autoPrompt: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, authSnapshot?.isLoggedIn, biometricAutoPromptTried, authSnapshot?.userId, authSnapshot?.email]);
 
   useEffect(() => {
     if (!isNativeAppRuntime() || !authSnapshot?.sessionToken || !authSnapshot?.isLoggedIn) {
@@ -4469,7 +4882,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
             importance: 5,
             visibility: 1,
             sound: "default",
-          }).catch(() => {});
+          }).catch(() => { });
           await LocalNotifications.createChannel({
             id: NOTIFICATION_CHANNEL_ID,
             name: "RampX Alerts",
@@ -4477,7 +4890,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
             importance: 5,
             visibility: 1,
             sound: "default",
-          }).catch(() => {});
+          }).catch(() => { });
         }
         await PushNotifications.register();
       } catch {
@@ -4505,7 +4918,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
             }, 3500);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     });
 
     const registrationErrorListener = PushNotifications.addListener("registrationError", () => {
@@ -4562,7 +4975,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         receiveListener.then((listener) => listener.remove()),
         actionListener.then((listener) => listener.remove()),
         localActionListener.then((listener) => listener.remove()),
-      ]).catch(() => {});
+      ]).catch(() => { });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authSnapshot.sessionToken, authSnapshot.userId, authSnapshot.isLoggedIn]);
@@ -4632,6 +5045,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
 
   const handleLogout = async () => {
     await authService.logout({ sessionToken: authSnapshot.sessionToken });
+    setBiometricStatus((prev) => ({ ...prev, message: "" }));
     await onAuthChanged();
   };
 
@@ -4648,12 +5062,19 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   };
 
   const handlePasswordChange = async ({ currentPassword, newPassword, confirmPassword }) => {
-    return authService.changePassword({
+    const result = await authService.changePassword({
       sessionToken: authSnapshot.sessionToken,
       currentPassword,
       newPassword,
       confirmPassword,
     });
+    await clearNativeBiometricCredential();
+    setBiometricStatus((prev) => ({
+      ...prev,
+      enabled: false,
+      message: "Password changed. Fingerprint login disabled for safety.",
+    }));
+    return result;
   };
 
   const handleKycSubmit = async ({
@@ -5489,6 +5910,9 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onOpenTransactionPage={() => navigateToScreen("transaction")}
         onOpenAssetsPage={() => navigateToScreen("assets")}
         onOpenLaunchpadPage={() => navigateToScreen("launchpad")}
+        biometricAuthState={biometricStatus}
+        onEnableBiometricLogin={enableBiometricLogin}
+        onDisableBiometricLogin={disableBiometricLogin}
         onCreateDepositRequest={handleCreateDepositRequest}
         onDepositRecords={handleDepositRecords}
         onLoadSupportTickets={handleSupportTicketsList}
@@ -5502,7 +5926,15 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     );
   }
 
-  return <MobileAuthPage authSnapshot={authSnapshot} onAuthenticated={onAuthChanged} />;
+  return (
+    <MobileAuthPage
+      authSnapshot={authSnapshot}
+      onAuthenticated={onAuthChanged}
+      biometricAuthState={biometricStatus}
+      biometricUnlockMessage={biometricUnlockMessage}
+      onBiometricUnlock={() => unlockWithBiometric({ autoPrompt: false })}
+    />
+  );
 }
 
 function HomePage({
@@ -5848,7 +6280,9 @@ function HomePage({
                     <i className={button.icon} />
                     <div className="download-text">
                       <span className="download-label">{button.labelTop}</span>
-                      <span className="download-platform">{button.labelBottom}</span>
+                      <span className="download-platform">
+                        {button.labelBottom === "Google Play" ? "Android" : button.labelBottom}
+                      </span>
                     </div>
                   </a>
                 ))}
