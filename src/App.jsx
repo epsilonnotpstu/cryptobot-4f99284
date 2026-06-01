@@ -5044,31 +5044,9 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   }, [activeAppScreen, dashboardEntryTab, screenHistory, inboxOpen, launchPopup, lastBackPressedAt]);
 
   const handleLogout = async () => {
-    const sessionToken = String(authSnapshot?.sessionToken || "").trim();
-
-    try {
-      if (sessionToken) {
-        await authService.logout({ sessionToken });
-      }
-    } catch {
-      // Continue local logout even if remote logout fails unexpectedly.
-    } finally {
-      clearSessionToken();
-      setBiometricStatus((prev) => ({ ...prev, message: "" }));
-      setActiveAppScreen("dashboard");
-      setDashboardEntryTab("home");
-      setScreenHistory([]);
-      setInboxOpen(false);
-      setLaunchPopup(null);
-      setNativeNotice("");
-      closeOpenNativeOverlayIfAny();
-    }
-
-    try {
-      await onAuthChanged();
-    } finally {
-      goToRoute(ROUTES.login);
-    }
+    await authService.logout({ sessionToken: authSnapshot.sessionToken });
+    setBiometricStatus((prev) => ({ ...prev, message: "" }));
+    await onAuthChanged();
   };
 
   const handleProfileUpdate = async ({ firstName, lastName, mobile, avatarUrl }) => {
