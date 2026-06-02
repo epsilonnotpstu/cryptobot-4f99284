@@ -27,6 +27,12 @@ jobs:
         run: npm ci
 
       - name: Build web app
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_PUBLIC_AUTH_BASE_URL: ${{ secrets.VITE_PUBLIC_AUTH_BASE_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_ANDROID_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_ANDROID_WEB_CLIENT_ID }}
+          VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS: ${{ secrets.VITE_GOOGLE_WEB_CALLBACK_ALLOWED_ORIGINS }}
         run: npm run build
 
       - name: Sync Capacitor Android
@@ -63,3 +69,8 @@ jobs:
           make_latest: true
           overwrite_files: true
           generate_release_notes: false
+          
+      - name: Restore google-services.json
+        run: |
+          mkdir -p android/app
+          printf '%s' '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json

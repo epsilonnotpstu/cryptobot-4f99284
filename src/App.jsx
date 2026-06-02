@@ -27,6 +27,8 @@ const ROUTES = {
 const NATIVE_ALLOWED_ROUTES = new Set([ROUTES.app, ROUTES.login, ROUTES.signup]);
 const ANDROID_APK_DOWNLOAD_URL =
   "https://github.com/epsilonnotpstu/cryptobot-4f99284/releases/latest/download/rampxtrading-latest.apk";
+const DEFAULT_REMOTE_API_BASE_URL = "https://cryptobot-prime-production.up.railway.app";
+const DEFAULT_GOOGLE_WEB_CLIENT_ID = "532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com";
 
 class GoogleAuthRenderBoundary extends Component {
   constructor(props) {
@@ -64,7 +66,7 @@ function sanitizeEnvUrl(value = "") {
 const AUTH_CONFIG = {
   useRemote: true,
   apiBase: sanitizeEnvUrl(
-    import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:4000" : ""),
+    import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:4000" : DEFAULT_REMOTE_API_BASE_URL),
   ),
 };
 const ALLOW_EXTERNAL_API_FALLBACK =
@@ -94,8 +96,8 @@ const ENABLE_NATIVE_LAUNCH_SPLASH = false;
 
 const AUTH_REQUEST_TIMEOUT_MS = 20000;
 const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
-const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
-const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
+const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || DEFAULT_REMOTE_API_BASE_URL);
+const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_WEB_CLIENT_ID);
 const GOOGLE_ANDROID_WEB_CLIENT_ID = sanitizeEnvValue(
   import.meta.env.VITE_GOOGLE_ANDROID_WEB_CLIENT_ID || GOOGLE_WEB_CLIENT_ID,
 );
@@ -371,7 +373,7 @@ const DEFAULT_HOME_PAGE_CONTENT = {
         {
           icon: "fas fa-desktop",
           labelTop: "Download for",
-          labelBottom: "Desktop",
+          labelBottom: "ddddd",
           href: "#download",
         },
       ],
