@@ -716,8 +716,33 @@
     padding: 18px 12px 112px;
   }
 
+  .launchpad-header {
+    position: relative;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 48px;
+    text-align: center;
+  }
+
+  .launchpad-header > div {
+    min-width: 0;
+  }
+
+  .launchpad-back-btn {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+  }
+
+  .launchpad-header p,
+  .launchpad-header h1 {
+    overflow-wrap: anywhere;
+  }
+
   .launchpad-header h1 {
     font-size: 24px;
+    line-height: 1.12;
   }
 
   .launchpad-user-pill {

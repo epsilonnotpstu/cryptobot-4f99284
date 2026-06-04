@@ -250,6 +250,293 @@
   color: #fda4af;
 }
 
+.adminx-loan-page {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.adminx-loan-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.72fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.adminx-loan-editor,
+.adminx-loan-settings,
+.adminx-loan-locked-card {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(8, 17, 33, 0.86);
+}
+
+.adminx-loan-editor,
+.adminx-loan-settings {
+  padding: 1.05rem;
+}
+
+.adminx-loan-editor > .btn.btn-primary {
+  width: 100%;
+  margin-top: 1rem;
+  min-height: 44px;
+}
+
+.adminx-loan-page .btn,
+.adminx-loan-page .adminx-filter-btn,
+.adminx-loan-page .adminx-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.adminx-loan-page .adminx-panel-head {
+  flex-wrap: wrap;
+  row-gap: 0.58rem;
+}
+
+.adminx-loan-page .adminx-status-pill {
+  flex: 0 0 auto;
+}
+
+.adminx-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.adminx-form-grid label,
+.adminx-loan-settings label {
+  display: grid;
+  gap: 0.42rem;
+  color: #cfe1f7;
+  font-size: 0.84rem;
+  min-width: 0;
+}
+
+.adminx-form-grid input,
+.adminx-form-grid textarea,
+.adminx-form-grid select,
+.adminx-loan-row-editor input,
+.adminx-loan-row-editor textarea {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(2, 8, 23, 0.62);
+  color: #f8fbff;
+  padding: 0.76rem;
+  outline: none;
+  font: inherit;
+  min-width: 0;
+  width: 100%;
+  resize: vertical;
+}
+
+.adminx-form-grid input:focus,
+.adminx-form-grid textarea:focus,
+.adminx-form-grid select:focus,
+.adminx-loan-row-editor input:focus,
+.adminx-loan-row-editor textarea:focus {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: var(--adminx-focus-ring);
+}
+
+.adminx-form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.adminx-loan-list-editor {
+  margin-top: 1.15rem;
+  display: grid;
+  gap: 0.78rem;
+}
+
+.adminx-loan-list-editor .adminx-panel-head {
+  margin-bottom: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 0.55rem;
+}
+
+.adminx-loan-list-editor .adminx-panel-head h3 {
+  margin: 0;
+  color: #f4f9ff;
+  font-size: 1rem;
+}
+
+.adminx-loan-row-editor {
+  display: grid;
+  grid-template-columns: auto minmax(170px, 0.42fr) minmax(240px, 1fr) auto;
+  gap: 0.7rem;
+  align-items: start;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  background: rgba(2, 8, 23, 0.32);
+  padding: 0.72rem;
+  min-width: 0;
+}
+
+.adminx-loan-row-editor.is-note {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.adminx-loan-row-editor > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(56, 189, 248, 0.14);
+  color: #7dd3fc;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.adminx-loan-row-editor .adminx-icon-btn {
+  width: 36px;
+  height: 36px;
+  justify-self: end;
+}
+
+.adminx-loan-settings {
+  display: grid;
+  gap: 0.95rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.adminx-muted-copy {
+  margin: 0;
+  color: #9ab3d7;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.adminx-toggle-line {
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  background: rgba(2, 8, 23, 0.32);
+  padding: 0.72rem;
+}
+
+.adminx-toggle-line input {
+  width: 18px;
+  height: 18px;
+  accent-color: #38bdf8;
+}
+
+.adminx-loan-locked-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 0.95rem;
+}
+
+.adminx-loan-locked-card {
+  border-radius: 16px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.72rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.adminx-loan-locked-card div {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.adminx-loan-locked-card i {
+  color: #fbbf24;
+}
+
+.adminx-loan-locked-card strong {
+  color: #f3f8ff;
+}
+
+.adminx-loan-locked-card span {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  color: #fde68a;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.adminx-loan-locked-card.is-ready span {
+  border-color: rgba(74, 222, 128, 0.34);
+  color: #bbf7d0;
+}
+
+.adminx-loan-locked-card p {
+  margin: 0;
+  color: #9fb6d0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.adminx-loan-locked-card button {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #9fb6d0;
+  padding: 0.58rem 0.7rem;
+  min-height: 38px;
+}
+
+@media (max-width: 980px) {
+  .adminx-loan-layout,
+  .adminx-loan-locked-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-loan-settings {
+    position: static;
+  }
+
+  .adminx-loan-row-editor {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .adminx-loan-row-editor input,
+  .adminx-loan-row-editor textarea {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .adminx-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-loan-row-editor,
+  .adminx-loan-row-editor.is-note {
+    grid-template-columns: auto 1fr;
+  }
+
+  .adminx-loan-row-editor input,
+  .adminx-loan-row-editor textarea {
+    grid-column: 1 / -1;
+  }
+
+  .adminx-loan-row-editor .adminx-icon-btn {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .adminx-loan-list-editor .adminx-panel-head {
+    align-items: flex-start;
+  }
+
+  .adminx-loan-list-editor .adminx-panel-head .adminx-filter-btn {
+    width: 100%;
+  }
+}
+
 .adminx-dashboard-shell {
   min-height: 100vh;
   display: grid;

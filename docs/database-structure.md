@@ -867,3 +867,37 @@ Assets integration changes:
   - `withdrawal_requests`
   - `asset_wallet_ledger`
 - Added user-level assets API endpoints under `/api/assets/*`.
+
+## Loan/Lending Module Impact
+
+The Loan/Lending module is future-ready but locked by default. It currently powers the user-facing informational Lending Center and support consultation flow only.
+
+New loan tables:
+- `loan_page_configs`: admin-managed Lending Center content JSON, active flag, updated metadata.
+- `loan_feature_settings`: server/admin lock state for full loan operations.
+- `loan_products`: future loan product catalog.
+- `loan_applications`: future user loan applications.
+- `loan_collateral_rules`: future collateral/LTV rules.
+- `loan_repayment_schedules`: future repayment rows per loan application.
+- `loan_wallet_ledger`: future loan wallet ledger. No wallet mutation is active while locked.
+- `loan_audit_logs`: future admin audit trail for loan operations.
+
+Active loan gateway actions:
+- `loan.page.get`
+- `loan.consultation.start`
+- `admin.loan.page.get`
+- `admin.loan.page.update`
+- `admin.loan.settings.get`
+- `admin.loan.settings.update`
+
+Locked future loan gateway actions return `LOAN_FEATURE_LOCKED` unless both are true:
+- `LOAN_FULL_FEATURE_ENABLED=true`
+- `loan_feature_settings.full_feature_enabled=1`
+
+Loan REST routes:
+- `GET /api/loan/page`
+- `POST /api/loan/consultation/start`
+- `GET /api/admin/loan/page`
+- `POST /api/admin/loan/page`
+- `GET /api/admin/loan/settings`
+- `POST /api/admin/loan/settings`

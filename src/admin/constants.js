@@ -8,6 +8,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "users", label: "User Management", icon: "fa-users" },
   { key: "kycReview", label: "KYC Review & Approvals", icon: "fa-id-card" },
   { key: "depositCenter", label: "Deposit Management", icon: "fa-coins" },
+  { key: "loanCenter", label: "Loan Management", icon: "fa-hand-holding-dollar" },
   { key: "lumCenter", label: "LUM & Gold Mining", icon: "fa-layer-group" },
   { key: "binaryCenter", label: "Binary Management", icon: "fa-chart-simple" },
   { key: "transactionCenter", label: "Transaction Management", icon: "fa-right-left" },
@@ -45,6 +46,11 @@ export const ADMIN_SECTION_META = {
     icon: "fa-coins",
     title: "Deposit Management",
     description: "Configure deposit assets and process user deposit requests with full audit visibility.",
+  },
+  loanCenter: {
+    icon: "fa-hand-holding-dollar",
+    title: "Loan Management",
+    description: "Publish Lending Center content and keep future loan operations locked until server and admin settings allow them.",
   },
   lumCenter: {
     icon: "fa-layer-group",

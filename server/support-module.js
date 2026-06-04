@@ -319,6 +319,16 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
 
   const findTicketByRefStatement = db.prepare(`SELECT * FROM support_tickets WHERE ticket_ref = ? LIMIT 1`);
   const findTicketByIdStatement = db.prepare(`SELECT * FROM support_tickets WHERE id = ? LIMIT 1`);
+  const findOpenLoanConsultationTicketStatement = db.prepare(`
+    SELECT *
+    FROM support_tickets
+    WHERE user_id = @userId
+      AND category = 'loan'
+      AND LOWER(subject) = 'loan consultation'
+      AND status NOT IN ('resolved', 'closed')
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+  `);
 
   const updateTicketStateStatement = db.prepare(`
     UPDATE support_tickets
@@ -1078,6 +1088,28 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     });
 
     return createTx();
+  }
+
+  function startLoanConsultationForUser({ userId }) {
+    const existing = findOpenLoanConsultationTicketStatement.get({ userId });
+    const ticket =
+      existing ||
+      createUserTicket({
+        userId,
+        subject: "Loan Consultation",
+        category: "loan",
+        messageText: "I would like to consult about the RampX Lending Center loan service.",
+      });
+
+    const nowIso = toIso(getNow());
+    touchTicketAsUserRead(ticket.id, nowIso);
+    const updatedTicket = findTicketByRefStatement.get(ticket.ticket_ref);
+
+    return {
+      created: !existing,
+      ticket: mapTicketRow(updatedTicket || ticket),
+      messages: getTicketMessages(ticket.id, 1, 400),
+    };
   }
 
   function sendUserMessage({ userId, ticketRef, messageText, attachment = null }) {
@@ -2123,6 +2155,7 @@ export function createSupportModule({ db, getNow, toIso, sanitizeShortText, noti
     handleSupportTicketStatusUpdate,
     handleSupportLiveThread,
     handleSupportLiveSend,
+    startLoanConsultationForUser,
     handleAdminSupportDashboardSummary,
     handleAdminSupportTickets,
     handleAdminSupportTicketDetail,

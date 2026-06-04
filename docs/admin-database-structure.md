@@ -443,3 +443,29 @@ Admin transaction gateway actions:
 Stability/accounting notes:
 - Transaction wallet snapshot now aggregates canonical wallet symbols before response (`SPOTUSDT` + `SPOT_USDT`) to prevent available-balance mismatch in UI.
 - Stale spot price feed now auto-refreshes the latest tick from current pair price at runtime, so convert/spot flows remain operational even without recent manual tick pushes.
+
+## Loan Management Impact
+
+Loan management is added as a locked/future-ready admin module.
+
+Admin UI section:
+- Sidebar entry: `Loan Management`
+- Component: `src/admin/components/LoanManagementPage.jsx`
+- Active editor: Loan Page Info Control
+- Locked placeholders: applications, products, eligibility, collateral rules, limits, repayments, fees, liquidation controls, wallet ledger, reports, audit logs.
+
+Active admin gateway actions:
+- `admin.loan.page.get`
+- `admin.loan.page.update`
+- `admin.loan.settings.get`
+- `admin.loan.settings.update`
+
+User gateway actions:
+- `loan.page.get`
+- `loan.consultation.start`
+
+Locking:
+- Server env: `LOAN_FULL_FEATURE_ENABLED=false` by default.
+- Admin DB setting: `loan_feature_settings.full_feature_enabled`.
+- Effective full loan system unlock requires both env and admin setting enabled.
+- Locked/future loan operations return `LOAN_FEATURE_LOCKED` and do not mutate wallets.

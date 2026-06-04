@@ -16,6 +16,7 @@ import { createTransactionModule } from "./transaction-module.js";
 import { createAssetsModule } from "./assets-module.js";
 import { createSupportModule } from "./support-module.js";
 import { createLaunchpadModule } from "./launchpad-module.js";
+import { createLoanModule } from "./loan-module.js";
 
 dotenv.config();
 
@@ -3576,6 +3577,7 @@ const {
   handleSupportTicketStatusUpdate,
   handleSupportLiveThread,
   handleSupportLiveSend,
+  startLoanConsultationForUser,
   handleAdminSupportDashboardSummary,
   handleAdminSupportTickets,
   handleAdminSupportTicketDetail,
@@ -3587,6 +3589,26 @@ const {
   handleAdminSupportLiveUpdate,
   handleAdminSupportAuditLogs,
 } = supportModule;
+
+const loanModule = createLoanModule({
+  db,
+  getNow,
+  toIso,
+  sanitizeShortText,
+  persistDbToBlobSafe,
+  startLoanConsultationForUser,
+});
+
+const {
+  FUTURE_LOAN_ACTIONS,
+  handleLoanPageGet,
+  handleAdminLoanPageGet,
+  handleAdminLoanPageUpdate,
+  handleAdminLoanSettingsGet,
+  handleAdminLoanSettingsUpdate,
+  handleLoanConsultationStart,
+  handleLockedLoanAction,
+} = loanModule;
 
 const launchpadModule = createLaunchpadModule({
   db,
@@ -7983,6 +8005,12 @@ async function handleAdminDepositRequestReview(req, res) {
 app.post("/api/auth/gateway", async (req, res) => {
   const action = String(req.body?.action || "").trim().toLowerCase();
 
+  if (FUTURE_LOAN_ACTIONS.has(action)) {
+    const requireAuth = action.startsWith("admin.") ? requireAdminSession : requireSession;
+    requireAuth(req, res, () => handleLockedLoanAction(req, res));
+    return;
+  }
+
   switch (action) {
     case "admin.auth.signup":
       await handleAdminSignup(req, res);
@@ -8044,6 +8072,12 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "dashboard.snapshot":
       requireSession(req, res, () => handleDashboardSnapshot(req, res));
+      return;
+    case "loan.page.get":
+      requireSession(req, res, () => handleLoanPageGet(req, res));
+      return;
+    case "loan.consultation.start":
+      requireSession(req, res, () => handleLoanConsultationStart(req, res));
       return;
     case "notification.device.register":
       requireSession(req, res, () => handleNotificationDeviceRegister(req, res));
@@ -8395,6 +8429,18 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.home.content.save":
       requireAdminSession(req, res, () => handleAdminHomeContentSave(req, res));
       return;
+    case "admin.loan.page.get":
+      requireAdminSession(req, res, () => handleAdminLoanPageGet(req, res));
+      return;
+    case "admin.loan.page.update":
+      requireAdminSession(req, res, () => handleAdminLoanPageUpdate(req, res));
+      return;
+    case "admin.loan.settings.get":
+      requireAdminSession(req, res, () => handleAdminLoanSettingsGet(req, res));
+      return;
+    case "admin.loan.settings.update":
+      requireAdminSession(req, res, () => handleAdminLoanSettingsUpdate(req, res));
+      return;
     case "admin.deposit.assets.list":
       requireAdminSession(req, res, () => handleAdminDepositAssetsList(req, res));
       return;
@@ -8579,6 +8625,8 @@ app.post("/api/auth/password/change", requireSession, handlePasswordChange);
 app.post("/api/auth/kyc", requireSession, handleKycSubmit);
 app.get("/api/auth/kyc", requireSession, handleKycStatus);
 app.get("/api/auth/dashboard", requireSession, handleDashboardSnapshot);
+app.get("/api/loan/page", requireSession, handleLoanPageGet);
+app.post("/api/loan/consultation/start", requireSession, handleLoanConsultationStart);
 app.post("/api/auth/deposit", requireSession, handleDepositCreate);
 app.get("/api/auth/deposit/records", requireSession, handleDepositRecords);
 app.get("/api/lum/summary", requireSession, handleLumSummary);
@@ -8667,6 +8715,10 @@ app.post("/api/admin/users/update", requireAdminSession, handleAdminUserUpdate);
 app.post("/api/admin/users/delete", requireAdminSession, handleAdminUserDelete);
 app.get("/api/admin/notice", requireAdminSession, handleAdminNoticeGet);
 app.post("/api/admin/notice", requireAdminSession, handleAdminNoticeUpdate);
+app.get("/api/admin/loan/page", requireAdminSession, handleAdminLoanPageGet);
+app.post("/api/admin/loan/page", requireAdminSession, handleAdminLoanPageUpdate);
+app.get("/api/admin/loan/settings", requireAdminSession, handleAdminLoanSettingsGet);
+app.post("/api/admin/loan/settings", requireAdminSession, handleAdminLoanSettingsUpdate);
 app.get("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAssetsList);
 app.post("/api/admin/deposit/assets", requireAdminSession, handleAdminDepositAssetUpsert);
 app.post("/api/admin/deposit/assets/delete", requireAdminSession, handleAdminDepositAssetDelete);

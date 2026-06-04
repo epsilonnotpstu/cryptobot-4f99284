@@ -17,6 +17,7 @@ const QUICK_ACTIONS = [
   { id: "recharge", label: "Recharge", icon: "fa-bolt" },
   { id: "transaction", label: "Transaction", icon: "fa-right-left" },
   { id: "recovery", label: "Recovery", icon: "fa-shield-halved" },
+  { id: "loan", label: "Loan", icon: "fa-hand-holding-dollar" },
 ];
 
 const BOTTOM_NAV_ITEMS = [
@@ -387,6 +388,7 @@ export default function PremiumDashboardPage({
   onOpenBinaryPage,
   onOpenTransactionPage,
   onOpenAssetsPage,
+  onOpenLoanPage,
   onOpenLaunchpadPage,
   biometricAuthState = null,
   onEnableBiometricLogin = null,
@@ -1414,8 +1416,8 @@ export default function PremiumDashboardPage({
                         type="button"
                         key={action.id}
                         className="prodash-quick-item"
-                        disabled={action.id !== "recharge" && !isUserKycAuthenticated}
-                        title={action.id !== "recharge" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
+                        disabled={action.id !== "recharge" && action.id !== "loan" && !isUserKycAuthenticated}
+                        title={action.id !== "recharge" && action.id !== "loan" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
                         onClick={
                           action.id === "lum"
                             ? openLumPage
@@ -1425,7 +1427,9 @@ export default function PremiumDashboardPage({
                                 ? openTransactionPage
                                 : action.id === "recharge"
                                   ? openDepositAssetSelector
-                                  : undefined
+                                  : action.id === "loan"
+                                    ? onOpenLoanPage
+                                    : undefined
                         }
                       >
                         <span>

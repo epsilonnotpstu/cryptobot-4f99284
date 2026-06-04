@@ -267,7 +267,7 @@
 
 .prodash-quick-actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.6rem;
   width: 100%;
 }
@@ -1031,6 +1031,8 @@ button.prodash-promo-card {
   color: #c3d8ee;
   font-size: 0.83rem;
   line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .prodash-notice-item footer {

@@ -17,6 +17,7 @@ import TransactionManagementPage from "./TransactionManagementPage";
 import AssetManagementPage from "./AssetManagementPage";
 import SupportManagementPage from "./SupportManagementPage";
 import HomeContentManagementPage from "./HomeContentManagementPage";
+import LoanManagementPage from "./LoanManagementPage";
 import NoticeManagementPage from "./NoticeManagementPage";
 import LaunchpadManagementPage from "./LaunchpadManagementPage";
 
@@ -91,6 +92,7 @@ export default function AdminDashboardPage({
   assetCenter,
   supportCenter,
   webContent,
+  loanCenter,
   noticeCenter,
   activeSection,
   onSectionChange,
@@ -153,6 +155,8 @@ export default function AdminDashboardPage({
   onReplySupportLiveThread,
   onUpdateSupportLiveThread,
   onSaveHomeContent,
+  onSaveLoanPage,
+  onSaveLoanSettings,
   onCreateNotice,
   onUpdateNotice,
   onUpdateNoticeStatus,
@@ -220,6 +224,7 @@ export default function AdminDashboardPage({
         "assetCenter",
         "supportCenter",
         "webContent",
+        "loanCenter",
         "notifications",
       ]),
     [],
@@ -237,6 +242,7 @@ export default function AdminDashboardPage({
       launchpadCenter: formatCompactNumber(launchpadCenter?.summary?.stats?.totalPendingOrders || 0),
       assetCenter: formatCompactNumber(dashboard?.approvals?.pendingWithdrawalRequests || 0),
       webContent: "",
+      loanCenter: "",
       notifications: formatCompactNumber(noticeCenter?.stats?.active || 0),
       supportCenter: formatCompactNumber(
         dashboard?.approvals?.pendingSupportTickets || supportCenter?.summary?.pendingAdminTickets || 0,
@@ -336,6 +342,14 @@ export default function AdminDashboardPage({
         { label: "Assets", value: formatCompactNumber(webContent?.summary?.assets || 0) },
       ];
     }
+    if (activeSection === "loanCenter") {
+      const settings = loanCenter?.settings || loanCenter?.page?.feature || {};
+      return [
+        { label: "Page", value: loanCenter?.page?.isActive === false ? "Inactive" : "Active" },
+        { label: "Env", value: settings.fullFeatureEnabledEnv ? "Enabled" : "Off" },
+        { label: "System", value: settings.effectiveFullFeatureEnabled ? "Unlocked" : "Locked" },
+      ];
+    }
     if (activeSection === "notifications") {
       return [
         { label: "Total", value: formatCompactNumber(noticeCenter?.stats?.total || 0) },
@@ -379,6 +393,9 @@ export default function AdminDashboardPage({
     webContent?.summary?.assets,
     webContent?.summary?.faqs,
     webContent?.summary?.features,
+    loanCenter?.page?.isActive,
+    loanCenter?.page?.feature,
+    loanCenter?.settings,
   ]);
 
   const renderDashboard = () => (
@@ -878,6 +895,15 @@ export default function AdminDashboardPage({
             onSaveContent={onSaveHomeContent}
           />
         ) : null}
+        {activeSection === "loanCenter" ? (
+          <LoanManagementPage
+            loanCenter={loanCenter || {}}
+            loading={loading}
+            onRefresh={onRefresh}
+            onSavePage={onSaveLoanPage}
+            onSaveSettings={onSaveLoanSettings}
+          />
+        ) : null}
         {activeSection === "notifications" ? (
           <NoticeManagementPage
             notices={Array.isArray(noticeCenter?.items) ? noticeCenter.items : []}
@@ -904,6 +930,7 @@ export default function AdminDashboardPage({
         activeSection !== "assetCenter" &&
         activeSection !== "supportCenter" &&
         activeSection !== "webContent" &&
+        activeSection !== "loanCenter" &&
         activeSection !== "notifications"
           ? renderPlaceholder()
           : null}

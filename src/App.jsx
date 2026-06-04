@@ -11,6 +11,7 @@ import { SocialLogin } from "@capgo/capacitor-social-login";
 import PremiumDashboardPage from "./features/dashboard/PremiumDashboardPage";
 import DepositPage from "./features/dashboard/DepositPage";
 import LUMPage from "./features/lum/LUMPage";
+import LoanPage from "./features/loan/LoanPage";
 import BinaryPage from "./features/binary/BinaryPage";
 import TransactionPage from "./features/transaction/TransactionPage";
 import AssetsPage from "./features/assets/AssetsPage";
@@ -27,8 +28,6 @@ const ROUTES = {
 const NATIVE_ALLOWED_ROUTES = new Set([ROUTES.app, ROUTES.login, ROUTES.signup]);
 const ANDROID_APK_DOWNLOAD_URL =
   "https://github.com/epsilonnotpstu/cryptobot-4f99284/releases/latest/download/rampxtrading-latest.apk";
-const DEFAULT_REMOTE_API_BASE_URL = "https://cryptobot-prime-production.up.railway.app";
-const DEFAULT_GOOGLE_WEB_CLIENT_ID = "532626530913-orvilpfr9p301g0oq62eq754k4vnptn4.apps.googleusercontent.com";
 
 class GoogleAuthRenderBoundary extends Component {
   constructor(props) {
@@ -66,7 +65,7 @@ function sanitizeEnvUrl(value = "") {
 const AUTH_CONFIG = {
   useRemote: true,
   apiBase: sanitizeEnvUrl(
-    import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:4000" : DEFAULT_REMOTE_API_BASE_URL),
+    import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:4000" : ""),
   ),
 };
 const ALLOW_EXTERNAL_API_FALLBACK =
@@ -96,8 +95,8 @@ const ENABLE_NATIVE_LAUNCH_SPLASH = false;
 
 const AUTH_REQUEST_TIMEOUT_MS = 20000;
 const AUTH_REQUEST_TIMEOUT_OTP_MS = 22000;
-const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || DEFAULT_REMOTE_API_BASE_URL);
-const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_WEB_CLIENT_ID);
+const PUBLIC_AUTH_BASE_URL = sanitizeEnvUrl(import.meta.env.VITE_PUBLIC_AUTH_BASE_URL || "");
+const GOOGLE_WEB_CLIENT_ID = sanitizeEnvValue(import.meta.env.VITE_GOOGLE_CLIENT_ID || "");
 const GOOGLE_ANDROID_WEB_CLIENT_ID = sanitizeEnvValue(
   import.meta.env.VITE_GOOGLE_ANDROID_WEB_CLIENT_ID || GOOGLE_WEB_CLIENT_ID,
 );
@@ -373,7 +372,7 @@ const DEFAULT_HOME_PAGE_CONTENT = {
         {
           icon: "fas fa-desktop",
           labelTop: "Download for",
-          labelBottom: "ddddd",
+          labelBottom: "Desktop",
           href: "#download",
         },
       ],
@@ -856,7 +855,7 @@ function mapDeepLinkToTarget(deepLink = null) {
   if (!screen || screen === "dashboard" || screen === "home") {
     return { screen: "dashboard", tab: normalized.tab || "home" };
   }
-  if (["deposit", "assets", "transaction", "binary", "lum", "goldmining", "gold_mining", "launchpad"].includes(screen)) {
+  if (["deposit", "assets", "transaction", "binary", "lum", "goldmining", "gold_mining", "launchpad", "loan"].includes(screen)) {
     return {
       screen: screen === "gold_mining" ? "goldMining" : screen,
       tab: normalized.tab,
@@ -2032,6 +2031,18 @@ const remoteAuthService = {
       payload: { noticeId },
     });
   },
+  async getLoanPage({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "loan.page.get",
+      sessionToken,
+    });
+  },
+  async startLoanConsultation({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "loan.consultation.start",
+      sessionToken,
+    });
+  },
   async createDepositRequest({ sessionToken, assetId, amountUsd, screenshotFileName, screenshotFileData }) {
     return this.requestGatewayAction({
       action: "deposit.create",
@@ -2627,6 +2638,32 @@ const remoteAuthService = {
       action: "admin.home.content.save",
       sessionToken,
       payload: { content },
+    });
+  },
+  async adminGetLoanPage({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.loan.page.get",
+      sessionToken,
+    });
+  },
+  async adminUpdateLoanPage({ sessionToken, config, isActive }) {
+    return this.requestGatewayAction({
+      action: "admin.loan.page.update",
+      sessionToken,
+      payload: { config, isActive },
+    });
+  },
+  async adminGetLoanSettings({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.loan.settings.get",
+      sessionToken,
+    });
+  },
+  async adminUpdateLoanSettings({ sessionToken, fullFeatureEnabledAdmin, note }) {
+    return this.requestGatewayAction({
+      action: "admin.loan.settings.update",
+      sessionToken,
+      payload: { fullFeatureEnabledAdmin, note },
     });
   },
   async adminListDepositAssets({ sessionToken }) {
@@ -5121,6 +5158,18 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
     });
   };
 
+  const handleLoanPageLoad = async () => {
+    return authService.getLoanPage({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
+  const handleLoanConsultationStart = async () => {
+    return authService.startLoanConsultation({
+      sessionToken: authSnapshot.sessionToken,
+    });
+  };
+
   const handleLaunchpadCatalog = async ({ status, page, limit }) => {
     return authService.getLaunchpadCatalog({
       sessionToken: authSnapshot.sessionToken,
@@ -5894,6 +5943,23 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
       );
     }
 
+    if (activeAppScreen === "loan") {
+      return renderMobileContentWithNativeOverlay(
+        <LoanPage
+          onBack={() => navigateToScreen("dashboard", { withHistory: false })}
+          onLoadPage={handleLoanPageLoad}
+          onStartConsultation={handleLoanConsultationStart}
+          onLoadSupportTickets={handleSupportTicketsList}
+          onLoadSupportTicketDetail={handleSupportTicketDetail}
+          onCreateSupportTicket={handleSupportTicketCreate}
+          onSendSupportTicketMessage={handleSupportTicketMessageSend}
+          onUpdateSupportTicketStatus={handleSupportTicketStatusUpdate}
+          onLoadSupportLiveThread={handleSupportLiveThreadLoad}
+          onSendSupportLiveMessage={handleSupportLiveMessageSend}
+        />
+      );
+    }
+
     return renderMobileContentWithNativeOverlay(
       <PremiumDashboardPage
         user={authSnapshot}
@@ -5911,6 +5977,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onOpenBinaryPage={() => navigateToScreen("binary")}
         onOpenTransactionPage={() => navigateToScreen("transaction")}
         onOpenAssetsPage={() => navigateToScreen("assets")}
+        onOpenLoanPage={() => navigateToScreen("loan")}
         onOpenLaunchpadPage={() => navigateToScreen("launchpad")}
         biometricAuthState={biometricStatus}
         onEnableBiometricLogin={enableBiometricLogin}

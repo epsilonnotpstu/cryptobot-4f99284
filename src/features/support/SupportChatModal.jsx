@@ -98,6 +98,8 @@ export default function SupportChatModal({
   onUpdateTicketStatus,
   onLoadLiveThread,
   onSendLiveMessage,
+  initialMode = "",
+  initialTicketRef = "",
 }) {
   const [activeMode, setActiveMode] = useState("live");
   const [loading, setLoading] = useState(false);
@@ -216,6 +218,19 @@ export default function SupportChatModal({
       }
     }
   };
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (initialMode === "tickets") {
+      setActiveMode("tickets");
+    }
+    if (initialTicketRef) {
+      setSelectedTicketRef(initialTicketRef);
+    }
+  }, [open, initialMode, initialTicketRef]);
 
   useEffect(() => {
     if (!open) {
@@ -688,6 +703,7 @@ export default function SupportChatModal({
                       Category
                       <select value={newCategory} onChange={(event) => setNewCategory(event.target.value)}>
                         <option value="general">General</option>
+                        <option value="loan">Loan</option>
                         <option value="deposit">Deposit</option>
                         <option value="withdraw">Withdraw</option>
                         <option value="assets">Assets</option>

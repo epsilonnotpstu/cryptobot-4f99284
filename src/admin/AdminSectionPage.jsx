@@ -571,6 +571,21 @@ function buildWebContentModel(payload) {
   };
 }
 
+function buildLoanCenterModel(pagePayload = {}, settingsPayload = {}) {
+  const page = pagePayload || {};
+  const settings = settingsPayload && Object.keys(settingsPayload).length ? settingsPayload : page?.feature || {};
+  return {
+    page: {
+      config: page.config || {},
+      isActive: page.isActive !== false,
+      updatedAt: String(page.updatedAt || ""),
+      updatedBy: String(page.updatedBy || ""),
+      feature: page.feature || settings || {},
+    },
+    settings: settings || {},
+  };
+}
+
 function buildNoticeCenterModel(payload) {
   const items = Array.isArray(payload?.items)
     ? payload.items.map((item) => ({
@@ -841,6 +856,17 @@ const DEFAULT_WEB_CONTENT = {
   },
 };
 
+const DEFAULT_LOAN_CENTER = {
+  page: {
+    config: {},
+    isActive: true,
+    updatedAt: "",
+    updatedBy: "",
+    feature: {},
+  },
+  settings: {},
+};
+
 const DEFAULT_NOTICE_CENTER = {
   items: [],
   pagination: {
@@ -894,6 +920,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [assetCenter, setAssetCenter] = useState(DEFAULT_ASSET_CENTER);
   const [supportCenter, setSupportCenter] = useState(DEFAULT_SUPPORT_CENTER);
   const [webContent, setWebContent] = useState(DEFAULT_WEB_CONTENT);
+  const [loanCenter, setLoanCenter] = useState(DEFAULT_LOAN_CENTER);
   const [noticeCenter, setNoticeCenter] = useState(DEFAULT_NOTICE_CENTER);
   const [launchpadCenter, setLaunchpadCenter] = useState(DEFAULT_LAUNCHPAD_CENTER);
   const loadInFlightRef = useRef(false);
@@ -1237,6 +1264,18 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setWebContent(DEFAULT_WEB_CONTENT);
       }
+      }
+
+      if (activeSection === "loanCenter") {
+        try {
+          const [loanPagePayload, loanSettingsPayload] = await Promise.all([
+            authService.adminGetLoanPage({ sessionToken: snapshot.sessionToken }),
+            authService.adminGetLoanSettings({ sessionToken: snapshot.sessionToken }),
+          ]);
+          setLoanCenter(buildLoanCenterModel(loanPagePayload, loanSettingsPayload));
+        } catch {
+          setLoanCenter(DEFAULT_LOAN_CENTER);
+        }
       }
 
       if (activeSection === "notifications") {
@@ -2049,6 +2088,35 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const saveLoanPage = useCallback(async ({ config, isActive }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateLoanPage({
+      sessionToken: snapshot.sessionToken,
+      config,
+      isActive,
+    });
+    const settingsPayload = await authService.adminGetLoanSettings({ sessionToken: snapshot.sessionToken });
+    setLoanCenter(buildLoanCenterModel(data, settingsPayload));
+    return data;
+  }, [authService]);
+
+  const saveLoanSettings = useCallback(async ({ fullFeatureEnabledAdmin, note }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminUpdateLoanSettings({
+      sessionToken: snapshot.sessionToken,
+      fullFeatureEnabledAdmin,
+      note,
+    });
+    setLoanCenter((prev) => buildLoanCenterModel(prev.page, data));
+    return data;
+  }, [authService]);
+
   const createNotice = useCallback(async (payload) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -2347,6 +2415,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       assetCenter={assetCenter}
       supportCenter={supportCenter}
       webContent={webContent}
+      loanCenter={loanCenter}
       noticeCenter={noticeCenter}
       launchpadCenter={launchpadCenter}
       activeSection={activeSection}
@@ -2410,6 +2479,8 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onReplySupportLiveThread={replySupportLiveThread}
       onUpdateSupportLiveThread={updateSupportLiveThread}
       onSaveHomeContent={saveHomeContent}
+      onSaveLoanPage={saveLoanPage}
+      onSaveLoanSettings={saveLoanSettings}
       onCreateNotice={createNotice}
       onUpdateNotice={updateNotice}
       onUpdateNoticeStatus={updateNoticeStatus}
