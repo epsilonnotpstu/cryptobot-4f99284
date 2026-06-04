@@ -125,7 +125,18 @@ export default function LoanPage({
     <main className="loan-page">
       <section className="loan-shell">
         <header className="loan-hero" style={{ background: config.bannerGradient || FALLBACK_CONFIG.bannerGradient }}>
-          <button type="button" className="loan-back-btn" onClick={onBack} aria-label="Back to dashboard">
+          <button
+            type="button"
+            className="loan-back-btn"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (typeof onBack === "function") {
+                onBack();
+              }
+            }}
+            aria-label="Back to dashboard"
+          >
             <i className="fas fa-arrow-left" />
           </button>
           <div className="loan-hero-copy">

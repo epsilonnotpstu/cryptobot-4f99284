@@ -37,13 +37,14 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.18);
   filter: blur(38px);
+  pointer-events: none;
 }
 
 .loan-back-btn {
   position: absolute;
   top: 0.9rem;
   left: 0.9rem;
-  z-index: 2;
+  z-index: 10;
   width: 40px;
   height: 40px;
   border-radius: 14px;
@@ -54,6 +55,8 @@
   display: inline-grid;
   place-items: center;
   transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .loan-back-btn:hover {
