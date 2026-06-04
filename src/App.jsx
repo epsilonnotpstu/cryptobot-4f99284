@@ -27,8 +27,7 @@ const ROUTES = {
 };
 const NATIVE_ALLOWED_ROUTES = new Set([ROUTES.app, ROUTES.login, ROUTES.signup]);
 const ANDROID_APK_DOWNLOAD_URL =
-  "https://github.com/epsilonnotpstu/cryptobot-4f99284/releases/latest/download/rampxtrading-latest.apk";
-
+  "https://download.rampxtrading.com/rampxtrading-latest.apk";
 class GoogleAuthRenderBoundary extends Component {
   constructor(props) {
     super(props);
