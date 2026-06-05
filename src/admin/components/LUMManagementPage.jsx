@@ -52,6 +52,9 @@ function formatLabel(value = "") {
 
 function formatCategoryLabel(value = "") {
   const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "lum_mining") {
+    return "LUM Mining";
+  }
   if (normalized === "mining") {
     return "Gold Mining";
   }
@@ -519,6 +522,7 @@ export default function LUMManagementPage({
               >
                 <option value="all">All Category</option>
                 <option value="lum">LUM</option>
+                <option value="lum_mining">LUM Mining</option>
                 <option value="mining">Gold Mining</option>
               </select>
 
@@ -544,7 +548,7 @@ export default function LUMManagementPage({
 
           <div className="adminx-deposit-layout">
             <form className="adminx-deposit-asset-form" onSubmit={submitPlan}>
-              <h3>{planForm.planId ? "Update LUM / Gold Mining Plan" : "Create LUM / Gold Mining Plan"}</h3>
+              <h3>{planForm.planId ? "Update LUM / Mining Plan" : "Create LUM / Mining Plan"}</h3>
 
               <div className="adminx-deposit-grid-two">
                 <label>
@@ -565,6 +569,7 @@ export default function LUMManagementPage({
                     onChange={(event) => updatePlanField("category", event.target.value)}
                   >
                     <option value="lum">LUM</option>
+                    <option value="lum_mining">LUM Mining</option>
                     <option value="mining">Gold Mining</option>
                   </select>
                 </label>
@@ -761,7 +766,7 @@ export default function LUMManagementPage({
 
               {!filteredPlans.length ? (
                 <div className="adminx-users-empty">
-                  <p>No LUM / Gold Mining plans found for this filter.</p>
+                  <p>No LUM / Mining plans found for this filter.</p>
                 </div>
               ) : null}
             </div>
@@ -790,6 +795,7 @@ export default function LUMManagementPage({
               >
                 <option value="all">All Category</option>
                 <option value="lum">LUM</option>
+                <option value="lum_mining">LUM Mining</option>
                 <option value="mining">Gold Mining</option>
               </select>
 

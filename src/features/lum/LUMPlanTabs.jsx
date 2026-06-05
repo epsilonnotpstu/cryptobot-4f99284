@@ -1,6 +1,6 @@
 const TABS = [
   { id: "lum", label: "LUM Plans" },
-  { id: "mining", label: "Mining Plans" },
+  { id: "lum_mining", label: "Mining Plans" },
 ];
 
 export default function LUMPlanTabs({ activeTab, onChange }) {

@@ -226,6 +226,10 @@ Admin UI section:
   - Plan Studio (create/update/activate-disable/archive)
   - Investment Desk (review pending, force settle active)
   - Content Editor (pledge/risk/faq/terms blocks per plan)
+- Plan categories are separated for admin control:
+  - `lum` = LUM Center / LUM Plans
+  - `lum_mining` = LUM Center / Mining Plans
+  - `mining` = standalone Gold Mining Center
 
 Wallet synchronization rule:
 - LUM uses `user_wallet_balance_details` for `available_usd` and `locked_usd`.

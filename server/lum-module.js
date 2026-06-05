@@ -144,7 +144,7 @@ export function createLumModule({
 
   const RETURN_TYPES = new Set(["daily_percent", "cycle_percent", "fixed_amount", "apr_percent"]);
   const PAYOUT_TYPES = new Set(["on_maturity", "daily_credit", "manual_settlement"]);
-  const PLAN_CATEGORIES = new Set(["lum", "mining"]);
+  const PLAN_CATEGORIES = new Set(["lum", "lum_mining", "mining"]);
   const PLAN_STATUSES = new Set(["draft", "active", "disabled", "archived"]);
   const INVESTMENT_STATUSES = new Set(["pending", "active", "completed", "rejected", "cancelled", "redeemed_early"]);
 
@@ -416,6 +416,9 @@ export function createLumModule({
     const normalized = String(value || "all").trim().toLowerCase();
     if (normalized === "all") {
       return "all";
+    }
+    if (normalized === "lum-mining" || normalized === "lummining" || normalized === "lum_mining_plans") {
+      return "lum_mining";
     }
     return PLAN_CATEGORIES.has(normalized) ? normalized : "lum";
   }
@@ -1181,10 +1184,80 @@ export function createLumModule({
 
   ensureDefaultSeedData();
 
+  function ensureLumMiningPlanCopies() {
+    const existingLumMining = Number(countPlansStatement.get({ category: "lum_mining" })?.total || 0);
+    if (existingLumMining > 0) {
+      return;
+    }
+
+    const miningPlans = listPlansStatement.all({ category: "mining", status: "all" });
+    if (!miningPlans.length) {
+      return;
+    }
+
+    const nowIso = toIso(getNow());
+    const tx = db.transaction(() => {
+      for (const plan of miningPlans) {
+        const sourceCode = String(plan.plan_code || `MINING-${plan.id}`).toUpperCase();
+        const clonedCode = sourceCode.startsWith("LUMTAB-") ? sourceCode : `LUMTAB-${sourceCode}`.slice(0, 40);
+        if (findPlanByCodeStatement.get(clonedCode)) {
+          continue;
+        }
+
+        const result = insertPlanStatement.run({
+          planCode: clonedCode,
+          category: "lum_mining",
+          title: plan.title,
+          shortDescription: plan.short_description,
+          detailsHtml: plan.details_html,
+          currency: plan.currency,
+          minimumAmountUsd: Number(plan.minimum_amount_usd || 0),
+          maximumAmountUsd: plan.maximum_amount_usd === null ? null : Number(plan.maximum_amount_usd || 0),
+          returnRate: Number(plan.return_rate || 0),
+          returnType: plan.return_type,
+          cycleDays: Number(plan.cycle_days || 1),
+          payoutType: plan.payout_type,
+          lockPrincipal: Number(plan.lock_principal || 0) === 1 ? 1 : 0,
+          allowEarlyRedeem: Number(plan.allow_early_redeem || 0) === 1 ? 1 : 0,
+          earlyRedeemPenaltyPercent: Number(plan.early_redeem_penalty_percent || 0),
+          requiresAdminReview: Number(plan.requires_admin_review || 0) === 1 ? 1 : 0,
+          quotaLimit: plan.quota_limit === null ? null : Number(plan.quota_limit || 0),
+          quotaUsed: 0,
+          isFeatured: Number(plan.is_featured || 0) === 1 ? 1 : 0,
+          badgeLabel: plan.badge_label || "",
+          displaySortOrder: Number(plan.display_sort_order || 0),
+          status: plan.status || "active",
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          createdBy: "system",
+          updatedBy: "system",
+        });
+
+        const contents = listPlanContentsStatement.all({ planId: plan.id, activeOnly: 0 });
+        for (const content of contents) {
+          insertPlanContentStatement.run({
+            planId: result.lastInsertRowid,
+            contentType: content.content_type,
+            title: content.title,
+            bodyText: content.body_text,
+            sortOrder: Number(content.sort_order || 0),
+            isActive: Number(content.is_active || 0) === 1 ? 1 : 0,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+          });
+        }
+      }
+    });
+
+    tx();
+  }
+
+  ensureLumMiningPlanCopies();
+
   function parsePlanFormPayload(raw = {}, actorUserId = "system") {
     const category = normalizeCategory(raw.category || "lum");
     if (category === "all") {
-      throw new Error("Category must be lum or mining.");
+      throw new Error("Category must be LUM, LUM Mining, or Gold Mining.");
     }
 
     const planCode = sanitizeShortText(raw.planCode || raw.plan_code || "", 40).toUpperCase();

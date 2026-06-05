@@ -69,7 +69,18 @@ export default function LUMPage({
   defaultTab = "lum",
   lockCategory = "",
 }) {
-  const [activeTab, setActiveTab] = useState(defaultTab === "mining" ? "mining" : "lum");
+  const resolvePlanCategory = useCallback((value = "lum") => {
+    const normalized = String(value || "lum").trim().toLowerCase();
+    if (normalized === "mining") {
+      return "mining";
+    }
+    if (normalized === "lum_mining" || normalized === "lum-mining" || normalized === "lummining") {
+      return "lum_mining";
+    }
+    return "lum";
+  }, []);
+
+  const [activeTab, setActiveTab] = useState(resolvePlanCategory(defaultTab));
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [plansLoading, setPlansLoading] = useState(true);
@@ -118,9 +129,9 @@ export default function LUMPage({
   }, [onDashboardSnapshot, onLoadAssetsWallets]);
 
   useEffect(() => {
-    const nextTab = lockCategory === "mining" ? "mining" : defaultTab === "mining" ? "mining" : "lum";
+    const nextTab = lockCategory ? resolvePlanCategory(lockCategory) : resolvePlanCategory(defaultTab);
     setActiveTab(nextTab);
-  }, [defaultTab, lockCategory]);
+  }, [defaultTab, lockCategory, resolvePlanCategory]);
 
   const loadSummary = useCallback(async () => {
     if (!onLoadSummary) {
@@ -287,7 +298,8 @@ export default function LUMPage({
   };
 
   const hasPlans = plans.length > 0;
-  const activeTabLabel = activeTab === "mining" ? "mining" : activeTab;
+  const activeTabLabel =
+    activeTab === "mining" ? "Gold Mining" : activeTab === "lum_mining" ? "Mining" : "LUM";
 
   const headerDate = useMemo(() => {
     const now = new Date();

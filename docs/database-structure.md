@@ -818,6 +818,10 @@ Schema changes:
   - `lum_wallet_ledger`
   - `user_wallet_balance_details`
   - `lum_admin_audit_logs`
+- `lum_plans.category` separates product buckets:
+  - `lum`: LUM page, LUM Plans tab
+  - `lum_mining`: LUM page, Mining Plans tab
+  - `mining`: standalone Gold Mining Center
 
 Backend changes:
 - Added LUM backend module: `server/lum-module.js`.
