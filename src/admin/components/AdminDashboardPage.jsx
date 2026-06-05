@@ -708,6 +708,7 @@ export default function AdminDashboardPage({
         {activeSection === "dashboard" ? renderDashboard() : null}
         {activeSection === "users" ? (
           <UserManagementPage
+            currentAdminUser={adminUser}
             users={Array.isArray(userDirectory?.users) ? userDirectory.users : []}
             admins={Array.isArray(userDirectory?.admins) ? userDirectory.admins : []}
             userStats={userDirectory?.stats || {}}

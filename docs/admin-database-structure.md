@@ -55,6 +55,15 @@ WHERE account_role NOT IN ('admin', 'super_admin');
 
 These views are recreated safely during startup by `ensureUserRoleViews()`.
 
+## Super Admin Ownership
+
+- `SUPER_ADMIN_EMAIL` controls owner super admin accounts. It accepts one email or comma-separated emails.
+- On server startup, if a user exists with any configured owner email, the server promotes it to `account_role = 'super_admin'`, keeps it `active`, and marks KYC as `authenticated`.
+- If an owner account does not exist yet, signing up through Admin Sign Up with one of the configured `SUPER_ADMIN_EMAIL` emails and the valid `ADMIN_SIGNUP_KEY` creates the super admin.
+- Super admin logs in from the normal Admin Login screen using the same email/user ID and password.
+- Regular admins can keep using existing admin pages, but only the super admin can promote, demote, suspend, edit, or delete admin accounts.
+- Owner super admins cannot be deleted, demoted, email-changed, or suspended from User Management.
+
 ## Query/Stats Changes
 
 ## New count queries

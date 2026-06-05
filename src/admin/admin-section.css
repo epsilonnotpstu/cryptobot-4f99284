@@ -1350,6 +1350,11 @@
   min-width: 86px;
 }
 
+.adminx-inline-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
 .adminx-user-table tbody tr:hover td {
   background: rgba(14, 24, 42, 0.45);
 }
@@ -1491,6 +1496,11 @@
   background: rgba(3, 10, 20, 0.7);
   color: #c4d8f5;
   cursor: pointer;
+}
+
+.adminx-row-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .adminx-table-subtext {

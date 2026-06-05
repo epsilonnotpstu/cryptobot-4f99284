@@ -50,6 +50,15 @@ function formatStatusLabel(status = "") {
   return normalized[0].toUpperCase() + normalized.slice(1);
 }
 
+function isAdminRole(role = "") {
+  const normalized = normalizeText(role);
+  return normalized === "admin" || normalized === "super_admin";
+}
+
+function isSuperAdminRole(role = "") {
+  return normalizeText(role) === "super_admin";
+}
+
 function normalizeBinaryOutcomeMode(mode = "") {
   const normalized = normalizeText(mode).replace(/-/g, "_");
   if (normalized === "force_win" || normalized === "win" || normalized === "always_win") {
@@ -142,6 +151,7 @@ function buildDetailFormFromPayload(payload = null) {
 }
 
 export default function UserManagementPage({
+  currentAdminUser,
   users,
   admins,
   userStats,
@@ -176,6 +186,8 @@ export default function UserManagementPage({
   const platformUsers = Array.isArray(users) ? users : [];
   const adminUsers = Array.isArray(admins) ? admins : [];
   const scopedUsers = userTab === "admins" ? adminUsers : platformUsers;
+  const currentAdminIsSuperAdmin = isSuperAdminRole(currentAdminUser?.accountRole);
+  const currentAdminUserId = String(currentAdminUser?.userId || "").trim();
 
   const filteredUsers = useMemo(() => {
     const keyword = normalizeText(searchValue);
@@ -260,6 +272,18 @@ export default function UserManagementPage({
   };
 
   const requestDeleteUser = (user) => {
+    const targetIsAdmin = isAdminRole(user?.accountRole);
+    const targetIsOwnerSuperAdmin = isSuperAdminRole(user?.accountRole);
+    const targetUserId = String(user?.userId || "").trim();
+    if (targetIsOwnerSuperAdmin || targetUserId === currentAdminUserId || (targetIsAdmin && !currentAdminIsSuperAdmin)) {
+      setActionError(
+        targetIsAdmin
+          ? "Only super admin can remove regular admin accounts."
+          : "You cannot delete this account.",
+      );
+      setActionNotice("");
+      return;
+    }
     setActionError("");
     setActionNotice("");
     setDeleteTarget(user || null);
@@ -277,7 +301,7 @@ export default function UserManagementPage({
     setActionNotice("");
     try {
       await onDeleteUser(userId);
-      setActionNotice(`User ${deleteTarget?.email || userId} removed successfully.`);
+      setActionNotice(`${isAdminRole(deleteTarget?.accountRole) ? "Admin" : "User"} ${deleteTarget?.email || userId} removed successfully.`);
       if (detailPayload?.user?.userId === userId) {
         setDetailModalOpen(false);
         setDetailPayload(null);
@@ -375,6 +399,10 @@ export default function UserManagementPage({
   const detailUser = detailPayload?.user || null;
   const detailWallet = detailPayload?.wallet || { balances: [] };
   const detailHistory = detailPayload?.history || { kyc: [], deposit: [], adminUpdates: [] };
+  const detailUserIsAdmin = isAdminRole(detailUser?.accountRole);
+  const detailUserIsOwnerSuperAdmin = isSuperAdminRole(detailUser?.accountRole);
+  const canEditDetailUser = Boolean(detailUser) && (!detailUserIsAdmin || currentAdminIsSuperAdmin);
+  const deleteTargetIsAdmin = isAdminRole(deleteTarget?.accountRole);
 
   return (
     <section className="adminx-users-shell">
@@ -491,6 +519,10 @@ export default function UserManagementPage({
                 const userId = String(user?.userId || "").trim();
                 const outcomeMode = normalizeBinaryOutcomeMode(user?.binaryTradeOutcomeMode || "auto");
                 const isOutcomeSaving = Boolean(rowOutcomeSaving[userId]);
+                const rowIsAdmin = isAdminRole(user?.accountRole);
+                const rowIsOwnerSuperAdmin = isSuperAdminRole(user?.accountRole);
+                const canControlRow = !rowIsAdmin || currentAdminIsSuperAdmin;
+                const canDeleteRow = canControlRow && !rowIsOwnerSuperAdmin && userId !== currentAdminUserId;
 
                 return (
                   <tr key={user.userId || `${user.email}-${index}`}>
@@ -520,7 +552,7 @@ export default function UserManagementPage({
                       <select
                         className="adminx-inline-select"
                         value={outcomeMode}
-                        disabled={isOutcomeSaving}
+                        disabled={isOutcomeSaving || !canControlRow}
                         onChange={(event) => changeUserBinaryMode(user, event.target.value)}
                       >
                         <option value="auto">Auto</option>
@@ -533,7 +565,12 @@ export default function UserManagementPage({
                         <button type="button" title="View user details" onClick={() => openUserDetail(user)}>
                           <i className="fas fa-eye" />
                         </button>
-                        <button type="button" title="Delete user" onClick={() => requestDeleteUser(user)}>
+                        <button
+                          type="button"
+                          title={canDeleteRow ? (rowIsAdmin ? "Delete admin" : "Delete user") : "Only super admin can remove regular admins"}
+                          disabled={!canDeleteRow}
+                          onClick={() => requestDeleteUser(user)}
+                        >
                           <i className="fas fa-trash" />
                         </button>
                       </div>
@@ -589,7 +626,7 @@ export default function UserManagementPage({
 
                 <div className="adminx-profile-actions">
                   {!detailEditMode ? (
-                    <button type="button" className="btn btn-primary" onClick={() => setDetailEditMode(true)}>
+                    <button type="button" className="btn btn-primary" disabled={!canEditDetailUser} onClick={() => setDetailEditMode(true)}>
                       Edit User
                     </button>
                   ) : (
@@ -661,6 +698,7 @@ export default function UserManagementPage({
                         className="adminx-field-input"
                         type="email"
                         value={detailForm.email}
+                        disabled={detailUserIsOwnerSuperAdmin}
                         onChange={(event) => setDetailForm((prev) => ({ ...prev, email: event.target.value }))}
                       />
                     ) : (
@@ -686,13 +724,14 @@ export default function UserManagementPage({
                       <select
                         className="adminx-field-input"
                         value={detailForm.accountRole}
+                        disabled={detailUserIsOwnerSuperAdmin}
                         onChange={(event) => setDetailForm((prev) => ({ ...prev, accountRole: event.target.value }))}
                       >
                         <option value="trader">Trader</option>
                         <option value="pro_trader">Pro Trader</option>
                         <option value="institutional">Institutional</option>
-                        <option value="admin">Admin</option>
-                        <option value="super_admin">Super Admin</option>
+                        {currentAdminIsSuperAdmin ? <option value="admin">Admin</option> : null}
+                        {detailForm.accountRole === "super_admin" ? <option value="super_admin">Super Admin (Owner)</option> : null}
                       </select>
                     ) : (
                       <strong>{formatRoleLabel(detailUser.accountRole)}</strong>
@@ -704,6 +743,7 @@ export default function UserManagementPage({
                       <select
                         className="adminx-field-input"
                         value={detailForm.accountStatus}
+                        disabled={detailUserIsOwnerSuperAdmin}
                         onChange={(event) => setDetailForm((prev) => ({ ...prev, accountStatus: event.target.value }))}
                       >
                         <option value="active">Active</option>
@@ -919,7 +959,7 @@ export default function UserManagementPage({
         <div className="adminx-modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
           <section className="adminx-profile-modal adminx-delete-modal" onClick={(event) => event.stopPropagation()}>
             <header>
-              <h2>Delete User</h2>
+              <h2>{deleteTargetIsAdmin ? "Delete Admin" : "Delete User"}</h2>
               <button type="button" className="adminx-icon-btn" onClick={() => setDeleteModalOpen(false)} title="Close">
                 <i className="fas fa-xmark" />
               </button>

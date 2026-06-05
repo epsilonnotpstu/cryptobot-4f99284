@@ -1781,6 +1781,12 @@ const OTP_TTL_MINUTES = Number(process.env.OTP_TTL_MINUTES || 10);
 const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 15);
 const SESSION_TTL_DAYS = Number(process.env.SESSION_TTL_DAYS || 30);
 const ADMIN_SIGNUP_KEY = String(process.env.ADMIN_SIGNUP_KEY || "").trim();
+const SUPER_ADMIN_EMAILS = new Set(
+  String(process.env.SUPER_ADMIN_EMAIL || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+);
 const ALLOW_PUBLIC_ADMIN_SIGNUP = String(process.env.ALLOW_PUBLIC_ADMIN_SIGNUP || "")
   .trim()
   .toLowerCase() === "true";
@@ -2949,6 +2955,63 @@ function hasAdminRole(value = "") {
   const role = normalizeAccountRole(value);
   return role === "admin" || role === "super_admin";
 }
+
+function hasSuperAdminRole(value = "") {
+  return normalizeAccountRole(value) === "super_admin";
+}
+
+function isConfiguredSuperAdminEmail(value = "") {
+  return SUPER_ADMIN_EMAILS.has(normalizeEmail(String(value || "")));
+}
+
+async function bootstrapConfiguredSuperAdmin() {
+  if (!SUPER_ADMIN_EMAILS.size) {
+    return;
+  }
+
+  const nextAuthTag = deriveAuthTag("authenticated");
+  const promoteOwnerStatement = db.prepare(`
+    UPDATE users
+    SET account_role = 'super_admin',
+        account_status = 'active',
+        kyc_status = 'authenticated',
+        auth_tag = @authTag,
+        kyc_updated_at = @kycUpdatedAt
+    WHERE user_id = @userId
+  `);
+  let promotedCount = 0;
+
+  for (const ownerEmail of SUPER_ADMIN_EMAILS) {
+    const user = findUserByEmailStatement.get(ownerEmail);
+    if (!user) {
+      continue;
+    }
+
+    const alreadyBootstrapped =
+      normalizeAccountRole(user.account_role || "") === "super_admin" &&
+      normalizeAccountStatus(user.account_status || "") === "active" &&
+      normalizeKycStatus(user.kyc_status || "") === "authenticated" &&
+      String(user.auth_tag || "") === nextAuthTag;
+
+    if (alreadyBootstrapped) {
+      continue;
+    }
+
+    promoteOwnerStatement.run({
+      userId: user.user_id,
+      authTag: nextAuthTag,
+      kycUpdatedAt: toIso(getNow()),
+    });
+    deleteUserSessionsStatement.run(user.user_id);
+    promotedCount += 1;
+  }
+
+  if (promotedCount > 0) {
+    await persistDbToBlobSafe("super-admin.bootstrap");
+  }
+}
+
+await bootstrapConfiguredSuperAdmin();
 
 function parseKycFileData(rawData = "", sectionLabel = "file") {
   const normalized = String(rawData || "").trim();
@@ -5604,6 +5667,10 @@ function requireAdminSession(req, res, next) {
       res.status(403).json({ error: "Admin access required." });
       return;
     }
+    if (normalizeAccountStatus(req.currentUser?.accountStatus || "") !== "active") {
+      res.status(403).json({ error: "Active admin account required." });
+      return;
+    }
     next();
   });
 }
@@ -5840,6 +5907,7 @@ async function handleAdminSignup(req, res) {
     const adminSignupKey = sanitizeShortText(req.body?.adminSignupKey || "", 240);
     const totalAdminUsers = Number(countAdminUsersStatement.get()?.total || 0);
     const signupKeyMatches = ADMIN_SIGNUP_KEY ? adminSignupKey === ADMIN_SIGNUP_KEY : false;
+    const accountRole = isConfiguredSuperAdminEmail(email) ? "super_admin" : "admin";
 
     if (totalAdminUsers > 0 && !ALLOW_PUBLIC_ADMIN_SIGNUP && !signupKeyMatches) {
       res.status(403).json({
@@ -5874,7 +5942,7 @@ async function handleAdminSignup(req, res) {
       lastName: splitName.lastName,
       mobile: phone,
       avatarUrl: "",
-      accountRole: "admin",
+      accountRole,
       accountStatus: "active",
       kycStatus: "authenticated",
       authTag: deriveAuthTag("authenticated"),
@@ -5890,9 +5958,9 @@ async function handleAdminSignup(req, res) {
     const sessionToken = createSessionForUser(userId);
 
     res.json({
-      message: "Admin account created successfully.",
+      message: accountRole === "super_admin" ? "Super admin account created successfully." : "Admin account created successfully.",
       sessionToken,
-      user: buildUserPayload(createdAdmin || { user_id: userId, name, email, account_role: "admin" }),
+      user: buildUserPayload(createdAdmin || { user_id: userId, name, email, account_role: accountRole }),
     });
   } catch (error) {
     res.status(error?.statusCode || 400).json({ error: error.message || "Admin signup failed." });
@@ -5932,6 +6000,11 @@ async function handleAdminLogin(req, res) {
     if (!hasAdminRole(user.account_role || "")) {
       recordAdminLoginFailure(req, identifier);
       res.status(401).json({ error: "Invalid admin credentials." });
+      return;
+    }
+    if (normalizeAccountStatus(user.account_status || "") !== "active") {
+      recordAdminLoginFailure(req, identifier);
+      res.status(403).json({ error: "Admin account is not active." });
       return;
     }
 
@@ -6470,12 +6543,16 @@ async function handleAdminUserDelete(req, res) {
       return;
     }
 
-    if (hasAdminRole(userRow.account_role || "")) {
-      res.status(403).json({ error: "Admin accounts cannot be deleted from user management." });
-      return;
-    }
     if (userId === req.currentUser?.userId) {
       res.status(403).json({ error: "You cannot delete your own account." });
+      return;
+    }
+    if (hasSuperAdminRole(userRow.account_role || "") || isConfiguredSuperAdminEmail(userRow.email || "")) {
+      res.status(403).json({ error: "The owner super admin cannot be deleted." });
+      return;
+    }
+    if (hasAdminRole(userRow.account_role || "") && !hasSuperAdminRole(req.currentUser?.accountRole || "")) {
+      res.status(403).json({ error: "Only super admin can delete admin accounts." });
       return;
     }
 
@@ -6495,7 +6572,7 @@ async function handleAdminUserDelete(req, res) {
     await persistDbToBlobSafe("admin.user.delete");
 
     res.json({
-      message: "User deleted successfully.",
+      message: hasAdminRole(userRow.account_role || "") ? "Admin account deleted successfully." : "User deleted successfully.",
       user: {
         userId,
         email: userRow.email || "",
@@ -6538,6 +6615,34 @@ async function handleAdminUserUpdate(req, res) {
 
     assertValidName(name);
     assertValidEmail(email);
+
+    const actorIsSuperAdmin = hasSuperAdminRole(req.currentUser?.accountRole || "");
+    const existingRole = normalizeAccountRole(existingUser.account_role || "trader");
+    const existingStatus = normalizeAccountStatus(existingUser.account_status || "active");
+    const targetIsAdmin = hasAdminRole(existingRole);
+    const nextIsAdmin = hasAdminRole(accountRole);
+    const targetIsOwnerSuperAdmin = isConfiguredSuperAdminEmail(existingUser.email || "") || hasSuperAdminRole(existingRole);
+
+    if ((targetIsAdmin || nextIsAdmin) && !actorIsSuperAdmin) {
+      res.status(403).json({ error: "Only super admin can control admin accounts." });
+      return;
+    }
+    if (targetIsOwnerSuperAdmin && accountRole !== "super_admin") {
+      res.status(403).json({ error: "The owner super admin role cannot be changed." });
+      return;
+    }
+    if (targetIsOwnerSuperAdmin && !isConfiguredSuperAdminEmail(email)) {
+      res.status(403).json({ error: "The owner super admin email cannot be changed." });
+      return;
+    }
+    if (targetIsOwnerSuperAdmin && accountStatus !== "active") {
+      res.status(403).json({ error: "The owner super admin must remain active." });
+      return;
+    }
+    if (accountRole === "super_admin" && !isConfiguredSuperAdminEmail(email)) {
+      res.status(403).json({ error: "Super admin is reserved for the configured owner email." });
+      return;
+    }
 
     const sameEmailOwner = findUserByEmailStatement.get(email);
     if (sameEmailOwner && sameEmailOwner.user_id !== userId) {
@@ -6638,6 +6743,10 @@ async function handleAdminUserUpdate(req, res) {
         kycUpdatedAt: nowIso,
         binaryTradeOutcomeMode,
       });
+
+      if ((targetIsAdmin || nextIsAdmin) && (existingRole !== accountRole || existingStatus !== accountStatus)) {
+        deleteUserSessionsStatement.run(userId);
+      }
 
       if (nextWalletBalances) {
         for (const walletItem of nextWalletBalances) {

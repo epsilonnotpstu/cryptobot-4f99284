@@ -127,6 +127,8 @@
   align-items: center;
   gap: 0.65rem;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   text-align: left;
   cursor: pointer;
   appearance: none;
@@ -144,6 +146,7 @@
 }
 
 .prodash-notice-pill {
+  flex: 0 0 auto;
   border-radius: 999px;
   background: linear-gradient(135deg, #ff7f96, #ff627f);
   color: #fff;
@@ -155,12 +158,17 @@
 
 .prodash-notice p {
   margin: 0;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   color: #e8edf7;
   font-size: 0.85rem;
-  white-space: nowrap;
+  line-height: 1.45;
+  white-space: pre-wrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .prodash-notice i {

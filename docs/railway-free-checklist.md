@@ -106,6 +106,7 @@ Open these in browser:
 2. User login flow.
 3. Admin login/signup flow.
 4. At least one admin page load (`#/admin`).
+5. Super admin login via Admin Login using `SUPER_ADMIN_EMAIL`.
 
 ## 7) Common fixes
 
