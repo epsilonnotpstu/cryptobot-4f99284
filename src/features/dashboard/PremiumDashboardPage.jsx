@@ -402,6 +402,7 @@ export default function PremiumDashboardPage({
   onUpdateSupportTicketStatus,
   onLoadLiveThread,
   onSendLiveMessage,
+  
 }) {
   const [assetVisible, setAssetVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -1093,6 +1094,13 @@ export default function PremiumDashboardPage({
     }
   };
 
+  const openRecoverySupport = () => {
+    setDrawerOpen(false);
+    setActiveMainTab("home");
+    setActiveView("home");
+    setChatOpen(true);
+  };
+
   const handleSelectDepositAsset = (assetId) => {
     setSelectedDepositAssetId(assetId);
     resetDepositFlow();
@@ -1416,8 +1424,8 @@ export default function PremiumDashboardPage({
                         type="button"
                         key={action.id}
                         className="prodash-quick-item"
-                        disabled={action.id !== "recharge" && action.id !== "loan" && !isUserKycAuthenticated}
-                        title={action.id !== "recharge" && action.id !== "loan" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
+                        disabled={action.id !== "recharge" && action.id !== "loan" && action.id !=="recovery" && !isUserKycAuthenticated}
+                        title={action.id !== "recharge" && action.id !== "loan" && action.id !=="recovery" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
                         onClick={
                           action.id === "lum"
                             ? openLumPage
@@ -1429,7 +1437,9 @@ export default function PremiumDashboardPage({
                                   ? openDepositAssetSelector
                                   : action.id === "loan"
                                     ? onOpenLoanPage
-                                    : undefined
+                                    : action.id === "recovery"
+                                      ? openRecoverySupport
+                                      : undefined
                         }
                       >
                         <span>
