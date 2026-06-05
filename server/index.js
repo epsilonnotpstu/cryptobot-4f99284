@@ -305,6 +305,18 @@ function mergeDepositStateFromSnapshot(snapshotPath) {
   const escapedPath = toSqlitePathLiteral(snapshotPath);
   db.exec(`
     ATTACH DATABASE '${escapedPath}' AS blob_sync;
+  `);
+
+  try {
+    const blobDepositColumns = db
+      .prepare("PRAGMA blob_sync.table_info(deposit_assets)")
+      .all()
+      .map((column) => String(column.name || ""));
+    if (!blobDepositColumns.includes("icon_image_data")) {
+      db.exec("ALTER TABLE blob_sync.deposit_assets ADD COLUMN icon_image_data TEXT NOT NULL DEFAULT ''");
+    }
+
+    db.exec(`
 
     INSERT OR IGNORE INTO main.users (
       user_id,
@@ -339,8 +351,36 @@ function mergeDepositStateFromSnapshot(snapshotPath) {
       created_at
     FROM blob_sync.users;
 
-    INSERT OR IGNORE INTO main.deposit_assets
-    SELECT * FROM blob_sync.deposit_assets;
+    INSERT OR IGNORE INTO main.deposit_assets (
+      id,
+      symbol,
+      name,
+      chain_name,
+      recharge_address,
+      qr_code_data,
+      icon_image_data,
+      min_amount_usd,
+      max_amount_usd,
+      sort_order,
+      is_enabled,
+      created_at,
+      updated_at
+    )
+    SELECT
+      id,
+      symbol,
+      name,
+      chain_name,
+      recharge_address,
+      qr_code_data,
+      icon_image_data,
+      min_amount_usd,
+      max_amount_usd,
+      sort_order,
+      is_enabled,
+      created_at,
+      updated_at
+    FROM blob_sync.deposit_assets;
 
     INSERT OR IGNORE INTO main.deposit_requests
     SELECT * FROM blob_sync.deposit_requests;
@@ -351,6 +391,7 @@ function mergeDepositStateFromSnapshot(snapshotPath) {
         chain_name = b.chain_name,
         recharge_address = b.recharge_address,
         qr_code_data = b.qr_code_data,
+        icon_image_data = b.icon_image_data,
         min_amount_usd = b.min_amount_usd,
         max_amount_usd = b.max_amount_usd,
         sort_order = b.sort_order,
@@ -375,9 +416,10 @@ function mergeDepositStateFromSnapshot(snapshotPath) {
           AND COALESCE(b.status, '') <> COALESCE(main.deposit_requests.status, '')
         )
       );
-
-    DETACH DATABASE blob_sync;
   `);
+  } finally {
+    db.exec("DETACH DATABASE blob_sync");
+  }
 }
 
 async function syncDepositStateFromBlobSafe({ force = false, context = "" } = {}) {
@@ -577,6 +619,7 @@ db.exec(`
     chain_name TEXT NOT NULL,
     recharge_address TEXT NOT NULL,
     qr_code_data TEXT NOT NULL,
+    icon_image_data TEXT NOT NULL DEFAULT '',
     min_amount_usd REAL NOT NULL DEFAULT 10,
     max_amount_usd REAL NOT NULL DEFAULT 1000000,
     sort_order INTEGER NOT NULL DEFAULT 0,
@@ -704,6 +747,8 @@ function ensureTableColumn(tableName, columnName, columnDefinition) {
     db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition}`);
   }
 }
+
+ensureTableColumn("deposit_assets", "icon_image_data", "icon_image_data TEXT NOT NULL DEFAULT ''");
 
 function ensureNoticeTablesAndColumns() {
   ensureTableColumn("platform_notices", "title", "title TEXT NOT NULL DEFAULT ''");
@@ -1362,6 +1407,7 @@ const insertDepositAssetStatement = db.prepare(`
     chain_name,
     recharge_address,
     qr_code_data,
+    icon_image_data,
     min_amount_usd,
     max_amount_usd,
     sort_order,
@@ -1375,6 +1421,7 @@ const insertDepositAssetStatement = db.prepare(`
     @chainName,
     @rechargeAddress,
     @qrCodeData,
+    @iconImageData,
     @minAmountUsd,
     @maxAmountUsd,
     @sortOrder,
@@ -1390,6 +1437,7 @@ const updateDepositAssetStatement = db.prepare(`
       chain_name = @chainName,
       recharge_address = @rechargeAddress,
       qr_code_data = @qrCodeData,
+      icon_image_data = @iconImageData,
       min_amount_usd = @minAmountUsd,
       max_amount_usd = @maxAmountUsd,
       sort_order = @sortOrder,
@@ -1810,6 +1858,14 @@ const DEPOSIT_FILE_MIME_TYPES = new Set([
   "image/png",
   "image/heic",
   "image/heif",
+]);
+const DEPOSIT_ASSET_ICON_MAX_BYTES = Number(process.env.DEPOSIT_ASSET_ICON_MAX_BYTES || 128 * 1024);
+const DEPOSIT_ASSET_ICON_MIME_TYPES = new Set([
+  "image/jpg",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/svg+xml",
 ]);
 const DEPOSIT_MIN_USD_DEFAULT = Number(process.env.DEPOSIT_MIN_USD_DEFAULT || 10);
 const DEPOSIT_MAX_USD_DEFAULT = Number(process.env.DEPOSIT_MAX_USD_DEFAULT || 1000000);
@@ -3189,6 +3245,33 @@ function parseDepositScreenshotData(rawData = "") {
   const bytes = Buffer.byteLength(base64Body, "base64");
   if (bytes > DEPOSIT_SCREENSHOT_FILE_MAX_BYTES) {
     throw new Error("Screenshot is too large. Max size is 15MB.");
+  }
+
+  return {
+    mimeType,
+    bytes,
+  };
+}
+
+function parseDepositAssetIconData(rawData = "") {
+  const normalized = String(rawData || "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const match = normalized.match(/^data:([^;,]+);base64,([a-zA-Z0-9+/=]+)$/);
+  if (!match) {
+    throw new Error("Crypto logo must be uploaded as an image file.");
+  }
+
+  const mimeType = String(match[1] || "").toLowerCase();
+  if (!DEPOSIT_ASSET_ICON_MIME_TYPES.has(mimeType)) {
+    throw new Error("Crypto logo supports PNG, JPG, WEBP, or SVG only.");
+  }
+
+  const bytes = Buffer.byteLength(match[2], "base64");
+  if (bytes > DEPOSIT_ASSET_ICON_MAX_BYTES) {
+    throw new Error("Crypto logo is too large. Max size is 128KB.");
   }
 
   return {
@@ -4969,6 +5052,7 @@ function buildDepositAssetPayload(row) {
     chainName: sanitizeShortText(row.chain_name || "", 80),
     rechargeAddress: sanitizeShortText(row.recharge_address || "", 180),
     qrCodeData: String(row.qr_code_data || "").trim(),
+    iconImageData: String(row.icon_image_data || "").trim(),
     minAmountUsd: Number(row.min_amount_usd || 0),
     maxAmountUsd: Number(row.max_amount_usd || 0),
     sortOrder: Number(row.sort_order || 0),
@@ -5399,6 +5483,7 @@ function ensureDefaultDepositAssets() {
       chainName: asset.chainName,
       rechargeAddress: asset.rechargeAddress,
       qrCodeData: asset.qrCodeData,
+      iconImageData: "",
       minAmountUsd: Number(asset.minAmountUsd || DEPOSIT_MIN_USD_DEFAULT),
       maxAmountUsd: Number(asset.maxAmountUsd || DEPOSIT_MAX_USD_DEFAULT),
       sortOrder: Number(asset.sortOrder || 0),
@@ -7709,6 +7794,7 @@ async function handleAdminDepositAssetUpsert(req, res) {
     const chainName = sanitizeShortText(req.body.chainName || "", 80);
     const rechargeAddress = sanitizeShortText(req.body.rechargeAddress || "", 180);
     const qrCodeData = String(req.body.qrCodeData || "").trim();
+    const iconImageData = String(req.body.iconImageData || "").trim();
     const minAmountUsd = normalizeUsdAmount(req.body.minAmountUsd ?? DEPOSIT_MIN_USD_DEFAULT);
     const maxAmountUsd = normalizeUsdAmount(req.body.maxAmountUsd ?? DEPOSIT_MAX_USD_DEFAULT);
     const sortOrder = Number.isFinite(Number(req.body.sortOrder)) ? Number(req.body.sortOrder) : 0;
@@ -7729,6 +7815,7 @@ async function handleAdminDepositAssetUpsert(req, res) {
     if (!qrCodeData) {
       throw new Error("QR code data is required.");
     }
+    parseDepositAssetIconData(iconImageData);
     if (minAmountUsd > maxAmountUsd) {
       throw new Error("Min amount must be less than or equal to max amount.");
     }
@@ -7753,6 +7840,7 @@ async function handleAdminDepositAssetUpsert(req, res) {
         chainName,
         rechargeAddress,
         qrCodeData,
+        iconImageData,
         minAmountUsd,
         maxAmountUsd,
         sortOrder,
@@ -7776,6 +7864,7 @@ async function handleAdminDepositAssetUpsert(req, res) {
       chainName,
       rechargeAddress,
       qrCodeData,
+      iconImageData,
       minAmountUsd,
       maxAmountUsd,
       sortOrder,

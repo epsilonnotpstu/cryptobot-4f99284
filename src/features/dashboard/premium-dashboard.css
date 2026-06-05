@@ -1612,6 +1612,15 @@ button.prodash-promo-card {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.prodash-deposit-asset-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .prodash-deposit-asset-item p {

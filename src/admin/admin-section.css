@@ -1970,6 +1970,74 @@
   gap: 0.55rem;
 }
 
+.adminx-deposit-logo-upload {
+  border: 1px dashed rgba(125, 211, 252, 0.28);
+  border-radius: 12px;
+  padding: 0.68rem;
+  background: rgba(8, 18, 34, 0.58);
+  display: grid;
+  gap: 0.42rem;
+}
+
+.adminx-deposit-logo-upload > span {
+  color: #bad0ec;
+  font-size: 0.8rem;
+}
+
+.adminx-deposit-logo-row {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 0.68rem;
+  align-items: center;
+}
+
+.adminx-deposit-logo-preview,
+.adminx-deposit-table-logo {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(140deg, rgba(251, 191, 36, 0.92), rgba(249, 115, 22, 0.88));
+  color: #102033;
+  font-weight: 900;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.adminx-deposit-logo-preview {
+  width: 52px;
+  height: 52px;
+}
+
+.adminx-deposit-table-logo {
+  width: 32px;
+  height: 32px;
+  font-size: 0.72rem;
+}
+
+.adminx-deposit-logo-preview img,
+.adminx-deposit-table-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.adminx-deposit-logo-actions {
+  display: grid;
+  gap: 0.42rem;
+  min-width: 0;
+}
+
+.adminx-deposit-logo-actions small {
+  color: #8fa8cb;
+  line-height: 1.45;
+}
+
+.adminx-deposit-logo-actions .btn {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0.42rem 0.72rem;
+}
+
 .adminx-checkbox-row {
   display: inline-flex !important;
   align-items: center;

@@ -402,7 +402,7 @@ export default function PremiumDashboardPage({
   onUpdateSupportTicketStatus,
   onLoadLiveThread,
   onSendLiveMessage,
-  
+
 }) {
   const [assetVisible, setAssetVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -1347,6 +1347,11 @@ export default function PremiumDashboardPage({
                   Notice updated:{" "}
                   {(() => {
                     const noticeDate = new Date(dashboardNoticeUpdatedAt);
+
+                    if (Number.isNaN(noticeDate.getTime())) {
+                      return "";
+                    }
+
                     const today = new Date();
 
                     const noticeDay = new Date(
@@ -1365,6 +1370,9 @@ export default function PremiumDashboardPage({
 
                     if (diffDays === 0) return "Today";
                     if (diffDays === 1) return "Yesterday";
+                    if (diffDays >= 2 && diffDays <= 6) return "This week";
+                    if (diffDays >= 7 && diffDays <= 30) return "This month";
+                    if (diffDays >= 31 && diffDays <= 365) return "This year";
 
                     return noticeDate.toLocaleDateString("en-US", {
                       year: "numeric",
@@ -1424,8 +1432,8 @@ export default function PremiumDashboardPage({
                         type="button"
                         key={action.id}
                         className="prodash-quick-item"
-                        disabled={action.id !== "recharge" && action.id !== "loan" && action.id !=="recovery" && !isUserKycAuthenticated}
-                        title={action.id !== "recharge" && action.id !== "loan" && action.id !=="recovery" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
+                        disabled={action.id !== "recharge" && action.id !== "loan" && action.id !== "recovery" && !isUserKycAuthenticated}
+                        title={action.id !== "recharge" && action.id !== "loan" && action.id !== "recovery" && !isUserKycAuthenticated ? "Complete KYC authentication first" : action.label}
                         onClick={
                           action.id === "lum"
                             ? openLumPage
@@ -1888,7 +1896,9 @@ export default function PremiumDashboardPage({
                     className="prodash-deposit-asset-item"
                     onClick={() => handleSelectDepositAsset(asset.assetId)}
                   >
-                    <span className="prodash-deposit-asset-avatar">{asset.symbol.slice(0, 1)}</span>
+                    <span className="prodash-deposit-asset-avatar">
+                      {asset.iconImageData ? <img src={asset.iconImageData} alt={`${asset.symbol} logo`} /> : asset.symbol.slice(0, 1)}
+                    </span>
                     <div>
                       <strong>{asset.symbol}</strong>
                       <p>{asset.name}</p>
@@ -2103,36 +2113,36 @@ export default function PremiumDashboardPage({
                     <p>{item.message}</p>
                     <footer>
                       <small>
-  {item.updatedAt
-    ? (() => {
-        const itemDate = new Date(item.updatedAt);
-        const today = new Date();
+                        {item.updatedAt
+                          ? (() => {
+                            const itemDate = new Date(item.updatedAt);
+                            const today = new Date();
 
-        const itemDay = new Date(
-          itemDate.getFullYear(),
-          itemDate.getMonth(),
-          itemDate.getDate(),
-        );
+                            const itemDay = new Date(
+                              itemDate.getFullYear(),
+                              itemDate.getMonth(),
+                              itemDate.getDate(),
+                            );
 
-        const todayDay = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate(),
-        );
+                            const todayDay = new Date(
+                              today.getFullYear(),
+                              today.getMonth(),
+                              today.getDate(),
+                            );
 
-        const diffDays = Math.round((todayDay - itemDay) / (1000 * 60 * 60 * 24));
+                            const diffDays = Math.round((todayDay - itemDay) / (1000 * 60 * 60 * 24));
 
-        if (diffDays === 0) return "Today";
-        if (diffDays === 1) return "Yesterday";
+                            if (diffDays === 0) return "Today";
+                            if (diffDays === 1) return "Yesterday";
 
-        return itemDate.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        });
-      })()
-    : "Now"}
-</small>
+                            return itemDate.toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            });
+                          })()
+                          : "Now"}
+                      </small>
                       {item.isDismissible && item.noticeId ? (
                         <button
                           type="button"
@@ -2233,4 +2243,4 @@ export default function PremiumDashboardPage({
     </main>
   );
 }
- //test
+//test

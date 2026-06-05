@@ -112,6 +112,7 @@ Columns:
 - `chain_name` TEXT
 - `recharge_address` TEXT
 - `qr_code_data` TEXT
+- `icon_image_data` TEXT (optional data URL for the crypto logo, max 128KB upload)
 - `min_amount_usd` REAL
 - `max_amount_usd` REAL
 - `sort_order` INTEGER

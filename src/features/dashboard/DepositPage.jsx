@@ -320,7 +320,9 @@ export default function DepositPage({
       <div className="prodash-deposit-asset-list">
         {filteredAssets.map((asset) => (
           <button key={asset.assetId} type="button" className="prodash-deposit-asset-item" onClick={() => selectAsset(asset.assetId)}>
-            <span className="prodash-deposit-asset-avatar">{asset.symbol.slice(0, 1)}</span>
+            <span className="prodash-deposit-asset-avatar">
+              {asset.iconImageData ? <img src={asset.iconImageData} alt={`${asset.symbol} logo`} /> : asset.symbol.slice(0, 1)}
+            </span>
             <div>
               <strong>{asset.symbol}</strong>
               <p>{asset.name}</p>

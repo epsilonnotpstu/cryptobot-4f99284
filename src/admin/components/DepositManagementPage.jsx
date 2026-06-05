@@ -63,6 +63,18 @@ function isPdfData(value = "") {
   return normalizeText(value).startsWith("data:application/pdf");
 }
 
+const DEPOSIT_ASSET_ICON_MAX_BYTES = 128 * 1024;
+const DEPOSIT_ASSET_ICON_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read logo file."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function DepositManagementPage({
   assets,
   requests,
@@ -86,6 +98,7 @@ export default function DepositManagementPage({
     chainName: "",
     rechargeAddress: "",
     qrCodeData: "",
+    iconImageData: "",
     minAmountUsd: "10",
     maxAmountUsd: "250000",
     sortOrder: "0",
@@ -148,6 +161,7 @@ export default function DepositManagementPage({
       chainName: "",
       rechargeAddress: "",
       qrCodeData: "",
+      iconImageData: "",
       minAmountUsd: "10",
       maxAmountUsd: "250000",
       sortOrder: "0",
@@ -157,6 +171,34 @@ export default function DepositManagementPage({
 
   const handleAssetField = (key, value) => {
     setAssetForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleLogoFileSelect = async (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    setActionError("");
+    setActionNotice("");
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
+    if (!allowedTypes.has(file.type)) {
+      setActionError("Crypto logo supports PNG, JPG, WEBP, or SVG only.");
+      return;
+    }
+    if (file.size > DEPOSIT_ASSET_ICON_MAX_BYTES) {
+      setActionError("Crypto logo is too large. Max size is 128KB.");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      handleAssetField("iconImageData", dataUrl);
+    } catch (error) {
+      setActionError(error.message || "Could not upload logo.");
+    }
   };
 
   const submitAsset = async (event) => {
@@ -194,6 +236,7 @@ export default function DepositManagementPage({
         chainName: assetForm.chainName,
         rechargeAddress: assetForm.rechargeAddress,
         qrCodeData: assetForm.qrCodeData,
+        iconImageData: assetForm.iconImageData,
         minAmountUsd: Number(assetForm.minAmountUsd || 0),
         maxAmountUsd: Number(assetForm.maxAmountUsd || 0),
         sortOrder: Number(assetForm.sortOrder || 0),
@@ -219,6 +262,7 @@ export default function DepositManagementPage({
       chainName: String(asset.chainName || ""),
       rechargeAddress: String(asset.rechargeAddress || ""),
       qrCodeData: String(asset.qrCodeData || ""),
+      iconImageData: String(asset.iconImageData || ""),
       minAmountUsd: String(asset.minAmountUsd ?? "0"),
       maxAmountUsd: String(asset.maxAmountUsd ?? "0"),
       sortOrder: String(asset.sortOrder ?? "0"),
@@ -457,6 +501,28 @@ export default function DepositManagementPage({
                 />
               </label>
 
+              <div className="adminx-deposit-logo-upload">
+                <span>Crypto Logo</span>
+                <div className="adminx-deposit-logo-row">
+                  <span className="adminx-deposit-logo-preview">
+                    {assetForm.iconImageData ? (
+                      <img src={assetForm.iconImageData} alt={`${assetForm.symbol || "Asset"} logo preview`} />
+                    ) : (
+                      <strong>{String(assetForm.symbol || "?").slice(0, 1).toUpperCase()}</strong>
+                    )}
+                  </span>
+                  <div className="adminx-deposit-logo-actions">
+                    <input type="file" accept={DEPOSIT_ASSET_ICON_ACCEPT} onChange={handleLogoFileSelect} />
+                    <small>Best: square 96x96 or 128x128 px. Max file size: 128KB. PNG, JPG, WEBP, SVG.</small>
+                    {assetForm.iconImageData ? (
+                      <button type="button" className="btn btn-ghost" onClick={() => handleAssetField("iconImageData", "")}>
+                        Remove Logo
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               <div className="adminx-deposit-grid-two">
                 <label>
                   Min Amount (USD)
@@ -505,6 +571,7 @@ export default function DepositManagementPage({
               <table className="adminx-user-table">
                 <thead>
                   <tr>
+                    <th>Logo</th>
                     <th>Symbol</th>
                     <th>Name</th>
                     <th>Chain</th>
@@ -517,6 +584,11 @@ export default function DepositManagementPage({
                 <tbody>
                   {filteredAssets.map((asset) => (
                     <tr key={asset.assetId}>
+                      <td>
+                        <span className="adminx-deposit-table-logo">
+                          {asset.iconImageData ? <img src={asset.iconImageData} alt={`${asset.symbol} logo`} /> : String(asset.symbol || "?").slice(0, 1)}
+                        </span>
+                      </td>
                       <td>{asset.symbol}</td>
                       <td>{asset.name}</td>
                       <td>{asset.chainName}</td>

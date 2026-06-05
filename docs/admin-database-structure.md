@@ -143,6 +143,12 @@ All values now come from DB-backed API payloads:
 
 ## Deposit Management Additions (This Prompt)
 
+### Deposit asset logo
+- `deposit_assets.icon_image_data` stores an optional uploaded crypto logo as a data URL.
+- Admin upload accepts PNG, JPG, WEBP, or SVG.
+- Recommended logo size is square `96x96` or `128x128` px; max upload size is `128KB`.
+- User deposit crypto selection uses the uploaded logo and falls back to the symbol initial when no logo is configured.
+
 ### New admin gateway action
 - `admin.deposit.asset.delete`
   - Removes a configured row from `deposit_assets`.
