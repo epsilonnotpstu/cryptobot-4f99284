@@ -3419,3 +3419,540 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Scoped Launchpad management polish */
+.adminx-launchpad-wrap,
+.adminx-launchpad-wrap * {
+  letter-spacing: 0;
+}
+
+.adminx-launchpad-wrap .adminx-panel.adminx-lp-panel {
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(56, 189, 248, 0.14), transparent 34%),
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 14, 27, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 22px 54px rgba(2, 6, 23, 0.26);
+}
+
+.adminx-launchpad-wrap .adminx-lp-tabs {
+  gap: 0.42rem;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 14px;
+  background: rgba(4, 12, 25, 0.42);
+  padding: 0.34rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-tabs button {
+  min-height: 39px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #a9c2e2;
+  font-weight: 700;
+  padding: 0.58rem 0.82rem;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.adminx-launchpad-wrap .adminx-lp-tabs button:hover {
+  border-color: rgba(56, 189, 248, 0.32);
+  background: rgba(37, 99, 235, 0.14);
+  color: #f8fbff;
+}
+
+.adminx-launchpad-wrap .adminx-lp-tabs button.active {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.62), rgba(14, 165, 233, 0.38));
+  color: #f8fbff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
+}
+
+.adminx-launchpad-wrap .adminx-lp-side,
+.adminx-launchpad-wrap .adminx-lp-main {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 16px;
+  background:
+    linear-gradient(160deg, rgba(7, 16, 32, 0.82), rgba(4, 12, 25, 0.66)),
+    rgba(4, 12, 25, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.adminx-launchpad-wrap .adminx-lp-side .adminx-panel-head {
+  margin-bottom: 0.72rem;
+  padding-bottom: 0.62rem;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.12);
+}
+
+.adminx-launchpad-wrap .adminx-lp-side .adminx-panel-head h2 {
+  margin: 0;
+  color: #f4f9ff;
+  font-size: 1rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-side .adminx-panel-head small {
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #b9dcff;
+  padding: 0.18rem 0.55rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-list {
+  padding-right: 0.18rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-list::-webkit-scrollbar,
+.adminx-launchpad-wrap .adminx-lp-table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-list::-webkit-scrollbar-thumb,
+.adminx-launchpad-wrap .adminx-lp-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.28);
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-btn {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(15, 28, 53, 0.78), rgba(5, 13, 27, 0.72));
+  padding: 0.72rem 0.76rem;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.34);
+  box-shadow: 0 12px 26px rgba(2, 8, 23, 0.24);
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-btn.active {
+  border-color: rgba(56, 189, 248, 0.52);
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(14, 165, 233, 0.12)),
+    rgba(5, 13, 27, 0.78);
+  box-shadow: inset 3px 0 0 rgba(56, 189, 248, 0.86), 0 14px 28px rgba(2, 8, 23, 0.26);
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-btn strong {
+  color: #f8fbff;
+  font-size: 1rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-btn span {
+  color: #bdd3ed;
+}
+
+.adminx-launchpad-wrap .adminx-lp-launch-btn small {
+  color: #8fb2d8;
+  line-height: 1.35;
+}
+
+.adminx-launchpad-wrap .adminx-lp-overview-grid article,
+.adminx-launchpad-wrap .adminx-lp-sync-card {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(15, 28, 53, 0.76), rgba(5, 13, 27, 0.64)),
+    rgba(5, 13, 27, 0.68);
+}
+
+.adminx-launchpad-wrap .adminx-lp-overview-grid article {
+  padding: 0.9rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-overview-grid article small {
+  color: #9fc6eb;
+  font-weight: 700;
+}
+
+.adminx-launchpad-wrap .adminx-lp-overview-grid article strong {
+  color: #f8fbff;
+  font-size: 1.28rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-featured {
+  border-color: rgba(251, 191, 36, 0.2);
+  background:
+    radial-gradient(circle at 90% 0%, rgba(251, 191, 36, 0.12), transparent 34%),
+    linear-gradient(145deg, rgba(15, 28, 53, 0.78), rgba(5, 13, 27, 0.66));
+}
+
+.adminx-launchpad-wrap .adminx-lp-featured h3 {
+  color: #fff7df;
+}
+
+.adminx-launchpad-wrap .adminx-lp-form-grid {
+  gap: 0.75rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-form-grid label {
+  color: #c9dbf1;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.adminx-launchpad-wrap .adminx-lp-form-grid input,
+.adminx-launchpad-wrap .adminx-lp-form-grid select,
+.adminx-launchpad-wrap .adminx-lp-form-grid textarea,
+.adminx-launchpad-wrap .adminx-lp-actions select,
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table input,
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table select {
+  min-height: 40px;
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 11px;
+  background: rgba(2, 8, 20, 0.72);
+  color: #f4f9ff;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.adminx-launchpad-wrap .adminx-lp-form-grid textarea {
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.adminx-launchpad-wrap .adminx-lp-form-grid input:focus,
+.adminx-launchpad-wrap .adminx-lp-form-grid select:focus,
+.adminx-launchpad-wrap .adminx-lp-form-grid textarea:focus,
+.adminx-launchpad-wrap .adminx-lp-actions select:focus,
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table input:focus,
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table select:focus {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(2, 8, 20, 0.88);
+  box-shadow: var(--adminx-focus-ring);
+}
+
+.adminx-launchpad-wrap .adminx-lp-form-grid label:has(input[type="checkbox"]) {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 12px;
+  background: rgba(15, 28, 53, 0.38);
+  padding: 0.55rem 0.65rem;
+}
+
+.adminx-launchpad-wrap input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #38bdf8;
+}
+
+.adminx-launchpad-wrap .adminx-lp-actions {
+  gap: 0.6rem;
+  padding-top: 0.1rem;
+}
+
+.adminx-launchpad-wrap .btn {
+  min-height: 40px;
+  border-radius: 11px;
+  font-weight: 750;
+}
+
+.adminx-launchpad-wrap .btn.btn-ghost {
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  background: rgba(15, 28, 53, 0.66);
+  color: #d8ebff;
+}
+
+.adminx-launchpad-wrap .btn.btn-ghost:hover {
+  border-color: rgba(56, 189, 248, 0.44);
+  background: rgba(37, 99, 235, 0.18);
+  color: #ffffff;
+}
+
+.adminx-launchpad-wrap .btn.btn-primary {
+  border: 1px solid rgba(129, 140, 248, 0.34);
+  background: linear-gradient(135deg, #4f7cff, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.26);
+}
+
+.adminx-launchpad-wrap .btn.btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 15px;
+  background: rgba(4, 12, 25, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table th {
+  border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+  background:
+    linear-gradient(180deg, rgba(15, 28, 53, 0.98), rgba(8, 18, 35, 0.96)),
+    rgba(8, 18, 35, 0.96);
+  color: #a8d5ff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.78rem 0.72rem;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table th:first-child {
+  border-top-left-radius: 14px;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table th:last-child {
+  border-top-right-radius: 14px;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table td {
+  border-bottom: 1px solid rgba(125, 211, 252, 0.1);
+  color: #dcecff;
+  font-size: 0.82rem;
+  padding: 0.72rem;
+  vertical-align: middle;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table tbody tr {
+  transition: background 0.18s ease;
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.adminx-launchpad-wrap .adminx-lp-table-wrap .adminx-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.adminx-launchpad-wrap .adminx-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 0.18rem 0.58rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.adminx-launchpad-wrap .adminx-status-badge.is-authenticated {
+  border: 1px solid rgba(74, 222, 128, 0.34);
+  background: rgba(22, 101, 52, 0.24);
+  color: #bbf7d0;
+}
+
+.adminx-launchpad-wrap .adminx-status-badge.is-pending {
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  background: rgba(146, 64, 14, 0.2);
+  color: #fde68a;
+}
+
+.adminx-launchpad-wrap .adminx-lp-footer-tools {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .adminx-launchpad-wrap .adminx-lp-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .adminx-launchpad-wrap .adminx-lp-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .adminx-launchpad-wrap .adminx-lp-main,
+  .adminx-launchpad-wrap .adminx-lp-side {
+    padding: 0.75rem;
+  }
+
+  .adminx-launchpad-wrap .adminx-lp-footer-tools,
+  .adminx-launchpad-wrap .adminx-lp-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminx-launchpad-wrap .adminx-lp-footer-tools .btn,
+  .adminx-launchpad-wrap .adminx-lp-actions .btn,
+  .adminx-launchpad-wrap .adminx-lp-actions select {
+    width: 100%;
+  }
+}
+
+/* Scoped LUM management polish */
+.adminx-lum-management-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.adminx-lum-management-shell,
+.adminx-lum-management-shell * {
+  letter-spacing: 0;
+}
+
+.adminx-lum-management-shell .adminx-kpi-card {
+  border-color: rgba(125, 211, 252, 0.18);
+  background:
+    linear-gradient(160deg, rgba(12, 24, 46, 0.92), rgba(8, 16, 31, 0.9)),
+    rgba(8, 16, 31, 0.9);
+}
+
+.adminx-lum-management-shell .adminx-kpi-icon.gold {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fde68a;
+}
+
+.adminx-lum-management-shell .adminx-user-tabs {
+  width: fit-content;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  background: rgba(4, 12, 25, 0.56);
+  padding: 0.28rem;
+}
+
+.adminx-lum-management-shell .adminx-user-tabs button {
+  border-radius: 9px;
+  min-height: 38px;
+}
+
+.adminx-lum-management-shell .adminx-user-tabs button:hover,
+.adminx-lum-management-shell .adminx-user-tabs button.active {
+  border-color: rgba(56, 189, 248, 0.36);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.54), rgba(14, 165, 233, 0.34));
+  color: #f8fbff;
+}
+
+.adminx-lum-management-shell .adminx-user-table-card {
+  border-color: rgba(125, 211, 252, 0.18);
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
+    rgba(7, 15, 29, 0.94);
+}
+
+.adminx-lum-management-shell .adminx-user-toolbar {
+  border-bottom-color: rgba(125, 211, 252, 0.13);
+  background: rgba(4, 12, 25, 0.22);
+}
+
+.adminx-lum-management-shell .adminx-user-search,
+.adminx-lum-management-shell .adminx-filter-btn {
+  border-color: rgba(125, 211, 252, 0.2);
+  background: rgba(3, 10, 20, 0.72);
+}
+
+.adminx-lum-management-shell .adminx-user-search:focus-within,
+.adminx-lum-management-shell .adminx-filter-btn:focus {
+  border-color: rgba(56, 189, 248, 0.62);
+  box-shadow: var(--adminx-focus-ring);
+}
+
+.adminx-lum-management-shell .adminx-deposit-layout {
+  align-items: stretch;
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form,
+.adminx-lum-management-shell .adminx-deposit-asset-table-wrap,
+.adminx-lum-management-shell .adminx-user-table-wrap {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 14px;
+  background: rgba(4, 12, 25, 0.38);
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form {
+  padding: 0.95rem;
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form h3 {
+  color: #f7fbff;
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form label {
+  color: #c5d8f1;
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form input:not([type="checkbox"]),
+.adminx-lum-management-shell .adminx-deposit-asset-form textarea,
+.adminx-lum-management-shell .adminx-deposit-asset-form select {
+  min-height: 38px;
+  border-color: rgba(125, 211, 252, 0.18);
+  background: rgba(2, 8, 20, 0.78);
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form textarea {
+  min-height: 112px;
+  line-height: 1.5;
+}
+
+.adminx-lum-management-shell .adminx-checkbox-row {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 10px;
+  background: rgba(15, 28, 53, 0.42);
+  padding: 0.5rem 0.6rem;
+}
+
+.adminx-lum-management-shell .adminx-checkbox-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: #38bdf8;
+}
+
+.adminx-lum-management-shell .adminx-checkbox-row span {
+  color: #dcecff;
+}
+
+.adminx-lum-management-shell .adminx-user-table th {
+  color: #9fc4ea;
+}
+
+.adminx-lum-management-shell .adminx-user-table td {
+  border-bottom-color: rgba(125, 211, 252, 0.11);
+}
+
+.adminx-lum-management-shell .adminx-user-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.adminx-lum-management-shell .adminx-row-actions button {
+  border-color: rgba(125, 211, 252, 0.2);
+  background: rgba(15, 28, 53, 0.78);
+  color: #dcecff;
+}
+
+.adminx-lum-management-shell .adminx-row-actions button:hover {
+  border-color: rgba(56, 189, 248, 0.46);
+  color: #ffffff;
+}
+
+.adminx-lum-management-shell .btn.btn-primary {
+  border: 1px solid rgba(129, 140, 248, 0.32);
+  background: linear-gradient(135deg, #4f7cff, #7c3aed);
+  color: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .adminx-lum-management-shell .adminx-user-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .adminx-lum-management-shell .adminx-user-tabs button {
+    white-space: nowrap;
+  }
+}

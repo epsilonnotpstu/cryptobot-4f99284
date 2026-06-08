@@ -5,6 +5,8 @@ export default function LUMPlanDetailModal({ open, plan, loading, onClose, onCon
     return null;
   }
 
+  const activeContents = (Array.isArray(plan?.contents) ? plan.contents : []).filter((block) => block?.isActive !== false);
+
   return (
     <div className="lum-modal-backdrop" role="dialog" aria-modal="true" aria-label="LUM plan details">
       <div className="lum-modal-card lum-detail-modal">
@@ -31,9 +33,9 @@ export default function LUMPlanDetailModal({ open, plan, loading, onClose, onCon
 
             {plan.shortDescription ? <p className="lum-detail-description">{plan.shortDescription}</p> : null}
 
-            {Array.isArray(plan.contents) && plan.contents.length ? (
+            {activeContents.length ? (
               <div className="lum-content-list">
-                {plan.contents.map((block) => (
+                {activeContents.map((block) => (
                   <article key={block.contentId}>
                     <h4>{block.title || block.contentType}</h4>
                     <p>{block.bodyText}</p>

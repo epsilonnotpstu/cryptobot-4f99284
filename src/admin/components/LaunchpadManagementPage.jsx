@@ -19,6 +19,7 @@ const DEFAULT_LAUNCH_FORM = {
   coinSymbol: "",
   coinName: "",
   description: "",
+  mediaUrl: "",
   launchPriceUsd: "0.01",
   listingPriceUsd: "0.05",
   totalSupply: "1000000",
@@ -95,6 +96,7 @@ function normalizeLaunchFormFromLaunch(launch = null) {
     coinSymbol: String(launch.coinSymbol || ""),
     coinName: String(launch.coinName || ""),
     description: String(launch.description || ""),
+    mediaUrl: String(launch.mediaUrl || launch.coinImageUrl || launch.animationUrl || ""),
     launchPriceUsd: String(launch.launchPriceUsd ?? "0.01"),
     listingPriceUsd: String(launch.listingPriceUsd ?? "0.05"),
     totalSupply: String(launch.totalSupply ?? "0"),
@@ -118,6 +120,7 @@ function buildLaunchPayload(form) {
     coinSymbol: form.coinSymbol,
     coinName: form.coinName,
     description: form.description,
+    mediaUrl: form.mediaUrl,
     launchPriceUsd: toNumber(form.launchPriceUsd, 0.01),
     listingPriceUsd: toNumber(form.listingPriceUsd, 0.05),
     totalSupply: toNumber(form.totalSupply, 0),
@@ -499,6 +502,7 @@ export default function LaunchpadManagementPage({
                     <option value="ended">Ended</option>
                   </select>
                 </label>
+                <label className="adminx-lp-form-col2">Coin Media URL<input value={launchForm.mediaUrl} placeholder="Image, GIF, MP4, or WebM URL" onChange={(e) => setLaunchForm((p) => ({ ...p, mediaUrl: e.target.value }))} /></label>
                 <label className="adminx-lp-form-col2">Description<textarea rows={3} value={launchForm.description} onChange={(e) => setLaunchForm((p) => ({ ...p, description: e.target.value }))} /></label>
 
                 <div className="adminx-lp-actions adminx-lp-form-col2">

@@ -52,6 +52,10 @@ function extractSpotTotalFromAssetsWallets(payload) {
     .reduce((sum, row) => sum + toSafeNumber(row?.availableUsd, 0) + toSafeNumber(row?.lockedUsd, 0), 0);
 }
 
+function filterActiveContentBlocks(blocks) {
+  return (Array.isArray(blocks) ? blocks : []).filter((block) => block?.isActive !== false);
+}
+
 export default function LUMPage({
   user,
   onBack,
@@ -237,7 +241,7 @@ export default function LUMPage({
   const openInfoModal = async (plan) => {
     setInfoOpen(true);
     setInfoTitle(`${plan.title} Information`);
-    setInfoBlocks(Array.isArray(plan.contents) ? plan.contents : []);
+    setInfoBlocks(filterActiveContentBlocks(plan.contents));
 
     try {
       const payload = await onLoadInfo?.({ planId: plan.planId });
@@ -247,11 +251,11 @@ export default function LUMPage({
         const matched = infoPayload.find((item) => Number(item.planId) === Number(plan.planId));
         if (matched) {
           setInfoTitle(matched.title || `${plan.title} Information`);
-          setInfoBlocks(Array.isArray(matched.blocks) ? matched.blocks : []);
+          setInfoBlocks(filterActiveContentBlocks(matched.blocks));
         }
       } else if (infoPayload && typeof infoPayload === "object") {
         setInfoTitle(infoPayload.title || `${plan.title} Information`);
-        setInfoBlocks(Array.isArray(infoPayload.blocks) ? infoPayload.blocks : []);
+        setInfoBlocks(filterActiveContentBlocks(infoPayload.blocks));
       }
     } catch {
       // fall back to current plan content

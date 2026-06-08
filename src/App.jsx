@@ -5767,6 +5767,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
           onMyOrders={handleLaunchpadMyOrders}
           onFeed={handleLaunchpadFeed}
           onCountdown={handleLaunchpadCountdown}
+          onLoadAssetsWallets={handleAssetsWallets}
           onNavigateTrade={(target) => {
             if (target === "binary") {
               navigateToScreen("binary");

@@ -195,6 +195,15 @@ export default function LUMManagementPage({
     setContentForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const selectPlanForContent = (planId) => {
+    const nextPlanId = Number(planId || 0);
+    setSelectedPlanIdForContent(nextPlanId);
+    setContentForm({
+      ...DEFAULT_CONTENT_FORM,
+      planId: nextPlanId ? String(nextPlanId) : "",
+    });
+  };
+
   const resetPlanForm = () => {
     setPlanForm(DEFAULT_PLAN_FORM);
   };
@@ -410,7 +419,7 @@ export default function LUMManagementPage({
   };
 
   return (
-    <section className="adminx-users-shell">
+    <section className="adminx-users-shell adminx-lum-management-shell">
       <AdminSectionIntro
         icon={ADMIN_SECTION_META.lumCenter.icon}
         title={ADMIN_SECTION_META.lumCenter.title}
@@ -927,7 +936,7 @@ export default function LUMManagementPage({
               <select
                 className="adminx-filter-btn adminx-filter-select"
                 value={selectedPlanIdForContent ? String(selectedPlanIdForContent) : ""}
-                onChange={(event) => setSelectedPlanIdForContent(Number(event.target.value || 0))}
+                onChange={(event) => selectPlanForContent(event.target.value)}
               >
                 <option value="">Select Plan</option>
                 {planList.map((plan) => (

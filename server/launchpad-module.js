@@ -162,6 +162,7 @@ export function createLaunchpadModule({
       coin_symbol TEXT NOT NULL,
       coin_name TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
+      media_url TEXT NOT NULL DEFAULT '',
       launch_price_usd REAL NOT NULL,
       listing_price_usd REAL NOT NULL,
       total_supply REAL NOT NULL,
@@ -305,6 +306,7 @@ export function createLaunchpadModule({
   ensureColumn("binary_pairs", "category_id", "category_id INTEGER");
   ensureColumn("binary_pairs", "market_symbol", "market_symbol TEXT");
   ensureColumn("binary_pairs", "icon_image_url", "icon_image_url TEXT");
+  ensureColumn("launch_projects", "media_url", "media_url TEXT NOT NULL DEFAULT ''");
 
   const q = {
     engineGet: db.prepare(`SELECT * FROM launch_engine_settings WHERE id = 1 LIMIT 1`),
@@ -389,6 +391,7 @@ export function createLaunchpadModule({
         coin_symbol,
         coin_name,
         description,
+        media_url,
         launch_price_usd,
         listing_price_usd,
         total_supply,
@@ -417,6 +420,7 @@ export function createLaunchpadModule({
         @coinSymbol,
         @coinName,
         @description,
+        @mediaUrl,
         @launchPriceUsd,
         @listingPriceUsd,
         @totalSupply,
@@ -447,6 +451,7 @@ export function createLaunchpadModule({
       SET
         coin_name = @coinName,
         description = @description,
+        media_url = @mediaUrl,
         launch_price_usd = @launchPriceUsd,
         listing_price_usd = @listingPriceUsd,
         total_supply = @totalSupply,
@@ -1073,6 +1078,9 @@ export function createLaunchpadModule({
       coinSymbol: normalizeAssetSymbol(row.coin_symbol || ""),
       coinName: String(row.coin_name || ""),
       description: String(row.description || ""),
+      mediaUrl: String(row.media_url || ""),
+      coinImageUrl: String(row.media_url || ""),
+      animationUrl: String(row.media_url || ""),
       launchPriceUsd: toMoney(launchPriceUsd),
       listingPriceUsd: toMoney(listingPriceUsd),
       totalSupply: toMoney(row.total_supply || 0),
@@ -2249,11 +2257,13 @@ export function createLaunchpadModule({
 
     const expectedRoiX = Math.max(0, toNumber(body.expectedRoiX ?? body.expected_roi_x, listingPriceUsd / launchPriceUsd));
     const description = sanitizeShortText(body.description || existing?.description || "", 900);
+    const mediaUrl = sanitizeShortText(body.mediaUrl || body.media_url || existing?.media_url || "", 900);
 
     return {
       coinSymbol,
       coinName,
       description,
+      mediaUrl,
       launchPriceUsd,
       listingPriceUsd,
       totalSupply,
@@ -2289,6 +2299,7 @@ export function createLaunchpadModule({
           coinSymbol: payload.coinSymbol,
           coinName: payload.coinName,
           description: payload.description,
+          mediaUrl: payload.mediaUrl,
           launchPriceUsd: payload.launchPriceUsd,
           listingPriceUsd: payload.listingPriceUsd,
           totalSupply: payload.totalSupply,
@@ -2350,6 +2361,7 @@ export function createLaunchpadModule({
         id: launchRow.id,
         coinName: payload.coinName,
         description: payload.description,
+        mediaUrl: payload.mediaUrl,
         launchPriceUsd: payload.launchPriceUsd,
         listingPriceUsd: payload.listingPriceUsd,
         totalSupply: payload.totalSupply,

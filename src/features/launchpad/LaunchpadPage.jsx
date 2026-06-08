@@ -38,39 +38,188 @@ function formatCountdown(seconds) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function getPhaseMeta(launch) {
+function toSafeNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function parseLaunchMs(value = "") {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function secondsUntil(value = "", nowMs = Date.now(), fallback = 0) {
+  const targetMs = parseLaunchMs(value);
+  if (targetMs > 0) {
+    return Math.max(0, Math.floor((targetMs - nowMs) / 1000));
+  }
+  return Math.max(0, Number(fallback || 0));
+}
+
+function getClientPhase(launch, nowMs = Date.now()) {
+  const status = String(launch?.status || launch?.phase || "").toLowerCase();
+  if (["released", "sold_out", "ended", "paused", "cancelled"].includes(status)) {
+    return status;
+  }
+
+  const startMs = parseLaunchMs(launch?.publicStartAt);
+  const endMs = parseLaunchMs(launch?.endAt);
+  if (startMs > 0 && nowMs < startMs) {
+    return "upcoming";
+  }
+  if (startMs > 0 && nowMs >= startMs && (!endMs || nowMs < endMs)) {
+    return "live";
+  }
+  if (endMs > 0 && nowMs >= endMs) {
+    return "ended";
+  }
+  return launch?.phase || "upcoming";
+}
+
+function getPhaseMeta(launch, nowMs = Date.now()) {
   if (!launch) {
     return { label: "Unknown", className: "is-upcoming", countdownLabel: "Starts in", countdownValue: "--:--:--" };
   }
 
-  if (launch.phase === "live") {
+  const phase = getClientPhase(launch, nowMs);
+
+  if (phase === "live") {
     return {
       label: "Live",
       className: "is-live",
       countdownLabel: "Ends in",
-      countdownValue: formatCountdown(launch.endsInSeconds),
+      countdownValue: formatCountdown(secondsUntil(launch.endAt, nowMs, launch.endsInSeconds)),
     };
   }
 
-  if (launch.phase === "upcoming") {
+  if (phase === "upcoming") {
     return {
       label: "Upcoming",
       className: "is-upcoming",
       countdownLabel: "Starts in",
-      countdownValue: formatCountdown(launch.startsInSeconds),
+      countdownValue: formatCountdown(secondsUntil(launch.publicStartAt, nowMs, launch.startsInSeconds)),
     };
   }
 
   return {
-    label: launch.phase === "released" ? "Trading Open" : "Ended",
-    className: launch.phase === "released" ? "is-released" : "is-ended",
+    label: phase === "released" ? "Trading Open" : "Ended",
+    className: phase === "released" ? "is-released" : "is-ended",
     countdownLabel: "Trading opens in",
-    countdownValue: formatCountdown(launch.tradingOpensInSeconds),
+    countdownValue: formatCountdown(secondsUntil(launch.tradingOpenAt, nowMs, launch.tradingOpensInSeconds)),
   };
 }
 
-function LaunchpadLaunchItem({ launch, isSelected, onSelect, onWatchlistToggle }) {
-  const meta = getPhaseMeta(launch);
+function extractSpotFundingWallet(payload) {
+  const wallets = Array.isArray(payload?.wallets) ? payload.wallets : [];
+  const spotWallet = wallets.find((item) => {
+    const symbol = String(item.walletSymbol || "").toUpperCase();
+    const scope = String(item.walletScope || "").toUpperCase();
+    return symbol === "SPOT_USDT" || scope === "SPOT";
+  });
+  if (spotWallet) {
+    return {
+      symbol: spotWallet.walletSymbol || "SPOT_USDT",
+      availableUsd: toSafeNumber(spotWallet.availableUsd ?? spotWallet.totalUsd, 0),
+    };
+  }
+
+  const details = Array.isArray(payload?.walletDetails) ? payload.walletDetails : [];
+  const spotUsdt = details.find((row) => String(row?.symbol || "").toUpperCase() === "SPOT_USDT");
+  if (spotUsdt) {
+    return {
+      symbol: "SPOT_USDT",
+      availableUsd: toSafeNumber(spotUsdt.availableUsd, 0),
+    };
+  }
+
+  return { symbol: "SPOT_USDT", availableUsd: 0 };
+}
+
+function getLaunchMediaUrl(launch) {
+  return (
+    launch?.animationUrl ||
+    launch?.coinAnimationUrl ||
+    launch?.mediaUrl ||
+    launch?.coinImageUrl ||
+    launch?.imageUrl ||
+    launch?.logoUrl ||
+    ""
+  );
+}
+
+function isVideoMedia(url = "") {
+  return /\.(mp4|webm|ogg)(?:$|\?)/i.test(String(url || ""));
+}
+
+function cleanFeedMessage(value = "") {
+  return String(value || "")
+    .replace(/\[Simulated\]\s*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatFeedEvent(event, launch) {
+  const eventType = String(event?.eventType || "").toLowerCase();
+  const name = String(event?.displayName || "").trim() || "A launch participant";
+  const country = String(event?.countryCode || "").trim();
+  const symbol = launch?.coinSymbol || "";
+  const amountUsd = Number(event?.amountUsd || 0);
+
+  if (eventType === "whale_alert") {
+    return `Large allocation confirmed${amountUsd > 0 ? `: $${toCurrency(amountUsd)}` : ""}${symbol ? ` in ${symbol}` : ""}.`;
+  }
+
+  if (eventType.includes("buy") && amountUsd > 0) {
+    return `${name}${country ? ` (${country})` : ""} secured a $${toCurrency(amountUsd)} allocation${symbol ? ` in ${symbol}` : ""}.`;
+  }
+
+  if (eventType.includes("join")) {
+    return `${name}${country ? ` (${country})` : ""} joined the launch momentum${symbol ? ` for ${symbol}` : ""}.`;
+  }
+
+  return cleanFeedMessage(event?.message) || "Launch activity updated.";
+}
+
+function feedTypeLabel(event) {
+  const eventType = String(event?.eventType || "").toLowerCase();
+  if (eventType === "whale_alert") {
+    return "Whale Signal";
+  }
+  if (event?.isSimulated) {
+    return "Market Activity";
+  }
+  return "Verified Allocation";
+}
+
+function LaunchpadHeroVisual({ launch }) {
+  const mediaUrl = getLaunchMediaUrl(launch);
+  const symbol = String(launch?.coinSymbol || "ICO").slice(0, 5);
+
+  return (
+    <div className="launchpad-hero-visual" aria-hidden="true">
+      <div className="launchpad-coin-orbit">
+        <div className="launchpad-coin-shadow" />
+        <div className="launchpad-coin">
+          {mediaUrl ? (
+            isVideoMedia(mediaUrl) ? (
+              <video src={mediaUrl} autoPlay loop muted playsInline />
+            ) : (
+              <img src={mediaUrl} alt="" />
+            )
+          ) : (
+            <>
+              <span className="launchpad-coin-face">{symbol}</span>
+              <span className="launchpad-coin-ring" />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LaunchpadLaunchItem({ launch, isSelected, onSelect, onWatchlistToggle, nowMs }) {
+  const meta = getPhaseMeta(launch, nowMs);
   const livePrice = Number(launch.currentTierPriceUsd || launch.launchPriceUsd || 0);
 
   return (
@@ -119,9 +268,11 @@ export default function LaunchpadPage({
   onMyOrders,
   onFeed,
   onCountdown,
+  onLoadAssetsWallets,
   onNavigateTrade,
 }) {
   const [activeTab, setActiveTab] = useState("live");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [catalog, setCatalog] = useState([]);
@@ -135,6 +286,7 @@ export default function LaunchpadPage({
   const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [refreshingDetail, setRefreshingDetail] = useState(false);
+  const [fundingWallet, setFundingWallet] = useState({ symbol: "SPOT_USDT", availableUsd: 0 });
 
   const launchById = useMemo(() => {
     const map = new Map();
@@ -225,6 +377,18 @@ export default function LaunchpadPage({
     }
   };
 
+  const loadFundingWallet = async () => {
+    if (!onLoadAssetsWallets) {
+      return;
+    }
+    try {
+      const payload = await onLoadAssetsWallets();
+      setFundingWallet(extractSpotFundingWallet(payload));
+    } catch {
+      // Keep the last known wallet balance.
+    }
+  };
+
   const loadDetail = async (launchId) => {
     if (!launchId || !onDetail) {
       return;
@@ -245,6 +409,15 @@ export default function LaunchpadPage({
   useEffect(() => {
     loadCatalog();
     loadOrders();
+    loadFundingWallet();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -339,6 +512,9 @@ export default function LaunchpadPage({
     try {
       const payload = await onBuyPreview({ launchId: selectedLaunchId, buyUsd: amount });
       setPreview(payload?.preview || null);
+      if (payload?.fundingWallet) {
+        setFundingWallet(payload.fundingWallet);
+      }
       setError("");
     } catch (err) {
       setError(err?.message || "Could not preview buy.");
@@ -365,7 +541,7 @@ export default function LaunchpadPage({
       setNotice(payload?.message || "Launch buy completed.");
       setBuyAmount("");
       setPreview(null);
-      await Promise.all([loadCatalog({ keepLoader: true }), loadDetail(selectedLaunchId), loadOrders()]);
+      await Promise.all([loadCatalog({ keepLoader: true }), loadDetail(selectedLaunchId), loadOrders(), loadFundingWallet()]);
       setError("");
     } catch (err) {
       setError(err?.message || "Could not submit buy order.");
@@ -374,7 +550,7 @@ export default function LaunchpadPage({
     }
   };
 
-  const selectedMeta = getPhaseMeta(selectedLaunch);
+  const selectedMeta = getPhaseMeta(selectedLaunch, nowMs);
   const featured = launchesByTab.live[0] || launchesByTab.upcoming[0] || launchesByTab.ended[0] || null;
   const launchpadStats = useMemo(() => {
     const totalWatchers = catalog.reduce((acc, item) => acc + Number(item.watchlistCount || 0), 0);
@@ -411,6 +587,7 @@ export default function LaunchpadPage({
               <span>{Number(featured.soldPercent || 0).toFixed(2)}% Sold</span>
             </div>
           </div>
+          <LaunchpadHeroVisual launch={featured} />
           <div className="launchpad-hero-stats">
             <span>
               <small>Hype</small>
@@ -429,11 +606,11 @@ export default function LaunchpadPage({
       ) : null}
 
       <section className="launchpad-overview-strip">
-        <article>
+        <article className={launchpadStats.live > 0 ? "is-live-stat" : ""}>
           <small>Live Launches</small>
           <strong>{launchpadStats.live}</strong>
         </article>
-        <article>
+        <article className={launchpadStats.upcoming > 0 ? "is-upcoming-stat" : ""}>
           <small>Upcoming</small>
           <strong>{launchpadStats.upcoming}</strong>
         </article>
@@ -452,7 +629,13 @@ export default function LaunchpadPage({
           <button
             key={tab.id}
             type="button"
-            className={activeTab === tab.id ? "is-active" : ""}
+            className={[
+              activeTab === tab.id ? "is-active" : "",
+              tab.id === "upcoming" && launchpadStats.upcoming > 0 ? "has-upcoming-alert" : "",
+              tab.id === "live" && launchpadStats.live > 0 ? "has-live-alert" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
@@ -482,6 +665,7 @@ export default function LaunchpadPage({
                     isSelected={Number(selectedLaunchId) === Number(launch.launchId)}
                     onSelect={() => setSelectedLaunchId(Number(launch.launchId))}
                     onWatchlistToggle={handleWatchlistToggle}
+                    nowMs={nowMs}
                   />
                 ))
               ) : (
@@ -510,7 +694,7 @@ export default function LaunchpadPage({
                   </article>
                   <article>
                     <small>Trading opens in</small>
-                    <strong>{formatCountdown(selectedLaunch.tradingOpensInSeconds)}</strong>
+                    <strong>{formatCountdown(secondsUntil(selectedLaunch.tradingOpenAt, nowMs, selectedLaunch.tradingOpensInSeconds))}</strong>
                   </article>
                   <article>
                     <small>Current tier price</small>
@@ -575,7 +759,10 @@ export default function LaunchpadPage({
                       {submitting ? "Submitting..." : "Buy Now"}
                     </button>
                   </div>
-                  <small>Funding wallet: SPOT_USDT</small>
+                  <small className="launchpad-funding-wallet">
+                    <span>Funding wallet: {fundingWallet.symbol || "SPOT_USDT"}</span>
+                    <strong>Available: ${toCurrency(fundingWallet.availableUsd || 0)}</strong>
+                  </small>
 
                   {preview ? (
                     <div className="launchpad-preview-grid">
@@ -596,10 +783,10 @@ export default function LaunchpadPage({
                     {feed.length ? (
                       feed.map((event) => (
                         <article key={event.eventId} className={event.isSimulated ? "is-simulated" : ""}>
-                          <p>{event.message}</p>
+                          <p>{formatFeedEvent(event, selectedLaunch)}</p>
                           <small>
                             <span className={`launchpad-feed-type ${event.isSimulated ? "is-simulated" : "is-real"}`}>
-                              {event.isSimulated ? "Market Pulse" : "Verified Trade"}
+                              {feedTypeLabel(event)}
                             </span>
                             {" • "}
                             {new Date(event.createdAt).toLocaleTimeString()}
