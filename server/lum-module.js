@@ -62,6 +62,18 @@ export function createLumModule({
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS lum_content_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type_key TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      created_by TEXT,
+      updated_by TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS lum_investments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       investment_ref TEXT NOT NULL UNIQUE,
@@ -147,6 +159,12 @@ export function createLumModule({
   const PLAN_CATEGORIES = new Set(["lum", "lum_mining", "mining"]);
   const PLAN_STATUSES = new Set(["draft", "active", "disabled", "archived"]);
   const INVESTMENT_STATUSES = new Set(["pending", "active", "completed", "rejected", "cancelled", "redeemed_early"]);
+  const DEFAULT_CONTENT_TYPES = [
+    { typeKey: "pledge_info", label: "Pledge Info", sortOrder: 1 },
+    { typeKey: "risk_notice", label: "Risk Notice", sortOrder: 2 },
+    { typeKey: "faq", label: "FAQ", sortOrder: 3 },
+    { typeKey: "terms", label: "Terms", sortOrder: 4 },
+  ];
 
   const listPlansStatement = db.prepare(`
     SELECT * FROM lum_plans
@@ -245,6 +263,41 @@ export function createLumModule({
         is_active = @isActive,
         updated_at = @updatedAt
     WHERE id = @id
+  `);
+  const findPlanContentByIdStatement = db.prepare(`
+    SELECT * FROM lum_plan_contents WHERE id = ? LIMIT 1
+  `);
+  const deletePlanContentStatement = db.prepare(`
+    DELETE FROM lum_plan_contents WHERE id = @id
+  `);
+  const listContentTypesStatement = db.prepare(`
+    SELECT * FROM lum_content_types
+    WHERE (@activeOnly = 0 OR is_active = 1)
+    ORDER BY sort_order ASC, label ASC, id ASC
+  `);
+  const findContentTypeByKeyStatement = db.prepare(`
+    SELECT * FROM lum_content_types WHERE type_key = ? LIMIT 1
+  `);
+  const listDistinctPlanContentTypesStatement = db.prepare(`
+    SELECT DISTINCT content_type AS content_type
+    FROM lum_plan_contents
+    WHERE content_type IS NOT NULL AND TRIM(content_type) <> ''
+    ORDER BY content_type ASC
+  `);
+  const upsertContentTypeStatement = db.prepare(`
+    INSERT INTO lum_content_types (
+      type_key, label, sort_order, is_active, created_at, updated_at, created_by, updated_by
+    )
+    VALUES (
+      @typeKey, @label, @sortOrder, @isActive, @createdAt, @updatedAt, @createdBy, @updatedBy
+    )
+    ON CONFLICT(type_key)
+    DO UPDATE SET
+      label = excluded.label,
+      sort_order = excluded.sort_order,
+      is_active = excluded.is_active,
+      updated_at = excluded.updated_at,
+      updated_by = excluded.updated_by
   `);
 
   const listInvestmentsStatement = db.prepare(`
@@ -460,6 +513,29 @@ export function createLumModule({
     return INVESTMENT_STATUSES.has(normalized) ? normalized : "all";
   }
 
+  function normalizeContentTypeKey(value = "") {
+    const normalized = sanitizeShortText(value || "", 40)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    if (!normalized) {
+      throw new Error("Content type key is required.");
+    }
+    return normalized;
+  }
+
+  function normalizeContentTypeLabel(value = "", fallback = "") {
+    const label = sanitizeShortText(value || "", 80);
+    if (label) {
+      return label;
+    }
+    return String(fallback || "")
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  }
+
   function toFixedMoney(value = 0) {
     const numeric = Number(value || 0);
     if (!Number.isFinite(numeric)) {
@@ -665,6 +741,20 @@ export function createLumModule({
       contentType: row.content_type,
       title: row.title,
       bodyText: row.body_text,
+      sortOrder: Number(row.sort_order || 0),
+      isActive: Number(row.is_active || 0) === 1,
+      updatedAt: row.updated_at || "",
+    };
+  }
+
+  function mapContentType(row) {
+    if (!row) {
+      return null;
+    }
+    return {
+      typeId: row.id,
+      typeKey: row.type_key,
+      label: row.label,
       sortOrder: Number(row.sort_order || 0),
       isActive: Number(row.is_active || 0) === 1,
       updatedAt: row.updated_at || "",
@@ -1011,6 +1101,59 @@ export function createLumModule({
     };
   }
 
+  function ensureDefaultContentTypes() {
+    const nowIso = toIso(getNow());
+    const tx = db.transaction(() => {
+      for (const item of DEFAULT_CONTENT_TYPES) {
+        upsertContentTypeStatement.run({
+          ...item,
+          isActive: 1,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          createdBy: "system",
+          updatedBy: "system",
+        });
+      }
+    });
+    tx();
+  }
+
+  function listContentTypes({ activeOnly = true } = {}) {
+    return listContentTypesStatement
+      .all({ activeOnly: activeOnly ? 1 : 0 })
+      .map((row) => mapContentType(row))
+      .filter(Boolean);
+  }
+
+  function ensureContentTypesFromExistingBlocks() {
+    const rows = listDistinctPlanContentTypesStatement.all();
+    if (!rows.length) {
+      return;
+    }
+    const nowIso = toIso(getNow());
+    const tx = db.transaction(() => {
+      rows.forEach((row, index) => {
+        const typeKey = normalizeContentTypeKey(row.content_type);
+        if (findContentTypeByKeyStatement.get(typeKey)) {
+          return;
+        }
+        upsertContentTypeStatement.run({
+          typeKey,
+          label: normalizeContentTypeLabel("", typeKey),
+          sortOrder: DEFAULT_CONTENT_TYPES.length + index + 1,
+          isActive: 1,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          createdBy: "system",
+          updatedBy: "system",
+        });
+      });
+    });
+    tx();
+  }
+
+  ensureDefaultContentTypes();
+
   function ensureDefaultSeedData() {
     const total = Number(countPlansStatement.get({ category: "all" })?.total || 0);
     if (total > 0) {
@@ -1253,6 +1396,7 @@ export function createLumModule({
   }
 
   ensureLumMiningPlanCopies();
+  ensureContentTypesFromExistingBlocks();
 
   function parsePlanFormPayload(raw = {}, actorUserId = "system") {
     const category = normalizeCategory(raw.category || "lum");
@@ -1816,6 +1960,7 @@ export function createLumModule({
         stats: {
           totalPlans: Number(countPlansStatement.get({ category: "all" })?.total || 0),
         },
+        contentTypes: listContentTypes({ activeOnly: true }),
         plans,
       });
     } catch (error) {
@@ -2064,7 +2209,7 @@ export function createLumModule({
     try {
       const planId = Number(req.body.planId || 0);
       const contentId = Number(req.body.contentId || 0);
-      const contentType = sanitizeShortText(req.body.contentType || "pledge_info", 40);
+      const contentType = normalizeContentTypeKey(req.body.contentType || "pledge_info");
       const title = sanitizeShortText(req.body.title || "", 140);
       const bodyText = String(req.body.bodyText || "").trim();
       const sortOrder = Number(req.body.sortOrder || 0);
@@ -2078,6 +2223,19 @@ export function createLumModule({
       if (!existingPlan) {
         res.status(404).json({ error: "Plan not found." });
         return;
+      }
+
+      const typeRow = findContentTypeByKeyStatement.get(contentType);
+      if (!typeRow || Number(typeRow.is_active || 0) !== 1) {
+        throw new Error("Select a valid content type or add it first.");
+      }
+
+      if (contentId > 0) {
+        const existingContent = findPlanContentByIdStatement.get(contentId);
+        if (!existingContent || Number(existingContent.plan_id || 0) !== planId) {
+          res.status(404).json({ error: "Content block not found for selected plan." });
+          return;
+        }
       }
 
       const nowIso = toIso(getNow());
@@ -2115,6 +2273,70 @@ export function createLumModule({
     }
   }
 
+  function handleAdminLumContentDelete(req, res) {
+    try {
+      const planId = Number(req.body.planId || 0);
+      const contentId = Number(req.body.contentId || 0);
+      if (!Number.isInteger(planId) || planId <= 0) {
+        throw new Error("Valid planId is required.");
+      }
+      if (!Number.isInteger(contentId) || contentId <= 0) {
+        throw new Error("Valid contentId is required.");
+      }
+
+      const existingPlan = findPlanByIdStatement.get(planId);
+      if (!existingPlan) {
+        res.status(404).json({ error: "Plan not found." });
+        return;
+      }
+
+      const existingContent = findPlanContentByIdStatement.get(contentId);
+      if (!existingContent || Number(existingContent.plan_id || 0) !== planId) {
+        res.status(404).json({ error: "Content block not found." });
+        return;
+      }
+
+      deletePlanContentStatement.run({ id: contentId });
+      writeAudit(req.currentUser.userId, "plan_content_delete", "plan", planId, `${existingContent.content_type}:${existingContent.title}`);
+
+      res.json({
+        message: "Plan content deleted.",
+        plan: getPlanWithContents(planId, { activeOnly: false }),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not delete plan content." });
+    }
+  }
+
+  function handleAdminLumContentTypeSave(req, res) {
+    try {
+      const typeKey = normalizeContentTypeKey(req.body.typeKey || req.body.contentType || req.body.label || "");
+      const label = normalizeContentTypeLabel(req.body.label || "", typeKey);
+      const sortOrder = Number(req.body.sortOrder ?? 99);
+      const nowIso = toIso(getNow());
+
+      upsertContentTypeStatement.run({
+        typeKey,
+        label,
+        sortOrder: Number.isFinite(sortOrder) ? Math.floor(sortOrder) : 99,
+        isActive: 1,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        createdBy: req.currentUser.userId,
+        updatedBy: req.currentUser.userId,
+      });
+
+      writeAudit(req.currentUser.userId, "plan_content_type_save", "content_type", typeKey, label);
+
+      res.json({
+        message: "Content type added.",
+        contentTypes: listContentTypes({ activeOnly: true }),
+      });
+    } catch (error) {
+      res.status(400).json({ error: error.message || "Could not save content type." });
+    }
+  }
+
   return {
     settleMaturedInvestmentsForUser,
     settleMaturedInvestmentsGlobal,
@@ -2138,5 +2360,7 @@ export function createLumModule({
     handleAdminLumForceSettle,
     handleAdminLumDashboardSummary,
     handleAdminLumContentSave,
+    handleAdminLumContentDelete,
+    handleAdminLumContentTypeSave,
   };
 }

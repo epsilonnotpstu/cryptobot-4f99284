@@ -3342,6 +3342,8 @@ const {
   handleAdminLumForceSettle,
   handleAdminLumDashboardSummary,
   handleAdminLumContentSave,
+  handleAdminLumContentDelete,
+  handleAdminLumContentTypeSave,
 } = lumModule;
 
 const binaryModule = createBinaryModule({
@@ -8687,6 +8689,12 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "admin.lum.content.save":
       requireAdminSession(req, res, () => handleAdminLumContentSave(req, res));
       return;
+    case "admin.lum.content.delete":
+      requireAdminSession(req, res, () => handleAdminLumContentDelete(req, res));
+      return;
+    case "admin.lum.content-types.save":
+      requireAdminSession(req, res, () => handleAdminLumContentTypeSave(req, res));
+      return;
     case "admin.binary.dashboard-summary":
       requireAdminSession(req, res, () => handleAdminBinaryDashboardSummary(req, res));
       return;
@@ -8933,6 +8941,8 @@ app.post("/api/admin/lum/investments/review", requireAdminSession, handleAdminLu
 app.post("/api/admin/lum/investments/force-settle", requireAdminSession, handleAdminLumForceSettle);
 app.get("/api/admin/lum/dashboard-summary", requireAdminSession, handleAdminLumDashboardSummary);
 app.post("/api/admin/lum/content/save", requireAdminSession, handleAdminLumContentSave);
+app.post("/api/admin/lum/content/delete", requireAdminSession, handleAdminLumContentDelete);
+app.post("/api/admin/lum/content-types/save", requireAdminSession, handleAdminLumContentTypeSave);
 app.get("/api/admin/binary/dashboard-summary", requireAdminSession, handleAdminBinaryDashboardSummary);
 app.get("/api/admin/binary/categories", requireAdminSession, handleAdminBinaryCategories);
 app.post("/api/admin/binary/categories/create", requireAdminSession, handleAdminBinaryCategoryCreate);

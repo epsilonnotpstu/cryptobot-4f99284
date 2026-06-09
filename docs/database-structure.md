@@ -185,6 +185,16 @@ Columns:
 - `is_active`
 - `created_at`, `updated_at`
 
+### `lum_content_types`
+Admin-managed allowed content type dropdown values for LUM/Mining content blocks.
+
+Columns:
+- `type_key` TEXT UNIQUE (`pledge_info`, `risk_notice`, `faq`, `terms`, or admin-added keys)
+- `label`
+- `sort_order`
+- `is_active`
+- `created_at`, `updated_at`, `created_by`, `updated_by`
+
 ### `lum_investments`
 Main LUM investment order table with immutable plan snapshots.
 
@@ -845,6 +855,8 @@ Backend changes:
   - `POST /api/admin/lum/investments/force-settle`
   - `GET /api/admin/lum/dashboard-summary`
   - `POST /api/admin/lum/content/save`
+  - `POST /api/admin/lum/content/delete`
+  - `POST /api/admin/lum/content-types/save`
 - Added matching gateway actions for `lum.*` and `admin.lum.*`.
 
 Frontend changes:

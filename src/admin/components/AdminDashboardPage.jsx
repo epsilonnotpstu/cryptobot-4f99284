@@ -114,6 +114,8 @@ export default function AdminDashboardPage({
   onDeleteLumPlan,
   onToggleLumPlanStatus,
   onSaveLumPlanContent,
+  onDeleteLumPlanContent,
+  onSaveLumContentType,
   onReviewLumInvestment,
   onForceSettleLumInvestment,
   onCreateBinaryCategory,
@@ -753,6 +755,7 @@ export default function AdminDashboardPage({
             summary={lumCenter?.summary || {}}
             plans={Array.isArray(lumCenter?.plans) ? lumCenter.plans : []}
             investments={Array.isArray(lumCenter?.investments) ? lumCenter.investments : []}
+            contentTypes={Array.isArray(lumCenter?.contentTypes) ? lumCenter.contentTypes : []}
             loading={loading}
             searchValue={adminSearch}
             onSearchChange={setAdminSearch}
@@ -762,6 +765,8 @@ export default function AdminDashboardPage({
             onDeletePlan={onDeleteLumPlan}
             onTogglePlanStatus={onToggleLumPlanStatus}
             onSaveContent={onSaveLumPlanContent}
+            onDeleteContent={onDeleteLumPlanContent}
+            onSaveContentType={onSaveLumContentType}
             onReviewInvestment={onReviewLumInvestment}
             onForceSettleInvestment={onForceSettleLumInvestment}
           />

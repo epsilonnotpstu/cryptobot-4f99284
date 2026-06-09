@@ -380,6 +380,7 @@ function buildLumCenterModel(summaryPayload, plansPayload, investmentsPayload) {
       requiresAdminReview: Boolean(plan.requiresAdminReview),
       contents: Array.isArray(plan.contents) ? plan.contents : [],
     })),
+    contentTypes: Array.isArray(plansPayload?.contentTypes) ? plansPayload.contentTypes : [],
     investments: investments.map((item) => ({
       ...item,
       investmentId: toNumber(item.investmentId, 0),
@@ -758,6 +759,7 @@ const DEFAULT_LUM_CENTER = {
     pendingInvestments: 0,
   },
   plans: [],
+  contentTypes: [],
   investments: [],
 };
 
@@ -1486,6 +1488,33 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       throw new Error("Admin session expired. Please login again.");
     }
     const data = await authService.adminSaveLumContent({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const deleteLumPlanContent = useCallback(async ({ planId, contentId }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminDeleteLumContent({
+      sessionToken: snapshot.sessionToken,
+      planId,
+      contentId,
+    });
+    await loadAdminData();
+    return data;
+  }, [authService, loadAdminData]);
+
+  const saveLumContentType = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveLumContentType({
       sessionToken: snapshot.sessionToken,
       ...payload,
     });
@@ -2438,6 +2467,8 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onDeleteLumPlan={deleteLumPlan}
       onToggleLumPlanStatus={toggleLumPlanStatus}
       onSaveLumPlanContent={saveLumPlanContent}
+      onDeleteLumPlanContent={deleteLumPlanContent}
+      onSaveLumContentType={saveLumContentType}
       onReviewLumInvestment={reviewLumInvestment}
       onForceSettleLumInvestment={forceSettleLumInvestment}
       onCreateBinaryCategory={createBinaryCategory}

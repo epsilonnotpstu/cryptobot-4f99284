@@ -99,10 +99,27 @@ const DEFAULT_CONTENT_FORM = {
   isActive: true,
 };
 
+const DEFAULT_CONTENT_TYPES = [
+  { typeKey: "pledge_info", label: "Pledge Info" },
+  { typeKey: "risk_notice", label: "Risk Notice" },
+  { typeKey: "faq", label: "FAQ" },
+  { typeKey: "terms", label: "Terms" },
+];
+
+function normalizeContentTypeKey(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
 export default function LUMManagementPage({
   summary,
   plans,
   investments,
+  contentTypes,
   loading,
   searchValue,
   onSearchChange,
@@ -112,6 +129,8 @@ export default function LUMManagementPage({
   onDeletePlan,
   onTogglePlanStatus,
   onSaveContent,
+  onDeleteContent,
+  onSaveContentType,
   onReviewInvestment,
   onForceSettleInvestment,
 }) {
@@ -127,7 +146,10 @@ export default function LUMManagementPage({
 
   const [submittingPlan, setSubmittingPlan] = useState(false);
   const [submittingContent, setSubmittingContent] = useState(false);
+  const [submittingContentType, setSubmittingContentType] = useState(false);
+  const [deletingContentId, setDeletingContentId] = useState(0);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [newContentTypeLabel, setNewContentTypeLabel] = useState("");
 
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -186,6 +208,38 @@ export default function LUMManagementPage({
   const activePlanContents = useMemo(() => {
     return Array.isArray(selectedPlan?.contents) ? selectedPlan.contents : [];
   }, [selectedPlan]);
+
+  const contentTypeOptions = useMemo(() => {
+    const optionMap = new Map();
+    const addOption = (keyValue, labelValue) => {
+      const typeKey = normalizeContentTypeKey(keyValue);
+      if (!typeKey || optionMap.has(typeKey)) {
+        return;
+      }
+      optionMap.set(typeKey, {
+        typeKey,
+        label: labelValue || formatLabel(typeKey),
+      });
+    };
+
+    DEFAULT_CONTENT_TYPES.forEach((item) => addOption(item.typeKey, item.label));
+    (Array.isArray(contentTypes) ? contentTypes : []).forEach((item) => {
+      addOption(item.typeKey || item.contentType || item.value, item.label || item.title);
+    });
+    planList.forEach((plan) => {
+      (Array.isArray(plan.contents) ? plan.contents : []).forEach((block) => {
+        addOption(block.contentType, formatLabel(block.contentType));
+      });
+    });
+    addOption(contentForm.contentType, formatLabel(contentForm.contentType));
+
+    return Array.from(optionMap.values());
+  }, [contentForm.contentType, contentTypes, planList]);
+
+  const formatContentTypeLabel = (value = "") => {
+    const normalized = normalizeContentTypeKey(value);
+    return contentTypeOptions.find((item) => item.typeKey === normalized)?.label || formatLabel(value);
+  };
 
   const updatePlanField = (key, value) => {
     setPlanForm((prev) => ({ ...prev, [key]: value }));
@@ -378,6 +432,69 @@ export default function LUMManagementPage({
       setError(requestError.message || "Could not save content.");
     } finally {
       setSubmittingContent(false);
+    }
+  };
+
+  const addContentType = async () => {
+    const label = newContentTypeLabel.trim();
+    const typeKey = normalizeContentTypeKey(label);
+    setError("");
+    setNotice("");
+
+    if (!label || !typeKey) {
+      setError("Content type name is required.");
+      return;
+    }
+    if (contentTypeOptions.some((item) => item.typeKey === typeKey)) {
+      setError("This content type already exists.");
+      return;
+    }
+
+    setSubmittingContentType(true);
+    try {
+      const response = await onSaveContentType?.({
+        typeKey,
+        label,
+        sortOrder: contentTypeOptions.length + 1,
+      });
+      setContentForm((prev) => ({ ...prev, contentType: typeKey }));
+      setNewContentTypeLabel("");
+      setNotice(response?.message || "Content type added.");
+    } catch (requestError) {
+      setError(requestError.message || "Could not add content type.");
+    } finally {
+      setSubmittingContentType(false);
+    }
+  };
+
+  const deleteContentBlock = async (block) => {
+    if (!block?.contentId || !block?.planId) {
+      return;
+    }
+    const confirmed = window.confirm(`Delete "${block.title || formatContentTypeLabel(block.contentType)}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setError("");
+    setNotice("");
+    setDeletingContentId(Number(block.contentId || 0));
+    try {
+      const response = await onDeleteContent?.({
+        planId: Number(block.planId),
+        contentId: Number(block.contentId),
+      });
+      setNotice(response?.message || "Content deleted.");
+      if (String(contentForm.contentId) === String(block.contentId)) {
+        setContentForm((prev) => ({
+          ...DEFAULT_CONTENT_FORM,
+          planId: prev.planId,
+        }));
+      }
+    } catch (requestError) {
+      setError(requestError.message || "Could not delete content.");
+    } finally {
+      setDeletingContentId(0);
     }
   };
 
@@ -920,7 +1037,7 @@ export default function LUMManagementPage({
       ) : null}
 
       {tab === "content" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-lum-content-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -954,6 +1071,43 @@ export default function LUMManagementPage({
             <span className="adminx-user-count">{activePlanContents.length} blocks</span>
           </div>
 
+          <div className="adminx-lum-content-overview">
+            <div>
+              <span className="adminx-lum-eyebrow">Selected plan</span>
+              <strong>{selectedPlan ? `${selectedPlan.planCode} · ${selectedPlan.title}` : "No plan selected"}</strong>
+              <p>{selectedPlan ? `${formatCategoryLabel(selectedPlan.category)} content blocks and modal copy.` : "Choose a plan before adding content blocks."}</p>
+            </div>
+            <div className="adminx-lum-content-type-manager">
+              <label>
+                Add Content Type
+                <span>
+                  <input
+                    type="text"
+                    value={newContentTypeLabel}
+                    onChange={(event) => setNewContentTypeLabel(event.target.value)}
+                    placeholder="Example: Bonus Rules"
+                    disabled={submittingContentType}
+                  />
+                  <button type="button" className="adminx-filter-btn" onClick={addContentType} disabled={submittingContentType}>
+                    <i className={`fas ${submittingContentType ? "fa-spinner fa-spin" : "fa-plus"}`} /> Add
+                  </button>
+                </span>
+              </label>
+              <div className="adminx-lum-content-type-chips" aria-label="Available content types">
+                {contentTypeOptions.map((item) => (
+                  <button
+                    key={item.typeKey}
+                    type="button"
+                    className={contentForm.contentType === item.typeKey ? "active" : ""}
+                    onClick={() => updateContentField("contentType", item.typeKey)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="adminx-deposit-layout">
             <form className="adminx-deposit-asset-form" onSubmit={submitContent}>
               <h3>{contentForm.contentId ? "Update Content Block" : "Add Content Block"}</h3>
@@ -975,10 +1129,11 @@ export default function LUMManagementPage({
                     value={contentForm.contentType}
                     onChange={(event) => updateContentField("contentType", event.target.value)}
                   >
-                    <option value="pledge_info">Pledge Info</option>
-                    <option value="risk_notice">Risk Notice</option>
-                    <option value="faq">FAQ</option>
-                    <option value="terms">Terms</option>
+                    {contentTypeOptions.map((item) => (
+                      <option key={item.typeKey} value={item.typeKey}>
+                        {item.label}
+                      </option>
+                    ))}
                   </select>
                 </label>
               </div>
@@ -1042,7 +1197,7 @@ export default function LUMManagementPage({
                 <tbody>
                   {activePlanContents.map((block) => (
                     <tr key={block.contentId}>
-                      <td>{formatLabel(block.contentType)}</td>
+                      <td>{formatContentTypeLabel(block.contentType)}</td>
                       <td>{block.title}</td>
                       <td>{String(block.bodyText || "").slice(0, 120)}...</td>
                       <td>{block.sortOrder}</td>
@@ -1055,6 +1210,15 @@ export default function LUMManagementPage({
                         <div className="adminx-row-actions">
                           <button type="button" title="Edit block" onClick={() => startEditContent(block)}>
                             <i className="fas fa-pen" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Delete block"
+                            className="danger"
+                            onClick={() => deleteContentBlock(block)}
+                            disabled={deletingContentId === Number(block.contentId || 0)}
+                          >
+                            <i className={`fas ${deletingContentId === Number(block.contentId || 0) ? "fa-spinner fa-spin" : "fa-trash"}`} />
                           </button>
                         </div>
                       </td>

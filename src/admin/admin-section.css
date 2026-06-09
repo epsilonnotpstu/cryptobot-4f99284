@@ -3839,8 +3839,10 @@
 .adminx-lum-management-shell .adminx-user-table-card {
   border-color: rgba(125, 211, 252, 0.18);
   background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 32rem),
     linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
     rgba(7, 15, 29, 0.94);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
 }
 
 .adminx-lum-management-shell .adminx-user-toolbar {
@@ -3852,6 +3854,18 @@
 .adminx-lum-management-shell .adminx-filter-btn {
   border-color: rgba(125, 211, 252, 0.2);
   background: rgba(3, 10, 20, 0.72);
+}
+
+.adminx-lum-management-shell .adminx-user-toolbar-actions {
+  gap: 0.45rem;
+}
+
+.adminx-lum-management-shell .adminx-user-count {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.54);
+  color: #cbe5ff;
+  padding: 0.35rem 0.65rem;
 }
 
 .adminx-lum-management-shell .adminx-user-search:focus-within,
@@ -3868,8 +3882,9 @@
 .adminx-lum-management-shell .adminx-deposit-asset-table-wrap,
 .adminx-lum-management-shell .adminx-user-table-wrap {
   border: 1px solid rgba(125, 211, 252, 0.16);
-  border-radius: 14px;
-  background: rgba(4, 12, 25, 0.38);
+  border-radius: 8px;
+  background: rgba(4, 12, 25, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .adminx-lum-management-shell .adminx-deposit-asset-form {
@@ -3890,6 +3905,13 @@
   min-height: 38px;
   border-color: rgba(125, 211, 252, 0.18);
   background: rgba(2, 8, 20, 0.78);
+}
+
+.adminx-lum-management-shell .adminx-deposit-asset-form input:not([type="checkbox"]):focus,
+.adminx-lum-management-shell .adminx-deposit-asset-form textarea:focus,
+.adminx-lum-management-shell .adminx-deposit-asset-form select:focus {
+  border-color: rgba(56, 189, 248, 0.58);
+  box-shadow: var(--adminx-focus-ring);
 }
 
 .adminx-lum-management-shell .adminx-deposit-asset-form textarea {
@@ -3940,10 +3962,110 @@
   color: #ffffff;
 }
 
+.adminx-lum-management-shell .adminx-row-actions button.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}
+
+.adminx-lum-management-shell .adminx-row-actions button.danger:hover {
+  border-color: rgba(248, 113, 113, 0.58);
+  background: rgba(127, 29, 29, 0.46);
+}
+
 .adminx-lum-management-shell .btn.btn-primary {
   border: 1px solid rgba(129, 140, 248, 0.32);
   background: linear-gradient(135deg, #4f7cff, #7c3aed);
   color: #ffffff;
+}
+
+.adminx-lum-content-overview {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.9fr) minmax(20rem, 1.2fr);
+  gap: 0.9rem;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.12);
+  padding: 0.9rem;
+}
+
+.adminx-lum-content-overview > div {
+  min-width: 0;
+}
+
+.adminx-lum-eyebrow {
+  display: block;
+  color: #7dd3fc;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.adminx-lum-content-overview strong {
+  display: block;
+  margin-top: 0.18rem;
+  color: #f8fbff;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.adminx-lum-content-overview p {
+  margin: 0.35rem 0 0;
+  color: #9fb4d0;
+  line-height: 1.45;
+}
+
+.adminx-lum-content-type-manager label {
+  display: grid;
+  gap: 0.42rem;
+  color: #c5d8f1;
+  font-size: 0.84rem;
+}
+
+.adminx-lum-content-type-manager label span {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.adminx-lum-content-type-manager input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.78);
+  color: #edf6ff;
+  padding: 0 0.75rem;
+}
+
+.adminx-lum-content-type-manager input:focus {
+  border-color: rgba(56, 189, 248, 0.58);
+  box-shadow: var(--adminx-focus-ring);
+  outline: none;
+}
+
+.adminx-lum-content-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.adminx-lum-content-type-chips button {
+  min-height: 30px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.54);
+  color: #b8cce8;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.62rem;
+}
+
+.adminx-lum-content-type-chips button:hover,
+.adminx-lum-content-type-chips button.active {
+  border-color: rgba(56, 189, 248, 0.48);
+  background: rgba(14, 116, 144, 0.28);
+  color: #f8fbff;
 }
 
 @media (max-width: 760px) {
@@ -3954,5 +4076,18 @@
 
   .adminx-lum-management-shell .adminx-user-tabs button {
     white-space: nowrap;
+  }
+
+  .adminx-lum-content-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-lum-content-type-manager label span {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminx-lum-content-type-manager label span .adminx-filter-btn {
+    width: 100%;
   }
 }

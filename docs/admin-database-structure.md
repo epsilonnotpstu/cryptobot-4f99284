@@ -201,6 +201,7 @@ LUM integration adds DB-backed investment products and admin-reviewable order li
 New LUM tables:
 - `lum_plans`
 - `lum_plan_contents`
+- `lum_content_types`
 - `lum_investments`
 - `lum_investment_rewards`
 - `lum_wallet_ledger`
@@ -218,6 +219,8 @@ Admin backend actions now available:
 - `admin.lum.investments.force-settle`
 - `admin.lum.dashboard-summary`
 - `admin.lum.content.save`
+- `admin.lum.content.delete`
+- `admin.lum.content-types.save`
 
 Admin UI section:
 - Sidebar entry: `LUM Management`
@@ -225,7 +228,7 @@ Admin UI section:
 - Sub-sections:
   - Plan Studio (create/update/activate-disable/archive)
   - Investment Desk (review pending, force settle active)
-  - Content Editor (pledge/risk/faq/terms blocks per plan)
+  - Content Editor (pledge/risk/faq/terms blocks per plan, block delete, admin-added content type dropdown values)
 - Plan categories are separated for admin control:
   - `lum` = LUM Center / LUM Plans
   - `lum_mining` = LUM Center / Mining Plans

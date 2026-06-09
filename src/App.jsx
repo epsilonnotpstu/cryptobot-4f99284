@@ -2800,6 +2800,20 @@ const remoteAuthService = {
       payload,
     });
   },
+  async adminDeleteLumContent({ sessionToken, planId, contentId }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.content.delete",
+      sessionToken,
+      payload: { planId, contentId },
+    });
+  },
+  async adminSaveLumContentType({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.lum.content-types.save",
+      sessionToken,
+      payload,
+    });
+  },
   async adminGetBinaryDashboardSummary({ sessionToken }) {
     return this.requestGatewayAction({
       action: "admin.binary.dashboard-summary",
