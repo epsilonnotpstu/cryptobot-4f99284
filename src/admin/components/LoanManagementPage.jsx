@@ -126,6 +126,36 @@ export default function LoanManagementPage({
 
   const envLocked = settings.fullFeatureEnabledEnv === false;
   const effectiveUnlocked = Boolean(settings.effectiveFullFeatureEnabled);
+  const loanStatusCards = [
+    {
+      label: "Public Loan Page",
+      value: isActive ? "Active" : "Inactive",
+      icon: "fa-file-lines",
+      tone: isActive ? "green" : "gold",
+      copy: isActive ? "Visible on the website lending area." : "Hidden from public lending navigation.",
+    },
+    {
+      label: "Server Feature Flag",
+      value: settings.fullFeatureEnabledEnv ? "Enabled" : "Off",
+      icon: "fa-server",
+      tone: settings.fullFeatureEnabledEnv ? "blue" : "red",
+      copy: settings.fullFeatureEnabledEnv ? "Server allows admin unlock control." : "Server config is blocking full operations.",
+    },
+    {
+      label: "Admin Unlock",
+      value: adminUnlocked ? "Unlocked" : "Locked",
+      icon: "fa-user-shield",
+      tone: adminUnlocked ? "green" : "gold",
+      copy: adminUnlocked ? "Admin switch is ready for full loan tools." : "Admin switch is still locked.",
+    },
+    {
+      label: "Effective System",
+      value: effectiveUnlocked ? "Ready" : "Locked",
+      icon: effectiveUnlocked ? "fa-unlock" : "fa-lock",
+      tone: effectiveUnlocked ? "green" : "red",
+      copy: effectiveUnlocked ? "Loan operations can be expanded safely." : "Operational desks remain protected.",
+    },
+  ];
 
   return (
     <section className="adminx-loan-page">
@@ -139,6 +169,17 @@ export default function LoanManagementPage({
           { label: "Env", value: settings.fullFeatureEnabledEnv ? "Enabled" : "Off" },
         ]}
       />
+
+      <section className="adminx-loan-status-grid" aria-label="Loan system status">
+        {loanStatusCards.map((card) => (
+          <article key={card.label}>
+            <span className={`adminx-loan-status-icon ${card.tone}`}><i className={`fas ${card.icon}`} /></span>
+            <small>{card.label}</small>
+            <strong>{card.value}</strong>
+            <p>{card.copy}</p>
+          </article>
+        ))}
+      </section>
 
       {feedback ? <p className="adminx-auth-notice adminx-inline-feedback">{feedback}</p> : null}
       {error ? <p className="adminx-auth-error adminx-inline-feedback">{error}</p> : null}

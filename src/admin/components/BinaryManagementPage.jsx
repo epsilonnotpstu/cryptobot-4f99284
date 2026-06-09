@@ -260,6 +260,13 @@ export default function BinaryManagementPage({
       : outcomeTone === "force_loss"
         ? "Forced Loss Mode"
       : "Auto Settlement Mode";
+  const tabItems = [
+    { key: "control", label: "Control Center", count: outcomeTone === "auto" ? "Auto" : "Forced" },
+    { key: "categories", label: "Category Desk", count: formatCompactNumber(categoryList.length) },
+    { key: "pairs", label: "Pairs Desk", count: formatCompactNumber(pairList.length) },
+    { key: "rules", label: "Period Rules", count: formatCompactNumber(ruleList.length) },
+    { key: "trades", label: "Trade Desk", count: formatCompactNumber(summary?.activeTradesCount || 0) },
+  ];
 
   const updateCategoryField = (key, value) => {
     setCategoryForm((prev) => ({ ...prev, [key]: value }));
@@ -599,7 +606,7 @@ export default function BinaryManagementPage({
   };
 
   return (
-    <section className="adminx-users-shell">
+    <section className="adminx-users-shell adminx-binary-management-shell">
       <AdminSectionIntro
         icon={ADMIN_SECTION_META.binaryCenter.icon}
         title={ADMIN_SECTION_META.binaryCenter.title}
@@ -611,7 +618,7 @@ export default function BinaryManagementPage({
         ]}
       />
 
-      <section className="adminx-kpi-grid adminx-binary-kpi-grid">
+      <section className="adminx-kpi-grid adminx-binary-kpi-grid" aria-label="Binary management overview">
         <article className="adminx-kpi-card">
           <div className="adminx-kpi-top">
             <span className="adminx-kpi-icon blue"><i className="fas fa-wave-square" /></span>
@@ -650,18 +657,26 @@ export default function BinaryManagementPage({
       </section>
 
       <div className="adminx-user-tabs" role="tablist" aria-label="Binary management tabs">
-        <button type="button" role="tab" aria-selected={tab === "control"} className={tab === "control" ? "active" : ""} onClick={() => setTab("control")}>Control Center</button>
-        <button type="button" role="tab" aria-selected={tab === "categories"} className={tab === "categories" ? "active" : ""} onClick={() => setTab("categories")}>Category Desk</button>
-        <button type="button" role="tab" aria-selected={tab === "pairs"} className={tab === "pairs" ? "active" : ""} onClick={() => setTab("pairs")}>Pairs Desk</button>
-        <button type="button" role="tab" aria-selected={tab === "rules"} className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}>Period Rules</button>
-        <button type="button" role="tab" aria-selected={tab === "trades"} className={tab === "trades" ? "active" : ""} onClick={() => setTab("trades")}>Trade Desk</button>
+        {tabItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.key}
+            className={tab === item.key ? "active" : ""}
+            onClick={() => setTab(item.key)}
+          >
+            <span>{item.label}</span>
+            <small>{item.count}</small>
+          </button>
+        ))}
       </div>
 
       {notice ? <p className="adminx-auth-notice adminx-inline-feedback">{notice}</p> : null}
       {error ? <p className="adminx-auth-error adminx-inline-feedback">{error}</p> : null}
 
       {tab === "control" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-binary-workspace-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -823,7 +838,7 @@ export default function BinaryManagementPage({
       ) : null}
 
       {tab === "categories" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-binary-workspace-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -911,7 +926,7 @@ export default function BinaryManagementPage({
                       <td>
                         <div className="adminx-row-actions">
                           <button type="button" title="Edit" onClick={() => editCategory(category)}><i className="fas fa-pen" /></button>
-                          <button type="button" title="Delete" onClick={() => removeCategory(category.categoryId)}><i className="fas fa-trash" /></button>
+                          <button type="button" className="danger" title="Delete" onClick={() => removeCategory(category.categoryId)}><i className="fas fa-trash" /></button>
                         </div>
                       </td>
                     </tr>
@@ -930,7 +945,7 @@ export default function BinaryManagementPage({
       ) : null}
 
       {tab === "pairs" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-binary-workspace-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -1094,8 +1109,8 @@ export default function BinaryManagementPage({
                       <td>
                         <div className="adminx-row-actions">
                           <button type="button" title="Edit" onClick={() => editPair(pair)}><i className="fas fa-pen" /></button>
-                          <button type="button" title="Toggle" onClick={() => togglePair(pair)}><i className="fas fa-power-off" /></button>
-                          <button type="button" title="Delete" onClick={() => removePair(pair.pairId)}><i className="fas fa-trash" /></button>
+                          <button type="button" className="pending" title="Toggle" onClick={() => togglePair(pair)}><i className="fas fa-power-off" /></button>
+                          <button type="button" className="danger" title="Delete" onClick={() => removePair(pair.pairId)}><i className="fas fa-trash" /></button>
                         </div>
                       </td>
                     </tr>
@@ -1114,7 +1129,7 @@ export default function BinaryManagementPage({
       ) : null}
 
       {tab === "rules" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-binary-workspace-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -1234,7 +1249,7 @@ export default function BinaryManagementPage({
       ) : null}
 
       {tab === "trades" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-binary-workspace-card adminx-binary-trade-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -1313,10 +1328,10 @@ export default function BinaryManagementPage({
                         <div className="adminx-row-actions">
                           {isActive ? (
                             <>
-                              <button type="button" title="Force settle" onClick={() => runTradeAction("settle", trade.tradeId)} disabled={tradeSubmitting}>
+                              <button type="button" className="approve" title="Force settle" onClick={() => runTradeAction("settle", trade.tradeId)} disabled={tradeSubmitting}>
                                 <i className="fas fa-bolt" />
                               </button>
-                              <button type="button" title="Cancel trade" onClick={() => runTradeAction("cancel", trade.tradeId)} disabled={tradeSubmitting}>
+                              <button type="button" className="danger" title="Cancel trade" onClick={() => runTradeAction("cancel", trade.tradeId)} disabled={tradeSubmitting}>
                                 <i className="fas fa-ban" />
                               </button>
                             </>

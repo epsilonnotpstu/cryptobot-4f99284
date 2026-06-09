@@ -142,11 +142,32 @@ export default function KycReviewPage({
   const [actionSubmitting, setActionSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState("");
+  const requestList = Array.isArray(requests) ? requests : [];
+
+  const requestCounts = useMemo(
+    () =>
+      requestList.reduce(
+        (acc, request) => {
+          const status = normalizeText(request.status) || "pending";
+          acc.all += 1;
+          if (status === "authenticated") {
+            acc.authenticated += 1;
+          } else if (status === "rejected") {
+            acc.rejected += 1;
+          } else {
+            acc.pending += 1;
+          }
+          return acc;
+        },
+        { all: 0, pending: 0, authenticated: 0, rejected: 0 },
+      ),
+    [requestList],
+  );
 
   const filteredRequests = useMemo(() => {
     const keyword = normalizeText(searchValue);
 
-    return (Array.isArray(requests) ? requests : []).filter((request) => {
+    return requestList.filter((request) => {
       const status = normalizeText(request.status);
       const certification = normalizeText(request.certification);
 
@@ -173,7 +194,7 @@ export default function KycReviewPage({
         .map((value) => normalizeText(value))
         .some((value) => value.includes(keyword));
     });
-  }, [certificationFilter, requestTab, requests, searchValue]);
+  }, [certificationFilter, requestList, requestTab, searchValue]);
 
   const openDetailModal = async (request) => {
     setDetailRequest(request || null);
@@ -254,7 +275,7 @@ export default function KycReviewPage({
   };
 
   return (
-    <section className="adminx-users-shell">
+    <section className="adminx-users-shell adminx-kyc-review-shell">
       <AdminSectionIntro
         icon={ADMIN_SECTION_META.kycReview.icon}
         title={ADMIN_SECTION_META.kycReview.title}
@@ -266,6 +287,33 @@ export default function KycReviewPage({
         ]}
       />
 
+      <section className="adminx-kyc-intel-grid" aria-label="KYC review summary">
+        <article>
+          <span className="adminx-kyc-intel-icon gold"><i className="fas fa-hourglass-half" /></span>
+          <small>Pending Review</small>
+          <strong>{formatCompactNumber(stats?.pendingKycRequests || requestCounts.pending)}</strong>
+          <p>Submitted profiles waiting for an admin decision</p>
+        </article>
+        <article>
+          <span className="adminx-kyc-intel-icon green"><i className="fas fa-shield-check" /></span>
+          <small>Approved</small>
+          <strong>{formatCompactNumber(stats?.authenticatedKycRequests || requestCounts.authenticated)}</strong>
+          <p>Users cleared for verified platform access</p>
+        </article>
+        <article>
+          <span className="adminx-kyc-intel-icon red"><i className="fas fa-circle-xmark" /></span>
+          <small>Rejected</small>
+          <strong>{formatCompactNumber(stats?.rejectedKycRequests || requestCounts.rejected)}</strong>
+          <p>Requests requiring corrected documents</p>
+        </article>
+        <article>
+          <span className="adminx-kyc-intel-icon blue"><i className="fas fa-file-shield" /></span>
+          <small>Total Requests</small>
+          <strong>{formatCompactNumber(stats?.totalKycRequests || requestCounts.all)}</strong>
+          <p>{filteredRequests.length} visible with current filters</p>
+        </article>
+      </section>
+
       <div className="adminx-user-tabs" role="tablist" aria-label="KYC request filters">
         {KYC_REVIEW_TABS.map((tab) => (
           <button
@@ -276,12 +324,13 @@ export default function KycReviewPage({
             className={requestTab === tab.key ? "active" : ""}
             onClick={() => setRequestTab(tab.key)}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            <small>{formatCompactNumber(requestCounts[tab.key] || 0)}</small>
           </button>
         ))}
       </div>
 
-      <section className="adminx-user-table-card">
+      <section className="adminx-user-table-card adminx-kyc-review-card">
         <div className="adminx-user-toolbar">
           <label className="adminx-user-search">
             <i className="fas fa-search" />
@@ -294,7 +343,11 @@ export default function KycReviewPage({
           </label>
 
           <div className="adminx-user-toolbar-actions">
-            <button type="button" className="adminx-filter-btn" onClick={() => setFilterOpen((prev) => !prev)}>
+            <button
+              type="button"
+              className={`adminx-filter-btn ${filterOpen ? "active" : ""}`}
+              onClick={() => setFilterOpen((prev) => !prev)}
+            >
               <i className="fas fa-filter" /> Filter
             </button>
             <button type="button" className="adminx-filter-btn" onClick={onRefresh}>
@@ -306,7 +359,7 @@ export default function KycReviewPage({
         </div>
 
         {filterOpen ? (
-          <div className="adminx-filter-panel adminx-filter-panel-single">
+          <div className="adminx-filter-panel adminx-filter-panel-single adminx-kyc-filter-panel">
             <label>
               Certification
               <select value={certificationFilter} onChange={(event) => setCertificationFilter(event.target.value)}>
@@ -365,6 +418,7 @@ export default function KycReviewPage({
                         </button>
                         <button
                           type="button"
+                          className="approve"
                           title="Approve request"
                           onClick={() => openReviewModal(request, "authenticated")}
                           disabled={actionSubmitting}
@@ -373,6 +427,7 @@ export default function KycReviewPage({
                         </button>
                         <button
                           type="button"
+                          className="danger"
                           title="Reject request"
                           onClick={() => openReviewModal(request, "rejected")}
                           disabled={actionSubmitting}
@@ -381,6 +436,7 @@ export default function KycReviewPage({
                         </button>
                         <button
                           type="button"
+                          className="pending"
                           title="Move back to pending"
                           onClick={() => openReviewModal(request, "pending")}
                           disabled={actionSubmitting}

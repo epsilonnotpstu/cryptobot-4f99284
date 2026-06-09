@@ -23,6 +23,33 @@ function formatDateTime(value = "") {
   return date.toLocaleString();
 }
 
+function formatSupportTableTime(value = "") {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatSupportLabel(value = "") {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "-";
+  }
+  return text
+    .split(/[_\s-]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 const SUPPORT_ATTACHMENT_ACCEPT = ".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.txt";
 const SUPPORT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 
@@ -51,6 +78,28 @@ function normalizeAttachmentFromMessage(message = {}) {
     fileData: data,
     sizeBytes: toNumber(message?.attachmentSizeBytes, 0),
   };
+}
+
+function getAttachmentMime(attachment = {}) {
+  const explicit = String(attachment?.mimeType || attachment?.attachmentMimeType || "").trim().toLowerCase();
+  if (explicit) {
+    return explicit;
+  }
+  const data = String(attachment?.fileData || "").trim();
+  const match = data.match(/^data:([^;]+);/i);
+  if (match?.[1]) {
+    return match[1].toLowerCase();
+  }
+  const fileName = String(attachment?.fileName || "").toLowerCase();
+  if (/\.(png|jpe?g|webp|gif|bmp|svg)$/.test(fileName)) {
+    return "image/*";
+  }
+  return "";
+}
+
+function isImageAttachment(attachment = {}) {
+  const data = String(attachment?.fileData || "").trim().toLowerCase();
+  return getAttachmentMime(attachment).startsWith("image/") || data.startsWith("data:image/");
 }
 
 function formatBytes(value = 0) {
@@ -112,6 +161,64 @@ function MetricCard({ label, value, hint = "" }) {
   );
 }
 
+function SupportAttachmentPreview({ attachment }) {
+  if (!attachment) {
+    return null;
+  }
+
+  const image = isImageAttachment(attachment);
+
+  return (
+    <div className={`adminx-support-attachment-preview ${image ? "is-image" : "is-file"}`}>
+      {image ? (
+        <a
+          className="adminx-support-image-preview"
+          href={attachment.fileData}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${attachment.fileName}`}
+        >
+          <img src={attachment.fileData} alt={attachment.fileName || "Support attachment"} loading="lazy" />
+        </a>
+      ) : null}
+      <a
+        className="adminx-support-attachment-link"
+        href={attachment.fileData}
+        target="_blank"
+        rel="noreferrer"
+        download={attachment.fileName}
+      >
+        <i className={`fas ${image ? "fa-image" : "fa-paperclip"}`} />
+        <span>{attachment.fileName}</span>
+        <small>{formatBytes(attachment.sizeBytes)}</small>
+      </a>
+    </div>
+  );
+}
+
+function SupportSelectedAttachment({ attachment, onRemove }) {
+  if (!attachment) {
+    return null;
+  }
+
+  return (
+    <div className={`adminx-support-attachment-pill ${isImageAttachment(attachment) ? "has-preview" : ""}`}>
+      {isImageAttachment(attachment) ? (
+        <span className="adminx-support-upload-preview">
+          <img src={attachment.fileData} alt={attachment.fileName || "Selected attachment"} />
+        </span>
+      ) : (
+        <i className="fas fa-file-arrow-up" />
+      )}
+      <span>{attachment.fileName}</span>
+      <small>{formatBytes(attachment.sizeBytes)}</small>
+      <button type="button" onClick={onRemove} aria-label="Remove attachment">
+        <i className="fas fa-xmark" />
+      </button>
+    </div>
+  );
+}
+
 export default function SupportManagementPage({
   summary,
   tickets,
@@ -166,6 +273,10 @@ export default function SupportManagementPage({
   const threadBodyRef = useRef(null);
   const liveThreadBodyRef = useRef(null);
   const livePollCounterRef = useRef(0);
+  const ticketAutoScrollRef = useRef(true);
+  const liveAutoScrollRef = useRef(true);
+  const lastTicketRef = useRef("");
+  const lastLiveThreadRef = useRef("");
 
   const ticketRows = Array.isArray(tickets?.rows) ? tickets.rows : [];
   const auditRows = Array.isArray(auditLogs?.rows) ? auditLogs.rows : [];
@@ -243,6 +354,21 @@ export default function SupportManagementPage({
     return Array.isArray(liveDetail?.messages) ? liveDetail.messages : [];
   }, [isLiveDetailSynced, liveDetail?.messages]);
 
+  const isScrolledNearBottom = (node) => {
+    if (!node) {
+      return true;
+    }
+    return node.scrollHeight - node.scrollTop - node.clientHeight < 96;
+  };
+
+  const trackTicketScrollPosition = () => {
+    ticketAutoScrollRef.current = isScrolledNearBottom(threadBodyRef.current);
+  };
+
+  const trackLiveScrollPosition = () => {
+    liveAutoScrollRef.current = isScrolledNearBottom(liveThreadBodyRef.current);
+  };
+
   useEffect(() => {
     if (!selectedTicketRef) {
       return;
@@ -285,16 +411,34 @@ export default function SupportManagementPage({
     if (!node) {
       return;
     }
-    node.scrollTop = node.scrollHeight;
-  }, [selectedTicketRef, ticketDetail?.messages]);
+    const threadChanged = lastTicketRef.current !== selectedTicketRef;
+    if (threadChanged) {
+      lastTicketRef.current = selectedTicketRef;
+      ticketAutoScrollRef.current = true;
+    }
+    if (threadChanged || ticketAutoScrollRef.current) {
+      window.requestAnimationFrame(() => {
+        node.scrollTop = node.scrollHeight;
+      });
+    }
+  }, [selectedTicketRef, ticketDetail?.messages?.length, showInternalNotes]);
 
   useEffect(() => {
     const node = liveThreadBodyRef.current;
     if (!node) {
       return;
     }
-    node.scrollTop = node.scrollHeight;
-  }, [selectedLiveThreadRef, liveDetail?.messages]);
+    const threadChanged = lastLiveThreadRef.current !== selectedLiveThreadRef;
+    if (threadChanged) {
+      lastLiveThreadRef.current = selectedLiveThreadRef;
+      liveAutoScrollRef.current = true;
+    }
+    if (threadChanged || liveAutoScrollRef.current) {
+      window.requestAnimationFrame(() => {
+        node.scrollTop = node.scrollHeight;
+      });
+    }
+  }, [selectedLiveMessages.length, selectedLiveThreadRef]);
 
   useEffect(() => {
     if (!liveDetail?.thread?.threadRef) {
@@ -315,6 +459,16 @@ export default function SupportManagementPage({
     }
     return rows.filter((item) => !item.isInternalNote);
   }, [showInternalNotes, ticketDetail?.messages]);
+
+  const supportTabItems = useMemo(() => {
+    const counts = {
+      overview: formatCompactNumber(summary?.totalTickets || 0),
+      inbox: formatCompactNumber(summary?.pendingAdminTickets || ticketRows.length),
+      live: formatCompactNumber(liveSummary?.openThreads || 0),
+      audit: formatCompactNumber(auditRows.length),
+    };
+    return SUPPORT_TABS.map((tab) => ({ ...tab, count: counts[tab.key] || "0" }));
+  }, [auditRows.length, liveSummary?.openThreads, summary?.pendingAdminTickets, summary?.totalTickets, ticketRows.length]);
 
   const runAction = async (actionKey, executor) => {
     setError("");
@@ -358,6 +512,7 @@ export default function SupportManagementPage({
   };
 
   const openTicket = async (ticketRef) => {
+    ticketAutoScrollRef.current = true;
     setSelectedTicketRef(ticketRef);
     await runAction(`support.open.${ticketRef}`, async () => {
       const payload = await onLoadTicketDetail?.({ ticketRef });
@@ -366,11 +521,20 @@ export default function SupportManagementPage({
   };
 
   const openLiveThread = async (threadRef) => {
+    liveAutoScrollRef.current = true;
     setSelectedLiveThreadRef(threadRef);
     await runAction(`support.live.open.${threadRef}`, async () => {
       const payload = await onLoadLiveThreadDetail?.({ threadRef });
       return payload || { message: "Live chat thread loaded." };
     });
+  };
+
+  const handleOpenRowKeyDown = (event, opener) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    event.preventDefault();
+    opener();
   };
 
   useEffect(() => {
@@ -418,6 +582,7 @@ export default function SupportManagementPage({
     }
 
     await runAction("support.reply", async () => {
+      ticketAutoScrollRef.current = true;
       const data = await onReplyTicket?.({
         ticketRef: selectedTicketRef,
         message: replyText,
@@ -445,6 +610,7 @@ export default function SupportManagementPage({
     }
 
     await runAction("support.note", async () => {
+      ticketAutoScrollRef.current = true;
       const data = await onReplyTicket?.({
         ticketRef: selectedTicketRef,
         message: internalNoteText,
@@ -493,6 +659,7 @@ export default function SupportManagementPage({
     }
 
     await runAction("support.live.reply", async () => {
+      liveAutoScrollRef.current = true;
       const data = await onReplyLiveThread?.({
         threadRef: selectedLiveThreadRef,
         message: liveReplyText,
@@ -595,7 +762,7 @@ export default function SupportManagementPage({
       <div className="adminx-support-layout">
         <article className="adminx-support-list-panel">
           <div className="adminx-table-wrap">
-            <table>
+            <table className="adminx-support-ticket-table">
               <thead>
                 <tr>
                   <th>Ticket</th>
@@ -604,13 +771,20 @@ export default function SupportManagementPage({
                   <th>Priority</th>
                   <th>Unread</th>
                   <th>Updated</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTickets.length ? (
                   filteredTickets.map((row) => (
-                    <tr key={row.ticketRef} className={row.ticketRef === selectedTicketRef ? "adminx-support-selected-row" : ""}>
+                    <tr
+                      key={row.ticketRef}
+                      className={`adminx-support-clickable-row ${row.ticketRef === selectedTicketRef ? "adminx-support-selected-row" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open support ticket ${row.ticketRef}`}
+                      onClick={() => openTicket(row.ticketRef)}
+                      onKeyDown={(event) => handleOpenRowKeyDown(event, () => openTicket(row.ticketRef))}
+                    >
                       <td>
                         <strong>{row.ticketRef}</strong>
                         <div className="adminx-table-subtext">{row.subject}</div>
@@ -619,25 +793,15 @@ export default function SupportManagementPage({
                         <strong>{row.accountName || row.userId}</strong>
                         <div className="adminx-table-subtext">{row.accountEmail || row.userId}</div>
                       </td>
-                      <td><span className={statusChipClass(row.status)}>{row.status}</span></td>
-                      <td><span className={priorityChipClass(row.priority)}>{row.priority}</span></td>
+                      <td><span className={statusChipClass(row.status)} title={formatSupportLabel(row.status)}>{formatSupportLabel(row.status)}</span></td>
+                      <td><span className={priorityChipClass(row.priority)} title={formatSupportLabel(row.priority)}>{formatSupportLabel(row.priority)}</span></td>
                       <td>{toNumber(row.adminUnreadCount, 0)}</td>
-                      <td>{formatDateTime(row.updatedAt)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => openTicket(row.ticketRef)}
-                          disabled={busyAction.startsWith("support.open.")}
-                        >
-                          Open
-                        </button>
-                      </td>
+                      <td title={formatDateTime(row.updatedAt)}>{formatSupportTableTime(row.updatedAt)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="adminx-muted">No tickets found for current filter.</td>
+                    <td colSpan={6} className="adminx-muted">No tickets found for current filter.</td>
                   </tr>
                 )}
               </tbody>
@@ -672,32 +836,23 @@ export default function SupportManagementPage({
                 </p>
               </div>
 
-              <div className="adminx-support-thread-body" ref={threadBodyRef}>
-                {detailMessages.map((message) => (
-                  <article
-                    key={`${message.messageId}-${message.createdAt}`}
-                    className={`adminx-support-message ${message.senderRole === "admin" ? "is-admin" : "is-user"} ${message.isInternalNote ? "is-note" : ""}`}
-                  >
-                    <header>
-                      <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : (ticketDetail.ticket.accountName || "User")}</strong>
-                      <small>{formatDateTime(message.createdAt)}</small>
-                    </header>
-                    {message.messageText ? <p>{message.messageText}</p> : null}
-                    {normalizeAttachmentFromMessage(message) ? (
-                      <a
-                        className="adminx-support-attachment-link"
-                        href={normalizeAttachmentFromMessage(message)?.fileData}
-                        target="_blank"
-                        rel="noreferrer"
-                        download={normalizeAttachmentFromMessage(message)?.fileName}
-                      >
-                        <i className="fas fa-paperclip" />
-                        <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
-                        <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
-                      </a>
-                    ) : null}
-                  </article>
-                ))}
+              <div className="adminx-support-thread-body" ref={threadBodyRef} onScroll={trackTicketScrollPosition}>
+                {detailMessages.map((message) => {
+                  const attachment = normalizeAttachmentFromMessage(message);
+                  return (
+                    <article
+                      key={`${message.messageId}-${message.createdAt}`}
+                      className={`adminx-support-message ${message.senderRole === "admin" ? "is-admin" : "is-user"} ${message.isInternalNote ? "is-note" : ""}`}
+                    >
+                      <header>
+                        <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : (ticketDetail.ticket.accountName || "User")}</strong>
+                        <small>{formatDateTime(message.createdAt)}</small>
+                      </header>
+                      {message.messageText ? <p>{message.messageText}</p> : null}
+                      <SupportAttachmentPreview attachment={attachment} />
+                    </article>
+                  );
+                })}
                 {!detailMessages.length ? <p className="adminx-muted">No thread messages yet.</p> : null}
               </div>
 
@@ -708,7 +863,7 @@ export default function SupportManagementPage({
                     value={replyText}
                     onChange={(event) => setReplyText(event.target.value)}
                     placeholder="Type support reply..."
-                    rows={3}
+                    rows={5}
                   />
                 </label>
                 <label className="adminx-support-upload-field">
@@ -719,16 +874,7 @@ export default function SupportManagementPage({
                     onChange={(event) => selectAttachment(event, setReplyAttachment)}
                   />
                 </label>
-                {replyAttachment ? (
-                  <div className="adminx-support-attachment-pill">
-                    <i className="fas fa-file-arrow-up" />
-                    <span>{replyAttachment.fileName}</span>
-                    <small>{formatBytes(replyAttachment.sizeBytes)}</small>
-                    <button type="button" onClick={() => setReplyAttachment(null)} aria-label="Remove attachment">
-                      <i className="fas fa-xmark" />
-                    </button>
-                  </div>
-                ) : null}
+                <SupportSelectedAttachment attachment={replyAttachment} onRemove={() => setReplyAttachment(null)} />
                 <div className="adminx-profile-actions">
                   <button type="button" className="btn btn-primary" onClick={sendReply} disabled={busyAction === "support.reply"}>
                     {busyAction === "support.reply" ? "Sending..." : "Send Reply"}
@@ -741,7 +887,7 @@ export default function SupportManagementPage({
                     value={internalNoteText}
                     onChange={(event) => setInternalNoteText(event.target.value)}
                     placeholder="Only admins can see this note"
-                    rows={2}
+                    rows={3}
                   />
                 </label>
                 <label className="adminx-support-upload-field">
@@ -752,16 +898,7 @@ export default function SupportManagementPage({
                     onChange={(event) => selectAttachment(event, setInternalNoteAttachment)}
                   />
                 </label>
-                {internalNoteAttachment ? (
-                  <div className="adminx-support-attachment-pill">
-                    <i className="fas fa-file-arrow-up" />
-                    <span>{internalNoteAttachment.fileName}</span>
-                    <small>{formatBytes(internalNoteAttachment.sizeBytes)}</small>
-                    <button type="button" onClick={() => setInternalNoteAttachment(null)} aria-label="Remove note attachment">
-                      <i className="fas fa-xmark" />
-                    </button>
-                  </div>
-                ) : null}
+                <SupportSelectedAttachment attachment={internalNoteAttachment} onRemove={() => setInternalNoteAttachment(null)} />
                 <div className="adminx-support-inline-controls">
                   <label className="adminx-checkbox-row">
                     <input type="checkbox" checked={showInternalNotes} onChange={(event) => setShowInternalNotes(event.target.checked)} />
@@ -871,7 +1008,7 @@ export default function SupportManagementPage({
       <div className="adminx-support-layout">
         <article className="adminx-support-list-panel">
           <div className="adminx-table-wrap">
-            <table>
+            <table className="adminx-support-live-table">
               <thead>
                 <tr>
                   <th>Thread</th>
@@ -879,13 +1016,20 @@ export default function SupportManagementPage({
                   <th>Status</th>
                   <th>Unread</th>
                   <th>Updated</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLiveThreads.length ? (
                   filteredLiveThreads.map((row) => (
-                    <tr key={row.threadRef} className={row.threadRef === selectedLiveThreadRef ? "adminx-support-selected-row" : ""}>
+                    <tr
+                      key={row.threadRef}
+                      className={`adminx-support-clickable-row ${row.threadRef === selectedLiveThreadRef ? "adminx-support-selected-row" : ""}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open live chat thread ${row.threadRef}`}
+                      onClick={() => openLiveThread(row.threadRef)}
+                      onKeyDown={(event) => handleOpenRowKeyDown(event, () => openLiveThread(row.threadRef))}
+                    >
                       <td>
                         <strong>{row.threadRef}</strong>
                         <div className="adminx-table-subtext">{row.lastMessagePreview || "-"}</div>
@@ -894,24 +1038,14 @@ export default function SupportManagementPage({
                         <strong>{row.userName || row.userId}</strong>
                         <div className="adminx-table-subtext">{row.userEmail || row.userId}</div>
                       </td>
-                      <td><span className={statusChipClass(row.status)}>{row.status}</span></td>
+                      <td><span className={statusChipClass(row.status)} title={formatSupportLabel(row.status)}>{formatSupportLabel(row.status)}</span></td>
                       <td>{toNumber(row.adminUnreadCount, 0)}</td>
-                      <td>{formatDateTime(row.updatedAt)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => openLiveThread(row.threadRef)}
-                          disabled={busyAction.startsWith("support.live.open.")}
-                        >
-                          Open
-                        </button>
-                      </td>
+                      <td title={formatDateTime(row.updatedAt)}>{formatSupportTableTime(row.updatedAt)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="adminx-muted">No live chat threads found.</td>
+                    <td colSpan={5} className="adminx-muted">No live chat threads found.</td>
                   </tr>
                 )}
               </tbody>
@@ -946,32 +1080,23 @@ export default function SupportManagementPage({
                 </p>
               </div>
 
-              <div className="adminx-support-thread-body adminx-support-live-body" ref={liveThreadBodyRef}>
-                {selectedLiveMessages.map((message) => (
-                  <article
-                    key={`${message.messageId}-${message.createdAt}`}
-                    className={`adminx-support-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
-                  >
-                    <header>
-                      <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : (selectedLiveThread.userName || "User")}</strong>
-                      <small>{formatDateTime(message.createdAt)}</small>
-                    </header>
-                    {message.messageText ? <p>{message.messageText}</p> : null}
-                    {normalizeAttachmentFromMessage(message) ? (
-                      <a
-                        className="adminx-support-attachment-link"
-                        href={normalizeAttachmentFromMessage(message)?.fileData}
-                        target="_blank"
-                        rel="noreferrer"
-                        download={normalizeAttachmentFromMessage(message)?.fileName}
-                      >
-                        <i className="fas fa-paperclip" />
-                        <span>{normalizeAttachmentFromMessage(message)?.fileName}</span>
-                        <small>{formatBytes(normalizeAttachmentFromMessage(message)?.sizeBytes)}</small>
-                      </a>
-                    ) : null}
-                  </article>
-                ))}
+              <div className="adminx-support-thread-body adminx-support-live-body" ref={liveThreadBodyRef} onScroll={trackLiveScrollPosition}>
+                {selectedLiveMessages.map((message) => {
+                  const attachment = normalizeAttachmentFromMessage(message);
+                  return (
+                    <article
+                      key={`${message.messageId}-${message.createdAt}`}
+                      className={`adminx-support-message ${message.senderRole === "admin" ? "is-admin" : "is-user"}`}
+                    >
+                      <header>
+                        <strong>{message.senderRole === "admin" ? (message.senderName || "Support Admin") : (selectedLiveThread.userName || "User")}</strong>
+                        <small>{formatDateTime(message.createdAt)}</small>
+                      </header>
+                      {message.messageText ? <p>{message.messageText}</p> : null}
+                      <SupportAttachmentPreview attachment={attachment} />
+                    </article>
+                  );
+                })}
                 {!selectedLiveMessages.length ? (
                   <p className="adminx-muted">
                     {isLiveDetailSynced ? "No live messages yet." : "Syncing selected live thread..."}
@@ -986,7 +1111,7 @@ export default function SupportManagementPage({
                     value={liveReplyText}
                     onChange={(event) => setLiveReplyText(event.target.value)}
                     placeholder="Type live chat reply..."
-                    rows={3}
+                    rows={5}
                   />
                 </label>
                 <label className="adminx-support-upload-field">
@@ -997,16 +1122,7 @@ export default function SupportManagementPage({
                     onChange={(event) => selectAttachment(event, setLiveReplyAttachment)}
                   />
                 </label>
-                {liveReplyAttachment ? (
-                  <div className="adminx-support-attachment-pill">
-                    <i className="fas fa-file-arrow-up" />
-                    <span>{liveReplyAttachment.fileName}</span>
-                    <small>{formatBytes(liveReplyAttachment.sizeBytes)}</small>
-                    <button type="button" onClick={() => setLiveReplyAttachment(null)} aria-label="Remove live attachment">
-                      <i className="fas fa-xmark" />
-                    </button>
-                  </div>
-                ) : null}
+                <SupportSelectedAttachment attachment={liveReplyAttachment} onRemove={() => setLiveReplyAttachment(null)} />
                 <div className="adminx-profile-actions">
                   <button type="button" className="btn btn-primary" onClick={sendLiveReply} disabled={busyAction === "support.live.reply"}>
                     {busyAction === "support.live.reply" ? "Sending..." : "Send Reply"}
@@ -1151,14 +1267,15 @@ export default function SupportManagementPage({
       </div>
 
       <div className="adminx-tab-row">
-        {SUPPORT_TABS.map((tab) => (
+        {supportTabItems.map((tab) => (
           <button
             key={tab.key}
             type="button"
             className={activeTab === tab.key ? "active" : ""}
             onClick={() => setActiveTab(tab.key)}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            <small>{tab.count}</small>
           </button>
         ))}
       </div>

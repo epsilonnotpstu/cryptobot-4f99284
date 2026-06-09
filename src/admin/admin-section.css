@@ -1180,6 +1180,347 @@
   font-size: 0.75rem;
 }
 
+.adminx-dashboard-overview {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.adminx-dashboard-overview,
+.adminx-dashboard-overview * {
+  letter-spacing: 0;
+}
+
+.adminx-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.78fr);
+  gap: 0.85rem;
+  align-items: stretch;
+}
+
+.adminx-command-hero,
+.adminx-command-queue,
+.adminx-dashboard-overview .adminx-kpi-card,
+.adminx-dashboard-overview .adminx-panel,
+.adminx-dashboard-overview .adminx-approval-summary-card {
+  border-radius: 8px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
+    rgba(7, 15, 29, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 20px 50px rgba(0, 0, 0, 0.18);
+}
+
+.adminx-command-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 285px;
+  padding: 1.15rem;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: 1rem;
+}
+
+.adminx-command-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(59, 130, 246, 0.18), transparent 52%),
+    radial-gradient(circle at 82% 24%, rgba(20, 184, 166, 0.16), transparent 30rem);
+}
+
+.adminx-command-copy,
+.adminx-command-actions,
+.adminx-command-health-strip {
+  position: relative;
+  z-index: 1;
+}
+
+.adminx-command-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 17, 32, 0.64);
+  color: #7dd3fc;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.25rem 0.62rem;
+}
+
+.adminx-command-copy h2 {
+  max-width: 720px;
+  margin: 0.75rem 0 0;
+  color: #f8fbff;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+  line-height: 1.02;
+}
+
+.adminx-command-copy p {
+  max-width: 680px;
+  margin: 0.8rem 0 0;
+  color: #a9bedc;
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.adminx-command-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.adminx-command-actions .btn {
+  min-height: 40px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.adminx-command-health-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.adminx-command-health-strip p {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.46);
+  padding: 0.6rem 0.7rem;
+}
+
+.adminx-command-health-strip span,
+.adminx-command-health-strip strong {
+  display: block;
+}
+
+.adminx-command-health-strip span {
+  color: #91a8ca;
+  font-size: 0.75rem;
+}
+
+.adminx-command-health-strip strong {
+  margin-top: 0.15rem;
+  color: #f4f9ff;
+  font-size: 1.05rem;
+}
+
+.adminx-command-queue {
+  padding: 0.9rem;
+  min-height: 285px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.adminx-command-queue .adminx-approval-feed {
+  align-content: start;
+  max-height: 232px;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.adminx-dashboard-overview .adminx-approval-item {
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.58);
+}
+
+.adminx-dashboard-overview .adminx-approval-item .adminx-filter-btn {
+  border-radius: 8px;
+  min-height: 34px;
+}
+
+.adminx-approval-summary-grid-premium {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.adminx-dashboard-overview .adminx-approval-summary-card {
+  position: relative;
+  min-height: 154px;
+  padding: 0.85rem;
+  overflow: hidden;
+}
+
+.adminx-dashboard-overview .adminx-approval-summary-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.75), rgba(129, 140, 248, 0.18));
+}
+
+.adminx-summary-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fbff;
+  margin-bottom: 0.2rem;
+}
+
+.adminx-summary-icon.blue { background: rgba(37, 99, 235, 0.32); }
+.adminx-summary-icon.emerald { background: rgba(16, 185, 129, 0.28); }
+.adminx-summary-icon.gold { background: rgba(245, 158, 11, 0.28); }
+.adminx-summary-icon.purple { background: rgba(124, 58, 237, 0.3); }
+
+.adminx-dashboard-overview .adminx-approval-summary-card strong {
+  font-size: 1.55rem;
+}
+
+.adminx-dashboard-overview .adminx-approval-summary-card button {
+  border-radius: 8px;
+  min-height: 34px;
+}
+
+.adminx-dashboard-kpi-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.adminx-dashboard-overview .adminx-kpi-card {
+  min-height: 134px;
+  padding: 0.85rem;
+}
+
+.adminx-dashboard-overview .adminx-kpi-icon {
+  border-radius: 8px;
+}
+
+.adminx-dashboard-overview .adminx-kpi-growth {
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+
+.adminx-insight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+  gap: 0.85rem;
+}
+
+.adminx-ops-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(300px, 1fr) minmax(320px, 1.05fr);
+  gap: 0.85rem;
+}
+
+.adminx-dashboard-overview .adminx-panel {
+  padding: 0.95rem;
+  min-width: 0;
+}
+
+.adminx-dashboard-overview .adminx-panel-head h2 {
+  font-size: 1rem;
+}
+
+.adminx-dashboard-overview .adminx-panel-head div span,
+.adminx-dashboard-overview .adminx-panel-head > span {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.adminx-chart-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #9fb5d5;
+  font-size: 0.78rem;
+}
+
+.adminx-chart-legend span {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0 !important;
+}
+
+.adminx-chart-legend b {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.adminx-chart-legend b.profit {
+  background: #3b82f6;
+}
+
+.adminx-chart-legend b.loss {
+  background: #ef4444;
+}
+
+.adminx-dashboard-overview .adminx-line-chart {
+  min-height: 260px;
+  border: 1px solid rgba(125, 211, 252, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    rgba(3, 10, 20, 0.42);
+  background-size: 100% 25%, 25% 100%, auto;
+}
+
+.adminx-strategy-panel .adminx-strategy-wrap {
+  min-height: 260px;
+  justify-content: center;
+}
+
+.adminx-dashboard-overview .adminx-donut {
+  width: 168px;
+  height: 168px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+}
+
+.adminx-dashboard-overview .adminx-donut span {
+  inset: 24px;
+}
+
+.adminx-dashboard-overview .adminx-health-list p {
+  border: 1px solid rgba(125, 211, 252, 0.12);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.36);
+  padding: 0.55rem 0.65rem;
+}
+
+.adminx-bot-panel .adminx-bar-chart {
+  height: 238px;
+}
+
+.adminx-bot-panel .adminx-bars {
+  height: 190px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.adminx-bot-panel .adminx-bars span {
+  width: 18px;
+  border-radius: 6px 6px 2px 2px;
+}
+
+.adminx-bot-panel .adminx-bars .profit {
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+.adminx-bot-panel .adminx-bars .loss {
+  background: linear-gradient(180deg, #fb7185, #dc2626);
+}
+
+.adminx-activity-panel .adminx-activity-list {
+  max-height: 238px;
+  padding-right: 0.15rem;
+}
+
+.adminx-dashboard-overview .adminx-activity-list article {
+  border: 1px solid rgba(125, 211, 252, 0.1);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.34);
+  padding: 0.58rem 0.65rem;
+}
+
 .adminx-users-shell {
   display: grid;
   gap: 0.72rem;
@@ -1524,6 +1865,651 @@
   padding: 0.62rem 0.85rem;
   color: #91abce;
   font-size: 0.82rem;
+}
+
+.adminx-user-management-shell,
+.adminx-user-management-shell * {
+  letter-spacing: 0;
+}
+
+.adminx-user-management-shell {
+  gap: 0.9rem;
+}
+
+.adminx-user-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.adminx-user-intel-grid article {
+  position: relative;
+  min-height: 138px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
+    rgba(7, 15, 29, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 44px rgba(0, 0, 0, 0.16);
+  padding: 0.85rem;
+}
+
+.adminx-user-intel-grid article::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.72), rgba(129, 140, 248, 0.14));
+}
+
+.adminx-user-intel-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fbff;
+  margin-bottom: 0.4rem;
+}
+
+.adminx-user-intel-icon.blue { background: rgba(37, 99, 235, 0.32); }
+.adminx-user-intel-icon.gold { background: rgba(245, 158, 11, 0.28); }
+.adminx-user-intel-icon.purple { background: rgba(124, 58, 237, 0.3); }
+.adminx-user-intel-icon.red { background: rgba(239, 68, 68, 0.26); }
+
+.adminx-user-intel-grid small {
+  display: block;
+  color: #9fb6d7;
+  font-size: 0.75rem;
+}
+
+.adminx-user-intel-grid strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #f8fbff;
+  font-size: 1.55rem;
+  line-height: 1.1;
+}
+
+.adminx-user-intel-grid p {
+  margin: 0.35rem 0 0;
+  color: #91a8ca;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.adminx-user-management-shell .adminx-user-tabs {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  background: rgba(4, 12, 25, 0.56);
+  padding: 0.28rem;
+}
+
+.adminx-user-management-shell .adminx-user-tabs button {
+  min-height: 40px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.adminx-user-management-shell .adminx-user-tabs button small {
+  min-width: 22px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.64);
+  color: #cbe5ff;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 0.2rem 0.36rem;
+  text-align: center;
+}
+
+.adminx-user-management-shell .adminx-user-tabs button:hover,
+.adminx-user-management-shell .adminx-user-tabs button.active {
+  border-color: rgba(56, 189, 248, 0.36);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.54), rgba(14, 165, 233, 0.32));
+  color: #f8fbff;
+}
+
+.adminx-user-management-shell .adminx-user-tabs button.active small {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.adminx-user-directory-card {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 30rem),
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+}
+
+.adminx-user-management-shell .adminx-user-toolbar {
+  grid-template-columns: minmax(260px, 440px) auto auto;
+  border-bottom-color: rgba(125, 211, 252, 0.12);
+  background: rgba(4, 12, 25, 0.26);
+}
+
+.adminx-user-management-shell .adminx-user-search,
+.adminx-user-management-shell .adminx-filter-btn {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.72);
+}
+
+.adminx-user-management-shell .adminx-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.adminx-user-management-shell .adminx-filter-btn.active,
+.adminx-user-management-shell .adminx-filter-btn:hover {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(14, 116, 144, 0.22);
+  color: #f8fbff;
+}
+
+.adminx-user-management-shell .adminx-user-count {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.54);
+  color: #cbe5ff;
+  padding: 0.35rem 0.65rem;
+}
+
+.adminx-user-filter-panel {
+  border-bottom-color: rgba(125, 211, 252, 0.12);
+  background: rgba(3, 10, 20, 0.38);
+}
+
+.adminx-user-management-shell .adminx-filter-panel label {
+  color: #c5d8f1;
+}
+
+.adminx-user-management-shell .adminx-filter-panel select,
+.adminx-user-management-shell .adminx-inline-select {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
+.adminx-user-management-shell .adminx-user-table-wrap {
+  max-height: min(64vh, 760px);
+  background: rgba(3, 10, 20, 0.18);
+}
+
+.adminx-user-management-shell .adminx-user-table {
+  min-width: 1120px;
+}
+
+.adminx-user-management-shell .adminx-user-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(5, 13, 27, 0.98);
+}
+
+.adminx-user-management-shell .adminx-user-table th {
+  border-bottom-color: rgba(125, 211, 252, 0.16);
+  color: #9fc4ea;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.adminx-user-management-shell .adminx-user-table td {
+  border-bottom-color: rgba(125, 211, 252, 0.09);
+}
+
+.adminx-user-management-shell .adminx-user-table tbody tr {
+  transition: background 0.16s ease;
+}
+
+.adminx-user-management-shell .adminx-user-table tbody tr:hover td {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.adminx-user-management-shell .adminx-user-cell-name span:last-child {
+  color: #f4f9ff;
+  font-weight: 700;
+}
+
+.adminx-user-management-shell .adminx-user-avatar {
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+}
+
+.adminx-user-management-shell .adminx-tag {
+  border-radius: 999px;
+  min-height: 24px;
+}
+
+.adminx-user-management-shell .adminx-row-actions button {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 28, 53, 0.78);
+  color: #dcecff;
+}
+
+.adminx-user-management-shell .adminx-row-actions button:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.46);
+  color: #ffffff;
+}
+
+.adminx-user-management-shell .adminx-row-actions button.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}
+
+.adminx-user-management-shell .adminx-row-actions button.danger:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.58);
+  background: rgba(127, 29, 29, 0.46);
+}
+
+.adminx-user-management-shell .adminx-user-footer {
+  border-top: 1px solid rgba(125, 211, 252, 0.1);
+  background: rgba(4, 12, 25, 0.24);
+}
+
+.adminx-user-management-shell .adminx-user-detail-modal {
+  border-color: rgba(125, 211, 252, 0.2);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 28rem),
+    linear-gradient(160deg, rgba(10, 19, 36, 0.99), rgba(7, 15, 29, 0.98));
+}
+
+.adminx-user-management-shell .adminx-profile-meta {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background: rgba(4, 12, 25, 0.52);
+}
+
+.adminx-user-management-shell .adminx-profile-avatar {
+  border-radius: 8px;
+}
+
+.adminx-user-management-shell .adminx-profile-grid p,
+.adminx-user-management-shell .adminx-detail-section {
+  border-color: rgba(125, 211, 252, 0.13);
+  border-radius: 8px;
+  background: rgba(4, 12, 25, 0.44);
+}
+
+.adminx-user-management-shell .adminx-detail-section h3 {
+  color: #f8fbff;
+}
+
+.adminx-user-management-shell .adminx-simple-table th {
+  color: #9fc4ea;
+}
+
+.adminx-user-management-shell .adminx-simple-table td,
+.adminx-user-management-shell .adminx-simple-table th {
+  border-bottom-color: rgba(125, 211, 252, 0.1);
+}
+
+.adminx-user-management-shell .adminx-field-input,
+.adminx-user-management-shell .adminx-table-input {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
+.adminx-kyc-review-shell,
+.adminx-kyc-review-shell * {
+  letter-spacing: 0;
+}
+
+.adminx-kyc-review-shell {
+  gap: 0.9rem;
+}
+
+.adminx-kyc-intel-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.adminx-kyc-intel-grid article {
+  position: relative;
+  min-height: 138px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
+    rgba(7, 15, 29, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 44px rgba(0, 0, 0, 0.16);
+  padding: 0.85rem;
+}
+
+.adminx-kyc-intel-grid article::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.72), rgba(129, 140, 248, 0.14));
+}
+
+.adminx-kyc-intel-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fbff;
+  margin-bottom: 0.4rem;
+}
+
+.adminx-kyc-intel-icon.gold { background: rgba(245, 158, 11, 0.28); }
+.adminx-kyc-intel-icon.green { background: rgba(22, 163, 74, 0.28); }
+.adminx-kyc-intel-icon.red { background: rgba(239, 68, 68, 0.26); }
+.adminx-kyc-intel-icon.blue { background: rgba(37, 99, 235, 0.32); }
+
+.adminx-kyc-intel-grid small {
+  display: block;
+  color: #9fb6d7;
+  font-size: 0.75rem;
+}
+
+.adminx-kyc-intel-grid strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #f8fbff;
+  font-size: 1.55rem;
+  line-height: 1.1;
+}
+
+.adminx-kyc-intel-grid p {
+  margin: 0.35rem 0 0;
+  color: #91a8ca;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.adminx-kyc-review-shell .adminx-user-tabs {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  background: rgba(4, 12, 25, 0.56);
+  padding: 0.28rem;
+}
+
+.adminx-kyc-review-shell .adminx-user-tabs button {
+  min-height: 40px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.adminx-kyc-review-shell .adminx-user-tabs button small {
+  min-width: 22px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.64);
+  color: #cbe5ff;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 0.2rem 0.36rem;
+  text-align: center;
+}
+
+.adminx-kyc-review-shell .adminx-user-tabs button:hover,
+.adminx-kyc-review-shell .adminx-user-tabs button.active {
+  border-color: rgba(56, 189, 248, 0.36);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.54), rgba(14, 165, 233, 0.32));
+  color: #f8fbff;
+}
+
+.adminx-kyc-review-shell .adminx-user-tabs button.active small {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.adminx-kyc-review-card {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 30rem),
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+}
+
+.adminx-kyc-review-shell .adminx-user-toolbar {
+  grid-template-columns: minmax(260px, 440px) auto auto;
+  border-bottom-color: rgba(125, 211, 252, 0.12);
+  background: rgba(4, 12, 25, 0.26);
+}
+
+.adminx-kyc-review-shell .adminx-user-search,
+.adminx-kyc-review-shell .adminx-filter-btn {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.72);
+}
+
+.adminx-kyc-review-shell .adminx-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.adminx-kyc-review-shell .adminx-filter-btn.active,
+.adminx-kyc-review-shell .adminx-filter-btn:hover {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(14, 116, 144, 0.22);
+  color: #f8fbff;
+}
+
+.adminx-kyc-review-shell .adminx-user-count {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.54);
+  color: #cbe5ff;
+  padding: 0.35rem 0.65rem;
+}
+
+.adminx-kyc-filter-panel {
+  border-bottom-color: rgba(125, 211, 252, 0.12);
+  background: rgba(3, 10, 20, 0.38);
+}
+
+.adminx-kyc-review-shell .adminx-filter-panel label {
+  color: #c5d8f1;
+}
+
+.adminx-kyc-review-shell .adminx-filter-panel select {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
+.adminx-kyc-review-shell .adminx-user-table-wrap {
+  max-height: min(64vh, 760px);
+  background: rgba(3, 10, 20, 0.18);
+}
+
+.adminx-kyc-review-shell .adminx-user-table {
+  min-width: 1040px;
+}
+
+.adminx-kyc-review-shell .adminx-user-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(5, 13, 27, 0.98);
+}
+
+.adminx-kyc-review-shell .adminx-user-table th {
+  border-bottom-color: rgba(125, 211, 252, 0.16);
+  color: #9fc4ea;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.adminx-kyc-review-shell .adminx-user-table td {
+  border-bottom-color: rgba(125, 211, 252, 0.09);
+}
+
+.adminx-kyc-review-shell .adminx-user-table tbody tr:hover td {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.adminx-kyc-review-shell .adminx-user-avatar {
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 28, 53, 0.78);
+  color: #dcecff;
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.46);
+  color: #ffffff;
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button.approve {
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #bbf7d0;
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button.approve:hover:not(:disabled) {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(20, 83, 45, 0.42);
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button.danger:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.58);
+  background: rgba(127, 29, 29, 0.46);
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button.pending {
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #fde68a;
+}
+
+.adminx-kyc-review-shell .adminx-row-actions button.pending:hover:not(:disabled) {
+  border-color: rgba(245, 158, 11, 0.52);
+  background: rgba(120, 53, 15, 0.4);
+}
+
+.adminx-kyc-review-shell .adminx-user-footer {
+  border-top: 1px solid rgba(125, 211, 252, 0.1);
+  background: rgba(4, 12, 25, 0.24);
+  flex-wrap: wrap;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-detail-modal,
+.adminx-kyc-review-shell .adminx-delete-modal {
+  border-color: rgba(125, 211, 252, 0.2);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 28rem),
+    linear-gradient(160deg, rgba(10, 19, 36, 0.99), rgba(7, 15, 29, 0.98));
+}
+
+.adminx-kyc-review-shell .adminx-profile-grid p,
+.adminx-kyc-review-shell .adminx-detail-section,
+.adminx-kyc-review-shell .adminx-kyc-media-card {
+  border-color: rgba(125, 211, 252, 0.13);
+  border-radius: 8px;
+  background: rgba(4, 12, 25, 0.44);
+}
+
+.adminx-kyc-review-shell .adminx-detail-section h3 {
+  color: #f8fbff;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-card header {
+  border-bottom: 1px solid rgba(125, 211, 252, 0.1);
+  background: rgba(3, 10, 20, 0.38);
+  padding: 0.72rem;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-card h4 {
+  color: #f8fbff;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-card small {
+  color: #9fb6d7;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-viewport {
+  min-height: 290px;
+  border: none;
+  border-radius: 0;
+  background:
+    linear-gradient(45deg, rgba(148, 163, 184, 0.04) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(148, 163, 184, 0.04) 25%, transparent 25%),
+    rgba(2, 8, 20, 0.62);
+  background-size: 18px 18px;
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-empty {
+  min-height: 220px;
+  border-radius: 0;
+  background: rgba(2, 8, 20, 0.56);
+}
+
+.adminx-kyc-review-shell .adminx-kyc-media-card .btn {
+  margin: 0.72rem;
+}
+
+.adminx-review-note-field {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+  color: #c5d8f1;
+  font-size: 0.84rem;
+}
+
+.adminx-review-note-field textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 116px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+  color: #edf6ff;
+  padding: 0.7rem;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.adminx-review-note-field textarea:focus {
+  border-color: rgba(56, 189, 248, 0.58);
+  box-shadow: var(--adminx-focus-ring);
+  outline: none;
 }
 
 .adminx-empty-state {
@@ -2276,7 +3262,472 @@
   background: rgba(15, 23, 42, 0.35);
 }
 
+.adminx-deposit-management-shell,
+.adminx-binary-management-shell,
+.adminx-deposit-management-shell *,
+.adminx-binary-management-shell * {
+  letter-spacing: 0;
+}
+
+.adminx-deposit-management-shell,
+.adminx-binary-management-shell {
+  gap: 0.9rem;
+}
+
+.adminx-deposit-intel-grid,
+.adminx-loan-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.adminx-deposit-intel-grid article,
+.adminx-loan-status-grid article {
+  position: relative;
+  min-height: 132px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
+    rgba(7, 15, 29, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 44px rgba(0, 0, 0, 0.16);
+  padding: 0.85rem;
+}
+
+.adminx-deposit-intel-grid article::after,
+.adminx-loan-status-grid article::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.72), rgba(129, 140, 248, 0.14));
+}
+
+.adminx-deposit-intel-icon,
+.adminx-loan-status-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fbff;
+  margin-bottom: 0.4rem;
+}
+
+.adminx-deposit-intel-icon.blue,
+.adminx-loan-status-icon.blue { background: rgba(37, 99, 235, 0.32); }
+.adminx-deposit-intel-icon.gold,
+.adminx-loan-status-icon.gold { background: rgba(245, 158, 11, 0.28); }
+.adminx-deposit-intel-icon.green,
+.adminx-loan-status-icon.green { background: rgba(22, 163, 74, 0.28); }
+.adminx-deposit-intel-icon.red,
+.adminx-loan-status-icon.red { background: rgba(239, 68, 68, 0.26); }
+
+.adminx-deposit-intel-grid small,
+.adminx-loan-status-grid small {
+  display: block;
+  color: #9fb6d7;
+  font-size: 0.75rem;
+}
+
+.adminx-deposit-intel-grid strong,
+.adminx-loan-status-grid strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #f8fbff;
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.adminx-deposit-intel-grid p,
+.adminx-loan-status-grid p {
+  margin: 0.35rem 0 0;
+  color: #91a8ca;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.adminx-deposit-management-shell .adminx-user-tabs,
+.adminx-binary-management-shell .adminx-user-tabs {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  background: rgba(4, 12, 25, 0.56);
+  padding: 0.28rem;
+}
+
+.adminx-deposit-management-shell .adminx-user-tabs button,
+.adminx-binary-management-shell .adminx-user-tabs button {
+  min-height: 40px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.adminx-deposit-management-shell .adminx-user-tabs button small,
+.adminx-binary-management-shell .adminx-user-tabs button small {
+  min-width: 22px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.64);
+  color: #cbe5ff;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 0.2rem 0.36rem;
+  text-align: center;
+}
+
+.adminx-deposit-management-shell .adminx-user-tabs button:hover,
+.adminx-deposit-management-shell .adminx-user-tabs button.active,
+.adminx-binary-management-shell .adminx-user-tabs button:hover,
+.adminx-binary-management-shell .adminx-user-tabs button.active {
+  border-color: rgba(56, 189, 248, 0.36);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.54), rgba(14, 165, 233, 0.32));
+  color: #f8fbff;
+}
+
+.adminx-deposit-management-shell .adminx-user-tabs button.active small,
+.adminx-binary-management-shell .adminx-user-tabs button.active small {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.adminx-deposit-workspace-card,
+.adminx-binary-workspace-card {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 30rem),
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+}
+
+.adminx-deposit-management-shell .adminx-user-toolbar,
+.adminx-binary-management-shell .adminx-user-toolbar {
+  grid-template-columns: minmax(260px, 440px) auto auto;
+  border-bottom-color: rgba(125, 211, 252, 0.12);
+  background: rgba(4, 12, 25, 0.26);
+}
+
+.adminx-deposit-management-shell .adminx-user-search,
+.adminx-deposit-management-shell .adminx-filter-btn,
+.adminx-binary-management-shell .adminx-user-search,
+.adminx-binary-management-shell .adminx-filter-btn {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.72);
+}
+
+.adminx-deposit-management-shell .adminx-filter-btn,
+.adminx-binary-management-shell .adminx-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.adminx-deposit-management-shell .adminx-filter-btn:hover,
+.adminx-binary-management-shell .adminx-filter-btn:hover {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(14, 116, 144, 0.22);
+  color: #f8fbff;
+}
+
+.adminx-deposit-management-shell .adminx-user-count,
+.adminx-binary-management-shell .adminx-user-count {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.54);
+  color: #cbe5ff;
+  padding: 0.35rem 0.65rem;
+}
+
+.adminx-deposit-management-shell .adminx-deposit-layout,
+.adminx-binary-management-shell .adminx-deposit-layout {
+  gap: 0.9rem;
+  padding: 0.9rem;
+}
+
+.adminx-deposit-management-shell .adminx-deposit-asset-form,
+.adminx-binary-management-shell .adminx-deposit-asset-form,
+.adminx-loan-page .adminx-loan-editor,
+.adminx-loan-page .adminx-loan-settings {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(8, 17, 33, 0.92), rgba(5, 12, 24, 0.86)),
+    rgba(8, 16, 31, 0.74);
+}
+
+.adminx-deposit-management-shell .adminx-deposit-asset-form h3,
+.adminx-binary-management-shell .adminx-deposit-asset-form h3 {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.adminx-deposit-management-shell .adminx-deposit-asset-form input:not([type="checkbox"]),
+.adminx-deposit-management-shell .adminx-deposit-asset-form textarea,
+.adminx-deposit-management-shell .adminx-deposit-asset-form select,
+.adminx-binary-management-shell .adminx-deposit-asset-form input:not([type="checkbox"]),
+.adminx-binary-management-shell .adminx-deposit-asset-form textarea,
+.adminx-binary-management-shell .adminx-deposit-asset-form select {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
+.adminx-deposit-management-shell .adminx-deposit-logo-upload {
+  border-color: rgba(125, 211, 252, 0.22);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.42);
+}
+
+.adminx-deposit-management-shell .adminx-deposit-asset-table-wrap,
+.adminx-binary-management-shell .adminx-deposit-asset-table-wrap,
+.adminx-binary-management-shell .adminx-user-table-wrap,
+.adminx-deposit-management-shell .adminx-user-table-wrap {
+  border-color: rgba(125, 211, 252, 0.12);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.18);
+  max-height: min(64vh, 760px);
+}
+
+.adminx-deposit-management-shell .adminx-user-table,
+.adminx-binary-management-shell .adminx-user-table {
+  min-width: 1040px;
+}
+
+.adminx-binary-management-shell .adminx-user-table {
+  min-width: 1100px;
+}
+
+.adminx-deposit-management-shell .adminx-user-table thead,
+.adminx-binary-management-shell .adminx-user-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(5, 13, 27, 0.98);
+}
+
+.adminx-deposit-management-shell .adminx-user-table th,
+.adminx-binary-management-shell .adminx-user-table th {
+  border-bottom-color: rgba(125, 211, 252, 0.16);
+  color: #9fc4ea;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.adminx-deposit-management-shell .adminx-user-table td,
+.adminx-binary-management-shell .adminx-user-table td {
+  border-bottom-color: rgba(125, 211, 252, 0.09);
+}
+
+.adminx-deposit-management-shell .adminx-user-table tbody tr:hover td,
+.adminx-binary-management-shell .adminx-user-table tbody tr:hover td {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button,
+.adminx-binary-management-shell .adminx-row-actions button {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 28, 53, 0.78);
+  color: #dcecff;
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button:hover:not(:disabled),
+.adminx-binary-management-shell .adminx-row-actions button:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.46);
+  color: #ffffff;
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button.approve,
+.adminx-binary-management-shell .adminx-row-actions button.approve {
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #bbf7d0;
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button.approve:hover:not(:disabled),
+.adminx-binary-management-shell .adminx-row-actions button.approve:hover:not(:disabled) {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(20, 83, 45, 0.42);
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button.danger,
+.adminx-binary-management-shell .adminx-row-actions button.danger {
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button.danger:hover:not(:disabled),
+.adminx-binary-management-shell .adminx-row-actions button.danger:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.58);
+  background: rgba(127, 29, 29, 0.46);
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button.pending,
+.adminx-binary-management-shell .adminx-row-actions button.pending {
+  border-color: rgba(245, 158, 11, 0.28);
+  color: #fde68a;
+}
+
+.adminx-deposit-management-shell .adminx-row-actions button.pending:hover:not(:disabled),
+.adminx-binary-management-shell .adminx-row-actions button.pending:hover:not(:disabled) {
+  border-color: rgba(245, 158, 11, 0.52);
+  background: rgba(120, 53, 15, 0.4);
+}
+
+.adminx-deposit-management-shell .adminx-user-footer,
+.adminx-binary-management-shell .adminx-user-footer {
+  border-top: 1px solid rgba(125, 211, 252, 0.1);
+  background: rgba(4, 12, 25, 0.24);
+  flex-wrap: wrap;
+}
+
+.adminx-binary-management-shell .adminx-binary-kpi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.adminx-binary-management-shell .adminx-kpi-card {
+  min-height: 132px;
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94)),
+    rgba(7, 15, 29, 0.94);
+}
+
+.adminx-binary-management-shell .adminx-binary-outcome-card,
+.adminx-binary-management-shell .adminx-binary-top-pairs {
+  border-color: rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.42);
+}
+
+.adminx-binary-management-shell .adminx-binary-control-layout {
+  grid-template-columns: minmax(420px, 1fr) minmax(280px, 360px);
+}
+
+.adminx-binary-management-shell .adminx-binary-side-stack {
+  gap: 0.9rem;
+}
+
+.adminx-binary-management-shell .adminx-activity-list article {
+  border: 1px solid rgba(125, 211, 252, 0.1);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.34);
+  padding: 0.58rem 0.65rem;
+}
+
+.adminx-loan-page {
+  gap: 0.9rem;
+}
+
+.adminx-loan-page .adminx-panel-head h2,
+.adminx-loan-page .adminx-loan-list-editor .adminx-panel-head h3 {
+  letter-spacing: 0;
+}
+
+.adminx-loan-page .adminx-filter-btn,
+.adminx-loan-page .adminx-icon-btn,
+.adminx-loan-page .adminx-status-pill,
+.adminx-loan-page .btn {
+  border-radius: 8px;
+}
+
+.adminx-loan-page .adminx-form-grid input,
+.adminx-loan-page .adminx-form-grid textarea,
+.adminx-loan-page .adminx-form-grid select,
+.adminx-loan-page .adminx-loan-row-editor input,
+.adminx-loan-page .adminx-loan-row-editor textarea {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
+.adminx-loan-page .adminx-loan-row-editor,
+.adminx-loan-page .adminx-toggle-line,
+.adminx-loan-page .adminx-loan-locked-card {
+  border-color: rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.38);
+}
+
+.adminx-loan-page .adminx-loan-locked-grid {
+  gap: 0.75rem;
+}
+
+.adminx-loan-page .adminx-loan-locked-card {
+  min-height: 176px;
+}
+
+.adminx-loan-page .adminx-loan-locked-card button {
+  border-radius: 8px;
+}
+
 @media (max-width: 1320px) {
+  .adminx-deposit-intel-grid,
+  .adminx-loan-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminx-deposit-management-shell .adminx-user-toolbar,
+  .adminx-binary-management-shell .adminx-user-toolbar {
+    grid-template-columns: minmax(240px, 1fr) auto;
+  }
+
+  .adminx-deposit-management-shell .adminx-user-count,
+  .adminx-binary-management-shell .adminx-user-count {
+    justify-self: start;
+  }
+
+  .adminx-binary-management-shell .adminx-binary-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminx-kyc-intel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminx-kyc-review-shell .adminx-user-toolbar {
+    grid-template-columns: minmax(240px, 1fr) auto;
+  }
+
+  .adminx-kyc-review-shell .adminx-user-count {
+    justify-self: start;
+  }
+
+  .adminx-user-intel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminx-user-management-shell .adminx-user-toolbar {
+    grid-template-columns: minmax(240px, 1fr) auto;
+  }
+
+  .adminx-user-management-shell .adminx-user-count {
+    justify-self: start;
+  }
+
+  .adminx-command-grid,
+  .adminx-insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-approval-summary-grid-premium {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminx-ops-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .adminx-approval-summary-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -2291,6 +3742,23 @@
 }
 
 @media (max-width: 1080px) {
+  .adminx-deposit-management-shell .adminx-user-toolbar,
+  .adminx-binary-management-shell .adminx-user-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-binary-management-shell .adminx-binary-control-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-kyc-review-shell .adminx-user-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-user-management-shell .adminx-user-toolbar {
+    grid-template-columns: 1fr;
+  }
+
   .adminx-approval-hero {
     flex-direction: column;
     align-items: flex-start;
@@ -2298,6 +3766,26 @@
 
   .adminx-approval-hero-actions {
     width: 100%;
+  }
+
+  .adminx-command-hero {
+    min-height: auto;
+  }
+
+  .adminx-command-queue {
+    min-height: auto;
+  }
+
+  .adminx-command-queue .adminx-approval-feed {
+    max-height: none;
+  }
+
+  .adminx-dashboard-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .adminx-ops-grid {
+    grid-template-columns: 1fr;
   }
 
   .adminx-dashboard-shell {
@@ -2387,6 +3875,89 @@
 }
 
 @media (max-width: 760px) {
+  .adminx-deposit-intel-grid,
+  .adminx-loan-status-grid,
+  .adminx-binary-management-shell .adminx-binary-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-deposit-management-shell .adminx-user-tabs,
+  .adminx-binary-management-shell .adminx-user-tabs {
+    width: 100%;
+  }
+
+  .adminx-deposit-management-shell .adminx-user-toolbar-actions,
+  .adminx-binary-management-shell .adminx-user-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminx-deposit-management-shell .adminx-user-toolbar-actions .adminx-filter-btn,
+  .adminx-binary-management-shell .adminx-user-toolbar-actions .adminx-filter-btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .adminx-kyc-intel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-kyc-review-shell .adminx-user-tabs {
+    width: 100%;
+  }
+
+  .adminx-kyc-review-shell .adminx-user-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminx-kyc-review-shell .adminx-user-toolbar-actions .adminx-filter-btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .adminx-user-intel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-user-management-shell .adminx-user-tabs {
+    width: 100%;
+  }
+
+  .adminx-user-management-shell .adminx-user-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminx-user-management-shell .adminx-user-toolbar-actions .adminx-filter-btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .adminx-command-copy h2 {
+    font-size: 2rem;
+  }
+
+  .adminx-command-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .adminx-command-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .adminx-command-health-strip,
+  .adminx-approval-summary-grid-premium,
+  .adminx-dashboard-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminx-chart-legend {
+    flex-wrap: wrap;
+  }
+
   .adminx-approval-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -3117,6 +4688,436 @@
   background: linear-gradient(130deg, rgba(37, 99, 235, 0.16), rgba(14, 116, 144, 0.12));
 }
 
+.adminx-support-root,
+.adminx-support-root * {
+  letter-spacing: 0;
+}
+
+.adminx-support-root {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 6% 0%, rgba(20, 184, 166, 0.1), transparent 26rem),
+    radial-gradient(circle at 92% 8%, rgba(59, 130, 246, 0.14), transparent 30rem),
+    linear-gradient(160deg, rgba(10, 20, 38, 0.96), rgba(7, 15, 29, 0.94));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+}
+
+.adminx-support-root > .adminx-panel-head {
+  border: 1px solid rgba(125, 211, 252, 0.12);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.34);
+  padding: 0.72rem;
+  margin-bottom: 0;
+}
+
+.adminx-support-root .adminx-profile-actions {
+  flex-wrap: wrap;
+}
+
+.adminx-support-root .adminx-tab-row {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 12px;
+  background: rgba(4, 12, 25, 0.56);
+  padding: 0.28rem;
+}
+
+.adminx-support-root .adminx-tab-row button {
+  min-height: 40px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.adminx-support-root .adminx-tab-row button small {
+  min-width: 22px;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  background: rgba(15, 28, 53, 0.64);
+  color: #cbe5ff;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 0.2rem 0.36rem;
+  text-align: center;
+}
+
+.adminx-support-root .adminx-tab-row button.active,
+.adminx-support-root .adminx-tab-row button:hover {
+  border-color: rgba(56, 189, 248, 0.36);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.54), rgba(14, 165, 233, 0.32));
+  color: #f8fbff;
+}
+
+.adminx-support-root .adminx-tab-row button.active small {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.adminx-support-panel {
+  border-color: rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.18);
+}
+
+.adminx-support-kpi-grid {
+  gap: 0.75rem;
+}
+
+.adminx-support-kpi-card {
+  min-height: 126px;
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(10, 20, 38, 0.94), rgba(7, 15, 29, 0.92)),
+    rgba(7, 15, 29, 0.94);
+}
+
+.adminx-support-kpi-card strong {
+  font-size: 1.6rem;
+}
+
+.adminx-support-overview-grid > .adminx-panel,
+.adminx-support-list-panel,
+.adminx-support-thread-panel {
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(160deg, rgba(8, 17, 33, 0.9), rgba(5, 12, 24, 0.84)),
+    rgba(8, 16, 31, 0.74);
+}
+
+.adminx-support-layout {
+  grid-template-columns: minmax(500px, 0.98fr) minmax(520px, 1.02fr);
+  gap: 0.9rem;
+}
+
+.adminx-support-list-panel,
+.adminx-support-thread-panel {
+  min-width: 0;
+}
+
+.adminx-support-list-panel .adminx-table-wrap {
+  max-height: min(72vh, 820px);
+  border-radius: 8px;
+  overflow-x: hidden;
+}
+
+.adminx-support-list-panel .adminx-table-wrap table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.adminx-support-list-panel .adminx-table-wrap th,
+.adminx-support-list-panel .adminx-table-wrap td {
+  padding: 0.68rem 0.58rem;
+  vertical-align: middle;
+  min-width: 0;
+}
+
+.adminx-support-ticket-table th:nth-child(1),
+.adminx-support-ticket-table td:nth-child(1) { width: 29%; }
+
+.adminx-support-ticket-table th:nth-child(2),
+.adminx-support-ticket-table td:nth-child(2) { width: 22%; }
+
+.adminx-support-ticket-table th:nth-child(3),
+.adminx-support-ticket-table td:nth-child(3) { width: 15%; }
+
+.adminx-support-ticket-table th:nth-child(4),
+.adminx-support-ticket-table td:nth-child(4) { width: 11%; }
+
+.adminx-support-ticket-table th:nth-child(5),
+.adminx-support-ticket-table td:nth-child(5) { width: 8%; }
+
+.adminx-support-ticket-table th:nth-child(6),
+.adminx-support-ticket-table td:nth-child(6) { width: 15%; }
+
+.adminx-support-live-table th:nth-child(1),
+.adminx-support-live-table td:nth-child(1) { width: 33%; }
+
+.adminx-support-live-table th:nth-child(2),
+.adminx-support-live-table td:nth-child(2) { width: 27%; }
+
+.adminx-support-live-table th:nth-child(3),
+.adminx-support-live-table td:nth-child(3) { width: 15%; }
+
+.adminx-support-live-table th:nth-child(4),
+.adminx-support-live-table td:nth-child(4) { width: 8%; }
+
+.adminx-support-live-table th:nth-child(5),
+.adminx-support-live-table td:nth-child(5) { width: 17%; }
+
+.adminx-support-list-panel .adminx-table-wrap td strong,
+.adminx-support-list-panel .adminx-table-wrap .adminx-table-subtext {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminx-support-list-panel .adminx-table-wrap .adminx-tag {
+  max-width: 100%;
+  min-width: 0;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.2rem 0.48rem;
+  font-size: 0.7rem;
+  line-height: 1.1;
+}
+
+.adminx-support-ticket-table th:nth-child(5),
+.adminx-support-ticket-table td:nth-child(5),
+.adminx-support-live-table th:nth-child(4),
+.adminx-support-live-table td:nth-child(4) {
+  text-align: center;
+}
+
+.adminx-support-ticket-table th:nth-child(6),
+.adminx-support-ticket-table td:nth-child(6),
+.adminx-support-live-table th:nth-child(5),
+.adminx-support-live-table td:nth-child(5) {
+  white-space: normal;
+  line-height: 1.28;
+  color: #bdd1ec;
+}
+
+.adminx-support-list-panel table thead,
+.adminx-support-panel .adminx-table-wrap table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(5, 13, 27, 0.98);
+}
+
+.adminx-support-list-panel th,
+.adminx-support-panel .adminx-table-wrap th {
+  color: #9fc4ea;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.adminx-support-selected-row td {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.adminx-support-clickable-row {
+  cursor: pointer;
+  outline: none;
+}
+
+.adminx-support-clickable-row td {
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.adminx-support-clickable-row:hover td,
+.adminx-support-clickable-row:focus-visible td {
+  background: rgba(14, 116, 144, 0.12);
+}
+
+.adminx-support-clickable-row:focus-visible td:first-child {
+  box-shadow: inset 3px 0 0 rgba(56, 189, 248, 0.74);
+}
+
+.adminx-support-thread-panel {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.adminx-support-thread-panel > .adminx-panel-head {
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.42);
+  padding: 0.7rem;
+  margin-bottom: 0;
+}
+
+.adminx-support-ticket-meta {
+  gap: 0.55rem;
+}
+
+.adminx-support-ticket-meta p {
+  border-color: rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.42);
+}
+
+.adminx-support-thread-body {
+  min-height: 420px;
+  max-height: min(58vh, 680px);
+  border-color: rgba(125, 211, 252, 0.16);
+  border-radius: 8px;
+  background:
+    linear-gradient(165deg, rgba(4, 10, 20, 0.92), rgba(6, 12, 24, 0.84)),
+    rgba(3, 10, 20, 0.82);
+  padding: 0.75rem;
+  overscroll-behavior: contain;
+}
+
+.adminx-support-live-body {
+  min-height: 460px;
+  max-height: min(60vh, 720px);
+}
+
+.adminx-support-message {
+  width: min(82%, 720px);
+  border-color: rgba(125, 211, 252, 0.14);
+  border-radius: 8px;
+  background: rgba(9, 18, 34, 0.82);
+  padding: 0.62rem 0.68rem;
+}
+
+.adminx-support-message.is-user {
+  justify-self: start;
+}
+
+.adminx-support-message.is-admin {
+  justify-self: end;
+  border-color: rgba(56, 189, 248, 0.34);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(30, 64, 175, 0.12));
+}
+
+.adminx-support-message.is-note {
+  justify-self: stretch;
+  width: 100%;
+  border-color: rgba(245, 158, 11, 0.38);
+  background: rgba(120, 53, 15, 0.18);
+}
+
+.adminx-support-message header strong {
+  font-size: 0.8rem;
+}
+
+.adminx-support-message p {
+  font-size: 0.86rem;
+}
+
+.adminx-support-attachment-preview {
+  display: grid;
+  gap: 0.42rem;
+  justify-items: start;
+}
+
+.adminx-support-message.is-admin .adminx-support-attachment-preview {
+  justify-items: end;
+}
+
+.adminx-support-image-preview {
+  display: block;
+  width: min(100%, 340px);
+  max-height: 240px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.78);
+}
+
+.adminx-support-image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+
+.adminx-support-attachment-link {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.68);
+}
+
+.adminx-support-thread-actions,
+.adminx-support-ticket-controls {
+  border: 1px solid rgba(125, 211, 252, 0.12);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.32);
+  padding: 0.75rem;
+}
+
+.adminx-support-thread-actions textarea {
+  min-height: 132px;
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.adminx-support-thread-actions label:first-child textarea,
+.adminx-support-live-reply label:first-child textarea {
+  min-height: 168px;
+}
+
+.adminx-support-ticket-controls input,
+.adminx-support-ticket-controls select {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
+.adminx-support-upload-field input[type="file"] {
+  border-color: rgba(125, 211, 252, 0.22);
+  border-radius: 8px;
+  background: rgba(4, 11, 23, 0.72);
+}
+
+.adminx-support-attachment-pill {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(3, 10, 20, 0.52);
+  min-height: 44px;
+}
+
+.adminx-support-attachment-pill.has-preview {
+  align-items: center;
+}
+
+.adminx-support-upload-preview {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: rgba(2, 8, 20, 0.78);
+  flex: 0 0 auto;
+}
+
+.adminx-support-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.adminx-support-inline-controls {
+  flex-wrap: wrap;
+}
+
+.adminx-support-live-indicator {
+  border-color: rgba(45, 212, 191, 0.28);
+  border-radius: 999px;
+  background: rgba(5, 21, 32, 0.72);
+}
+
+.adminx-support-empty-detail {
+  min-height: 520px;
+  border-radius: 8px;
+  background: linear-gradient(160deg, rgba(3, 10, 20, 0.42), rgba(8, 15, 28, 0.32));
+}
+
+.adminx-support-filter-row select {
+  border-color: rgba(125, 211, 252, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 8, 20, 0.82);
+}
+
 .adminx-web-content-root {
   display: grid;
   gap: 0.75rem;
@@ -3173,6 +5174,11 @@
   .adminx-support-layout {
     grid-template-columns: 1fr;
   }
+
+  .adminx-support-thread-body,
+  .adminx-support-live-body {
+    max-height: min(62vh, 720px);
+  }
 }
 
 @media (max-width: 760px) {
@@ -3190,6 +5196,29 @@
   .adminx-support-inline-controls {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .adminx-support-root .adminx-tab-row {
+    width: 100%;
+  }
+
+  .adminx-support-root > .adminx-panel-head,
+  .adminx-support-root .adminx-profile-actions {
+    align-items: stretch;
+  }
+
+  .adminx-support-message {
+    width: 100%;
+  }
+
+  .adminx-support-thread-body,
+  .adminx-support-live-body {
+    min-height: 360px;
+  }
+
+  .adminx-support-thread-actions label:first-child textarea,
+  .adminx-support-live-reply label:first-child textarea {
+    min-height: 150px;
   }
 }
 

@@ -401,78 +401,97 @@ export default function AdminDashboardPage({
   ]);
 
   const renderDashboard = () => (
-    <>
-      <section className="adminx-approval-board">
-        <article className="adminx-approval-hero">
-          <div>
-            <p className="adminx-approval-kicker">Approval Command Center</p>
-            <h2>{formatCompactNumber(dashboard.approvals?.totalPendingApprovals || 0)} pending actions</h2>
-            <span>Live queue for deposits, KYC reviews, and support approvals.</span>
+    <section className="adminx-dashboard-overview">
+      <section className="adminx-command-grid">
+        <article className="adminx-command-hero">
+          <div className="adminx-command-copy">
+            <span className="adminx-command-kicker">Executive command center</span>
+            <h2>{formatCompactNumber(dashboard.approvals?.totalPendingApprovals || 0)} actions need review</h2>
+            <p>Deposits, withdrawals, KYC, and support queues are grouped here for fast operational control.</p>
           </div>
-          <div className="adminx-approval-hero-actions">
+
+          <div className="adminx-command-actions">
             <button type="button" className="btn btn-primary" onClick={() => onSectionChange("depositCenter")}>
-              Review Deposits
+              <i className="fas fa-vault" /> Deposits
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => onSectionChange("kycReview")}>
-              Open KYC Desk
+              <i className="fas fa-id-card" /> KYC Desk
             </button>
+            <button type="button" className="btn btn-ghost" onClick={() => onSectionChange("assetCenter")}>
+              <i className="fas fa-wallet" /> Withdrawals
+            </button>
+          </div>
+
+          <div className="adminx-command-health-strip" aria-label="Platform health snapshot">
+            <p><span>Uptime</span><strong>{dashboard.health.uptime}%</strong></p>
+            <p><span>API Success</span><strong>{dashboard.health.apiSuccessRate}%</strong></p>
+            <p><span>Latency</span><strong>{dashboard.health.latencyMs}ms</strong></p>
           </div>
         </article>
 
-        <div className="adminx-approval-summary-grid">
-          {/* Deposite Approval */}
-          <article className="adminx-approval-summary-card">
-            <small>Pending Deposit Approvals</small>
-            <strong>{formatCompactNumber(dashboard.approvals?.pendingDepositRequests || 0)}</strong>
-            <button type="button" onClick={() => onSectionChange("depositCenter")}>Go to Deposit Desk</button>
-          </article>
-          {/* Withdraw Approval */}
-          <article className="adminx-approval-summary-card">
-            <small>Pending Withdrawal Approvals</small>
-            <strong>{formatCompactNumber(dashboard.approvals?.pendingWithdrawalRequests || 0)}</strong>
-            <button type="button" onClick={() => onSectionChange("assetCenter")}>Go to Withdrawal Desk</button>
-          </article>
-          <article className="adminx-approval-summary-card">
-            <small>Pending KYC Reviews</small>
-            <strong>{formatCompactNumber(dashboard.approvals?.pendingKycRequests || 0)}</strong>
-            <button type="button" onClick={() => onSectionChange("kycReview")}>Open KYC Queue</button>
-          </article>
-          <article className="adminx-approval-summary-card">
-            <small>Support Pending / Unread</small>
-            <strong>
-              {formatCompactNumber(dashboard.approvals?.pendingSupportTickets || 0)} / {formatCompactNumber(dashboard.approvals?.unreadSupport || 0)}
-            </strong>
-            <button type="button" onClick={() => onSectionChange("supportCenter")}>Support Inbox</button>
-          </article>
-        </div>
+        <aside className="adminx-command-queue">
+          <div className="adminx-panel-head">
+            <h2>Priority Queue</h2>
+            <span className="adminx-live">Live</span>
+          </div>
 
-        <div className="adminx-approval-feed">
-          {(Array.isArray(dashboard.approvals?.items) ? dashboard.approvals.items : []).length ? (
-            (dashboard.approvals.items || []).map((item) => (
-              <article key={item.id} className="adminx-approval-item">
+          <div className="adminx-approval-feed">
+            {(Array.isArray(dashboard.approvals?.items) ? dashboard.approvals.items : []).length ? (
+              (dashboard.approvals.items || []).map((item) => (
+                <article key={item.id} className="adminx-approval-item">
+                  <div>
+                    <small>{item.type}</small>
+                    <strong>{item.title}</strong>
+                    <p>{item.subtitle}</p>
+                  </div>
+                  <button type="button" className="adminx-filter-btn" onClick={() => onSectionChange(item.route)}>
+                    Open
+                  </button>
+                </article>
+              ))
+            ) : (
+              <article className="adminx-approval-item adminx-approval-item-empty">
                 <div>
-                  <small>{item.type}</small>
-                  <strong>{item.title}</strong>
-                  <p>{item.subtitle}</p>
+                  <small>All Clear</small>
+                  <strong>No pending approvals right now.</strong>
+                  <p>Incoming approval queues will appear here automatically.</p>
                 </div>
-                <button type="button" className="adminx-filter-btn" onClick={() => onSectionChange(item.route)}>
-                  Open
-                </button>
               </article>
-            ))
-          ) : (
-            <article className="adminx-approval-item adminx-approval-item-empty">
-              <div>
-                <small>All Clear</small>
-                <strong>No pending approvals right now.</strong>
-                <p>Incoming approval queues will appear here automatically.</p>
-              </div>
-            </article>
-          )}
-        </div>
+            )}
+          </div>
+        </aside>
       </section>
 
-      <section className="adminx-kpi-grid">
+      <section className="adminx-approval-summary-grid adminx-approval-summary-grid-premium" aria-label="Approval summary">
+        <article className="adminx-approval-summary-card">
+          <span className="adminx-summary-icon blue"><i className="fas fa-money-bill-transfer" /></span>
+          <small>Deposit Approvals</small>
+          <strong>{formatCompactNumber(dashboard.approvals?.pendingDepositRequests || 0)}</strong>
+          <button type="button" onClick={() => onSectionChange("depositCenter")}>Go to Deposit Desk</button>
+        </article>
+        <article className="adminx-approval-summary-card">
+          <span className="adminx-summary-icon emerald"><i className="fas fa-arrow-up-right-from-square" /></span>
+          <small>Withdrawal Approvals</small>
+          <strong>{formatCompactNumber(dashboard.approvals?.pendingWithdrawalRequests || 0)}</strong>
+          <button type="button" onClick={() => onSectionChange("assetCenter")}>Go to Withdrawal Desk</button>
+        </article>
+        <article className="adminx-approval-summary-card">
+          <span className="adminx-summary-icon gold"><i className="fas fa-user-shield" /></span>
+          <small>KYC Reviews</small>
+          <strong>{formatCompactNumber(dashboard.approvals?.pendingKycRequests || 0)}</strong>
+          <button type="button" onClick={() => onSectionChange("kycReview")}>Open KYC Queue</button>
+        </article>
+        <article className="adminx-approval-summary-card">
+          <span className="adminx-summary-icon purple"><i className="fas fa-headset" /></span>
+          <small>Support Pending / Unread</small>
+          <strong>
+            {formatCompactNumber(dashboard.approvals?.pendingSupportTickets || 0)} / {formatCompactNumber(dashboard.approvals?.unreadSupport || 0)}
+          </strong>
+          <button type="button" onClick={() => onSectionChange("supportCenter")}>Support Inbox</button>
+        </article>
+      </section>
+
+      <section className="adminx-kpi-grid adminx-dashboard-kpi-grid">
         {dashboard.metrics.map((metric) => (
           <article key={metric.key} className="adminx-kpi-card">
             <div className="adminx-kpi-top">
@@ -487,11 +506,17 @@ export default function AdminDashboardPage({
         ))}
       </section>
 
-      <section className="adminx-row adminx-row-two">
-        <article className="adminx-panel">
+      <section className="adminx-insight-grid">
+        <article className="adminx-panel adminx-trend-panel">
           <div className="adminx-panel-head">
-            <h2>Operations Trend</h2>
-            <span>Activity over last 12 months</span>
+            <div>
+              <h2>Operations Trend</h2>
+              <span>Activity over last 12 months</span>
+            </div>
+            <div className="adminx-chart-legend">
+              <span><b className="profit" /> Profit</span>
+              <span><b className="loss" /> Cost</span>
+            </div>
           </div>
 
           <svg viewBox="0 0 560 230" className="adminx-line-chart" role="img" aria-label="operations trend chart">
@@ -507,9 +532,12 @@ export default function AdminDashboardPage({
           </svg>
         </article>
 
-        <article className="adminx-panel">
+        <article className="adminx-panel adminx-strategy-panel">
           <div className="adminx-panel-head">
-            <h2>Strategy Distribution</h2>
+            <div>
+              <h2>Strategy Mix</h2>
+              <span>Portfolio distribution</span>
+            </div>
           </div>
 
           <div className="adminx-strategy-wrap">
@@ -529,10 +557,13 @@ export default function AdminDashboardPage({
         </article>
       </section>
 
-      <section className="adminx-row adminx-row-three">
+      <section className="adminx-ops-grid">
         <article className="adminx-panel adminx-health-panel">
           <div className="adminx-panel-head">
-            <h2>Platform Health</h2>
+            <div>
+              <h2>Platform Health</h2>
+              <span>Runtime quality signals</span>
+            </div>
           </div>
 
           <div className="adminx-health-list">
@@ -544,10 +575,12 @@ export default function AdminDashboardPage({
           </div>
         </article>
 
-        <article className="adminx-panel">
+        <article className="adminx-panel adminx-bot-panel">
           <div className="adminx-panel-head">
-            <h2>Bot Performance</h2>
-            <span>Top 5 bots by profit</span>
+            <div>
+              <h2>Bot Performance</h2>
+              <span>Top 5 bots by profit</span>
+            </div>
           </div>
 
           <div className="adminx-bar-chart">
@@ -563,9 +596,12 @@ export default function AdminDashboardPage({
           </div>
         </article>
 
-        <article className="adminx-panel">
+        <article className="adminx-panel adminx-activity-panel">
           <div className="adminx-panel-head">
-            <h2>Activity Feed</h2>
+            <div>
+              <h2>Activity Feed</h2>
+              <span>Recent admin signals</span>
+            </div>
             <span className="adminx-live">Live</span>
           </div>
 
@@ -579,7 +615,7 @@ export default function AdminDashboardPage({
           </div>
         </article>
       </section>
-    </>
+    </section>
   );
 
   const renderPlaceholder = () => (

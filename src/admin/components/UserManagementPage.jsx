@@ -189,6 +189,20 @@ export default function UserManagementPage({
   const currentAdminIsSuperAdmin = isSuperAdminRole(currentAdminUser?.accountRole);
   const currentAdminUserId = String(currentAdminUser?.userId || "").trim();
 
+  const tabCounts = useMemo(
+    () => ({
+      all: platformUsers.length,
+      admins: adminUsers.length,
+      active: platformUsers.filter((user) => Boolean(user.isActiveSession)).length,
+      suspended: platformUsers.filter((user) => {
+        const status = normalizeText(user.accountStatus);
+        return status === "suspended" || status === "banned";
+      }).length,
+      pendingKyc: platformUsers.filter((user) => normalizeText(user.kycStage) === "submitted_pending").length,
+    }),
+    [adminUsers, platformUsers],
+  );
+
   const filteredUsers = useMemo(() => {
     const keyword = normalizeText(searchValue);
 
@@ -405,7 +419,7 @@ export default function UserManagementPage({
   const deleteTargetIsAdmin = isAdminRole(deleteTarget?.accountRole);
 
   return (
-    <section className="adminx-users-shell">
+    <section className="adminx-users-shell adminx-user-management-shell">
       <AdminSectionIntro
         icon={ADMIN_SECTION_META.users.icon}
         title={ADMIN_SECTION_META.users.title}
@@ -417,6 +431,33 @@ export default function UserManagementPage({
         ]}
       />
 
+      <section className="adminx-user-intel-grid" aria-label="User management summary">
+        <article>
+          <span className="adminx-user-intel-icon blue"><i className="fas fa-users" /></span>
+          <small>Platform Users</small>
+          <strong>{formatCompactNumber(userStats?.totalUsers || platformUsers.length)}</strong>
+          <p>{formatCompactNumber(userStats?.activeUsers || tabCounts.active)} active sessions</p>
+        </article>
+        <article>
+          <span className="adminx-user-intel-icon gold"><i className="fas fa-id-card" /></span>
+          <small>Pending KYC</small>
+          <strong>{formatCompactNumber(userStats?.pendingVerifications || tabCounts.pendingKyc)}</strong>
+          <p>Submitted profiles waiting for review</p>
+        </article>
+        <article>
+          <span className="adminx-user-intel-icon purple"><i className="fas fa-user-shield" /></span>
+          <small>Admin Accounts</small>
+          <strong>{formatCompactNumber(userStats?.totalAdminUsers || adminUsers.length)}</strong>
+          <p>{currentAdminIsSuperAdmin ? "Super admin controls enabled" : "Limited admin controls"}</p>
+        </article>
+        <article>
+          <span className="adminx-user-intel-icon red"><i className="fas fa-ban" /></span>
+          <small>Suspended / Banned</small>
+          <strong>{formatCompactNumber(tabCounts.suspended)}</strong>
+          <p>Accounts requiring risk follow-up</p>
+        </article>
+      </section>
+
       <div className="adminx-user-tabs" role="tablist" aria-label="User filters">
         {USER_MANAGEMENT_TABS.map((tab) => (
           <button
@@ -427,12 +468,13 @@ export default function UserManagementPage({
             className={userTab === tab.key ? "active" : ""}
             onClick={() => setUserTab(tab.key)}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            <small>{formatCompactNumber(tabCounts[tab.key] || 0)}</small>
           </button>
         ))}
       </div>
 
-      <section className="adminx-user-table-card">
+      <section className="adminx-user-table-card adminx-user-directory-card">
         <div className="adminx-user-toolbar">
           <label className="adminx-user-search">
             <i className="fas fa-search" />
@@ -445,7 +487,11 @@ export default function UserManagementPage({
           </label>
 
           <div className="adminx-user-toolbar-actions">
-            <button type="button" className="adminx-filter-btn" onClick={() => setFilterOpen((prev) => !prev)}>
+            <button
+              type="button"
+              className={`adminx-filter-btn ${filterOpen ? "active" : ""}`}
+              onClick={() => setFilterOpen((prev) => !prev)}
+            >
               <i className="fas fa-filter" /> Filter
             </button>
             <button type="button" className="adminx-filter-btn" onClick={onRefresh}>
@@ -459,7 +505,7 @@ export default function UserManagementPage({
         </div>
 
         {filterOpen ? (
-          <div className="adminx-filter-panel">
+          <div className="adminx-filter-panel adminx-user-filter-panel">
             <label>
               Account Status
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
@@ -567,6 +613,7 @@ export default function UserManagementPage({
                         </button>
                         <button
                           type="button"
+                          className="danger"
                           title={canDeleteRow ? (rowIsAdmin ? "Delete admin" : "Delete user") : "Only super admin can remove regular admins"}
                           disabled={!canDeleteRow}
                           onClick={() => requestDeleteUser(user)}

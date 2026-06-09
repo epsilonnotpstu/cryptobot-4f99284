@@ -126,6 +126,16 @@ export default function DepositManagementPage({
   const assetsList = Array.isArray(assets) ? assets : [];
   const requestList = Array.isArray(requests) ? requests : [];
   const keyword = normalizeText(searchValue);
+  const requestCounts = useMemo(() => {
+    const counts = { all: requestList.length, pending: 0, approved: 0, rejected: 0 };
+    requestList.forEach((request) => {
+      const status = normalizeText(request.status) || "pending";
+      if (counts[status] !== undefined) {
+        counts[status] += 1;
+      }
+    });
+    return counts;
+  }, [requestList]);
 
   const filteredAssets = useMemo(() => {
     if (!keyword) {
@@ -378,7 +388,7 @@ export default function DepositManagementPage({
   };
 
   return (
-    <section className="adminx-users-shell">
+    <section className="adminx-users-shell adminx-deposit-management-shell">
       <AdminSectionIntro
         icon={ADMIN_SECTION_META.depositCenter.icon}
         title={ADMIN_SECTION_META.depositCenter.title}
@@ -390,6 +400,33 @@ export default function DepositManagementPage({
         ]}
       />
 
+      <section className="adminx-deposit-intel-grid" aria-label="Deposit management overview">
+        <article>
+          <span className="adminx-deposit-intel-icon blue"><i className="fas fa-coins" /></span>
+          <small>Deposit Assets</small>
+          <strong>{formatCompactNumber(stats?.totalAssets || assetsList.length)}</strong>
+          <p>{formatCompactNumber(stats?.enabledAssets || 0)} enabled for user funding.</p>
+        </article>
+        <article>
+          <span className="adminx-deposit-intel-icon gold"><i className="fas fa-hourglass-half" /></span>
+          <small>Pending Requests</small>
+          <strong>{formatCompactNumber(stats?.pendingRequests || requestCounts.pending)}</strong>
+          <p>Open requests waiting for admin review.</p>
+        </article>
+        <article>
+          <span className="adminx-deposit-intel-icon green"><i className="fas fa-circle-check" /></span>
+          <small>Approved Deposits</small>
+          <strong>{formatCompactNumber(stats?.approvedRequests || requestCounts.approved)}</strong>
+          <p>Reviewed and credited deposit requests.</p>
+        </article>
+        <article>
+          <span className="adminx-deposit-intel-icon red"><i className="fas fa-triangle-exclamation" /></span>
+          <small>Rejected Deposits</small>
+          <strong>{formatCompactNumber(stats?.rejectedRequests || requestCounts.rejected)}</strong>
+          <p>Requests rejected with admin review notes.</p>
+        </article>
+      </section>
+
       <div className="adminx-user-tabs" role="tablist" aria-label="Deposit management tabs">
         <button
           type="button"
@@ -398,7 +435,8 @@ export default function DepositManagementPage({
           className={sectionTab === "assets" ? "active" : ""}
           onClick={() => setSectionTab("assets")}
         >
-          Add Deposit Crypto
+          <span>Add Deposit Crypto</span>
+          <small>{formatCompactNumber(stats?.totalAssets || assetsList.length)}</small>
         </button>
         <button
           type="button"
@@ -407,12 +445,13 @@ export default function DepositManagementPage({
           className={sectionTab === "requests" ? "active" : ""}
           onClick={() => setSectionTab("requests")}
         >
-          Deposit Request Desk
+          <span>Deposit Request Desk</span>
+          <small>{formatCompactNumber(stats?.pendingRequests || requestCounts.pending)}</small>
         </button>
       </div>
 
       {sectionTab === "assets" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-deposit-workspace-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -606,7 +645,7 @@ export default function DepositManagementPage({
                           <button type="button" title="Edit crypto" onClick={() => startAssetEdit(asset)}>
                             <i className="fas fa-pen" />
                           </button>
-                          <button type="button" title="Delete crypto" onClick={() => requestAssetDelete(asset)}>
+                          <button type="button" className="danger" title="Delete crypto" onClick={() => requestAssetDelete(asset)}>
                             <i className="fas fa-trash" />
                           </button>
                         </div>
@@ -634,7 +673,7 @@ export default function DepositManagementPage({
       ) : null}
 
       {sectionTab === "requests" ? (
-        <section className="adminx-user-table-card">
+        <section className="adminx-user-table-card adminx-deposit-workspace-card adminx-deposit-request-card">
           <div className="adminx-user-toolbar">
             <label className="adminx-user-search">
               <i className="fas fa-search" />
@@ -726,13 +765,13 @@ export default function DepositManagementPage({
                         <button type="button" title="View request" onClick={() => openRequestDetail(request)}>
                           <i className="fas fa-eye" />
                         </button>
-                        <button type="button" title="Approve" onClick={() => openReviewModal(request, "approved")}>
+                        <button type="button" className="approve" title="Approve" onClick={() => openReviewModal(request, "approved")}>
                           <i className="fas fa-check" />
                         </button>
-                        <button type="button" title="Reject" onClick={() => openReviewModal(request, "rejected")}>
+                        <button type="button" className="danger" title="Reject" onClick={() => openReviewModal(request, "rejected")}>
                           <i className="fas fa-xmark" />
                         </button>
-                        <button type="button" title="Mark pending" onClick={() => openReviewModal(request, "pending")}>
+                        <button type="button" className="pending" title="Mark pending" onClick={() => openReviewModal(request, "pending")}>
                           <i className="fas fa-rotate-left" />
                         </button>
                       </div>
