@@ -45,12 +45,15 @@ const KYC_ALLOWED_FILE_TYPES = [
   "image/jpg",
   "image/jpeg",
   "image/png",
+  "image/webp",
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-const KYC_ACCEPT_ATTR = ".jpg,.jpeg,.png,.pdf,.doc,.docx";
+const KYC_SERVER_FILE_MIME_TYPES = ["image/jpg", "image/jpeg", "image/png", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+const KYC_ALLOWED_FILE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "pdf", "doc", "docx"];
+const KYC_ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx";
 const KYC_TEST_FILE_MAX_BYTES = 350_000;
 const DEPOSIT_SCREENSHOT_ACCEPT = ".jpg,.jpeg,.png,.heic";
 const DEPOSIT_SCREENSHOT_MAX_BYTES = 15 * 1024 * 1024;
@@ -101,6 +104,239 @@ function readFileAsDataUrl(file) {
     reader.onerror = () => reject(new Error("Could not read file."));
     reader.readAsDataURL(file);
   });
+}
+
+function getFileExtension(fileName = "") {
+  const parts = String(fileName || "").trim().toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() : "";
+}
+
+function isAllowedKycFile(file) {
+  if (!file) {
+    return false;
+  }
+  const mimeType = String(file.type || "").trim().toLowerCase();
+  const extension = getFileExtension(file.name);
+  return KYC_ALLOWED_FILE_TYPES.includes(mimeType) || KYC_ALLOWED_FILE_EXTENSIONS.includes(extension);
+}
+
+function getKycFallbackMime(fileName = "") {
+  const extension = getFileExtension(fileName);
+  if (["jpg", "jpeg"].includes(extension)) {
+    return "image/jpeg";
+  }
+  if (extension === "png") {
+    return "image/png";
+  }
+  if (extension === "pdf") {
+    return "application/pdf";
+  }
+  if (extension === "doc") {
+    return "application/msword";
+  }
+  if (extension === "docx") {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  return "";
+}
+
+function normalizeDataUrlMime(dataUrl = "", mimeType = "") {
+  const resolvedMime = String(mimeType || "").trim().toLowerCase();
+  if (!resolvedMime || !String(dataUrl || "").startsWith("data:")) {
+    return dataUrl;
+  }
+  return String(dataUrl).replace(/^data:[^;,]*;/i, `data:${resolvedMime};`);
+}
+
+function getKycFileKind({ fileName = "", mimeType = "", fileData = "" } = {}) {
+  const normalizedMime = String(mimeType || "").trim().toLowerCase();
+  const extension = getFileExtension(fileName);
+  const normalizedData = String(fileData || "").trim().toLowerCase();
+  if (normalizedMime.startsWith("image/") || normalizedData.startsWith("data:image/") || ["jpg", "jpeg", "png", "webp"].includes(extension)) {
+    return "image";
+  }
+  if (normalizedMime === "application/pdf" || normalizedData.startsWith("data:application/pdf") || extension === "pdf") {
+    return "pdf";
+  }
+  return "document";
+}
+
+function getDataUrlByteSize(dataUrl = "") {
+  const base64Body = String(dataUrl || "").split(",")[1] || "";
+  if (!base64Body) {
+    return 0;
+  }
+  return Math.floor((base64Body.length * 3) / 4);
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not preview this image. Please upload JPG or PNG."));
+    };
+    image.src = url;
+  });
+}
+
+async function compressKycImageFile(file) {
+  const image = await loadImageFromFile(file);
+  const originalWidth = image.naturalWidth || image.width;
+  const originalHeight = image.naturalHeight || image.height;
+  if (!originalWidth || !originalHeight) {
+    throw new Error("Could not read selected image dimensions.");
+  }
+
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Image compression is not available on this device.");
+  }
+
+  const longestSides = [1600, 1280, 1024, 860, 720, 620];
+  const qualities = [0.86, 0.78, 0.68, 0.58, 0.48];
+  let best = "";
+
+  for (const longestSide of longestSides) {
+    const scale = Math.min(1, longestSide / Math.max(originalWidth, originalHeight));
+    canvas.width = Math.max(1, Math.round(originalWidth * scale));
+    canvas.height = Math.max(1, Math.round(originalHeight * scale));
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    for (const quality of qualities) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      best = dataUrl;
+      if (getDataUrlByteSize(dataUrl) <= KYC_TEST_FILE_MAX_BYTES) {
+        return dataUrl;
+      }
+    }
+  }
+
+  return best;
+}
+
+async function prepareKycFileData(file) {
+  const mimeType = String(file?.type || "").trim().toLowerCase();
+  const extension = getFileExtension(file?.name);
+  const isImage = mimeType.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(extension);
+  const fallbackMime = getKycFallbackMime(file?.name);
+  const serverSupportedOriginal = KYC_SERVER_FILE_MIME_TYPES.includes(mimeType);
+
+  if (isImage && (!serverSupportedOriginal || file.size > KYC_TEST_FILE_MAX_BYTES)) {
+    const compressedData = await compressKycImageFile(file);
+    const compressedSize = getDataUrlByteSize(compressedData);
+    if (compressedSize > KYC_TEST_FILE_MAX_BYTES) {
+      throw new Error("Image is too large. Please crop or upload a clearer smaller image.");
+    }
+    const baseName = String(file.name || "kyc-photo").replace(/\.[^.]+$/, "");
+    return {
+      fileName: `${baseName}.jpg`,
+      fileData: compressedData,
+      mimeType: "image/jpeg",
+      sizeBytes: compressedSize,
+    };
+  }
+
+  if (file.size > KYC_TEST_FILE_MAX_BYTES) {
+    throw new Error("File is too large. Please upload a smaller file under 350KB.");
+  }
+
+  const resolvedMimeType = mimeType || fallbackMime;
+  if (!KYC_SERVER_FILE_MIME_TYPES.includes(resolvedMimeType)) {
+    throw new Error("Supported files: jpg, jpeg, png, pdf, doc, docx");
+  }
+
+  const fileData = normalizeDataUrlMime(await readFileAsDataUrl(file), resolvedMimeType);
+  return {
+    fileName: file.name,
+    fileData,
+    mimeType: resolvedMimeType,
+    sizeBytes: file.size,
+  };
+}
+
+function formatBytes(value = 0) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "0 B";
+  }
+  if (numeric >= 1024 * 1024) {
+    return `${(numeric / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (numeric >= 1024) {
+    return `${(numeric / 1024).toFixed(1)} KB`;
+  }
+  return `${Math.floor(numeric)} B`;
+}
+
+function KycDocumentUploadCard({
+  label,
+  icon,
+  fileName,
+  fileData,
+  fileSizeBytes,
+  mimeType,
+  disabled,
+  onChange,
+  onRemove,
+}) {
+  const hasFile = Boolean(fileName && fileData);
+  const kind = getKycFileKind({ fileName, mimeType, fileData });
+
+  return (
+    <div className={`prodash-kyc-upload-card ${hasFile ? "has-file" : ""}`}>
+      <div className="prodash-kyc-upload-head">
+        <span><i className={`fas ${icon}`} /></span>
+        <div>
+          <strong>{label}</strong>
+          <small>JPG, PNG, WEBP, PDF, DOC or DOCX</small>
+        </div>
+      </div>
+
+      <label className="prodash-kyc-file-picker">
+        <input
+          type="file"
+          accept={KYC_ACCEPT_ATTR}
+          onChange={onChange}
+          disabled={disabled}
+        />
+        <span><i className="fas fa-cloud-arrow-up" /> Choose file</span>
+      </label>
+
+      {hasFile ? (
+        <div className={`prodash-kyc-preview is-${kind}`}>
+          {kind === "image" ? (
+            <img src={fileData} alt={`${label} preview`} />
+          ) : (
+            <div className="prodash-kyc-file-icon">
+              <i className={`fas ${kind === "pdf" ? "fa-file-pdf" : "fa-file-lines"}`} />
+            </div>
+          )}
+          <div className="prodash-kyc-file-meta">
+            <strong title={fileName}>{fileName}</strong>
+            <small>{formatBytes(fileSizeBytes)}</small>
+          </div>
+          {!disabled ? (
+            <button type="button" onClick={onRemove} aria-label={`Remove ${label}`}>
+              <i className="fas fa-xmark" />
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="prodash-kyc-preview-empty">
+          <i className="fas fa-image" />
+          <span>No file selected</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatCurrency(value) {
@@ -436,8 +672,12 @@ export default function PremiumDashboardPage({
     ssn: "",
     frontFileName: "",
     frontFileData: "",
+    frontFileMimeType: "",
+    frontFileSizeBytes: 0,
     backFileName: "",
     backFileData: "",
+    backFileMimeType: "",
+    backFileSizeBytes: 0,
   });
   const [kycStatus, setKycStatus] = useState(normalizeKycStatus(user?.kycStatus));
   const [kycAuthTag, setKycAuthTag] = useState(user?.authTag || deriveAuthTagFromStatus(user?.kycStatus));
@@ -916,41 +1156,60 @@ export default function PremiumDashboardPage({
 
   const handleKycFileSelect = async (part, event) => {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) {
       return;
     }
 
-    if (file.size > KYC_TEST_FILE_MAX_BYTES) {
-      setKycError(
-        "Testing phase: upload a smaller file now. Larger file size support will be enabled with premium backend database upgrades.",
-      );
-      return;
-    }
-
-    if (!KYC_ALLOWED_FILE_TYPES.includes(file.type)) {
-      setKycError("Supported mimes: jpg, jpeg, png, pdf, doc, docx");
+    if (!isAllowedKycFile(file)) {
+      setKycError("Supported files: jpg, jpeg, png, webp, pdf, doc, docx");
       return;
     }
 
     try {
-      const fileData = await readFileAsDataUrl(file);
+      const preparedFile = await prepareKycFileData(file);
       setKycError("");
       setKycForm((prev) =>
         part === "front"
           ? {
             ...prev,
-            frontFileName: file.name,
-            frontFileData: fileData,
+            frontFileName: preparedFile.fileName,
+            frontFileData: preparedFile.fileData,
+            frontFileMimeType: preparedFile.mimeType,
+            frontFileSizeBytes: preparedFile.sizeBytes,
           }
           : {
             ...prev,
-            backFileName: file.name,
-            backFileData: fileData,
+            backFileName: preparedFile.fileName,
+            backFileData: preparedFile.fileData,
+            backFileMimeType: preparedFile.mimeType,
+            backFileSizeBytes: preparedFile.sizeBytes,
           },
       );
     } catch (fileError) {
       setKycError(fileError.message || "Could not read selected file.");
     }
+  };
+
+  const removeKycFile = (part) => {
+    setKycError("");
+    setKycForm((prev) =>
+      part === "front"
+        ? {
+          ...prev,
+          frontFileName: "",
+          frontFileData: "",
+          frontFileMimeType: "",
+          frontFileSizeBytes: 0,
+        }
+        : {
+          ...prev,
+          backFileName: "",
+          backFileData: "",
+          backFileMimeType: "",
+          backFileSizeBytes: 0,
+        },
+    );
   };
 
   const submitKyc = async (event) => {
@@ -1766,7 +2025,11 @@ export default function PremiumDashboardPage({
                 <button type="button" className="prodash-back-btn" onClick={() => setActiveView(activeMainTab)}>
                   <i className="fas fa-arrow-left" />
                 </button>
-                <h2>KYC Form</h2>
+                <div>
+                  <h2>KYC Authentication</h2>
+                  <p>Submit clear identity documents for secure account verification.</p>
+                </div>
+                <span className={`prodash-kyc-chip ${kycMeta.className}`}>{kycMeta.label}</span>
               </header>
 
               {showBiometricControls ? (
@@ -1798,66 +2061,73 @@ export default function PremiumDashboardPage({
               ) : null}
 
               <form className="prodash-form prodash-kyc-form" onSubmit={submitKyc}>
-                <label>
+                <div className="prodash-kyc-form-grid">
+                  <label>
                   Full Name
-                  <input
-                    type="text"
-                    value={kycForm.fullName}
-                    onChange={(event) => handleKycFieldChange("fullName", event.target.value)}
-                    placeholder="Same as NID/Passport/Driving License"
-                    disabled={isKycSubmissionLocked || kycSubmitting}
-                  />
-                </label>
+                    <input
+                      type="text"
+                      value={kycForm.fullName}
+                      onChange={(event) => handleKycFieldChange("fullName", event.target.value)}
+                      placeholder="Same as NID/Passport/Driving License"
+                      disabled={isKycSubmissionLocked || kycSubmitting}
+                    />
+                  </label>
 
-                <label>
-                  Certification
-                  <select
-                    value={kycForm.certification}
-                    onChange={(event) => handleKycFieldChange("certification", event.target.value)}
-                    disabled={isKycSubmissionLocked || kycSubmitting}
-                  >
-                    {KYC_CERTIFICATION_OPTIONS.map((option) => (
-                      <option key={option.value || "empty"} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <label>
+                    Certification
+                    <select
+                      value={kycForm.certification}
+                      onChange={(event) => handleKycFieldChange("certification", event.target.value)}
+                      disabled={isKycSubmissionLocked || kycSubmitting}
+                    >
+                      {KYC_CERTIFICATION_OPTIONS.map((option) => (
+                        <option key={option.value || "empty"} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <label>
-                  Front Part Photo
-                  <input
-                    type="file"
-                    accept={KYC_ACCEPT_ATTR}
+                  <label className="prodash-kyc-form-span-2">
+                    SSN
+                    <input
+                      type="text"
+                      value={kycForm.ssn}
+                      onChange={(event) => handleKycFieldChange("ssn", event.target.value)}
+                      placeholder="Serial number"
+                      disabled={isKycSubmissionLocked || kycSubmitting}
+                    />
+                  </label>
+                </div>
+
+                <div className="prodash-kyc-upload-grid">
+                  <KycDocumentUploadCard
+                    label="Front Part Photo"
+                    icon="fa-id-card"
+                    fileName={kycForm.frontFileName}
+                    fileData={kycForm.frontFileData}
+                    fileSizeBytes={kycForm.frontFileSizeBytes}
+                    mimeType={kycForm.frontFileMimeType}
+                    disabled={isKycSubmissionLocked || kycSubmitting}
                     onChange={(event) => handleKycFileSelect("front", event)}
-                    disabled={isKycSubmissionLocked || kycSubmitting}
+                    onRemove={() => removeKycFile("front")}
                   />
-                  <small className="prodash-kyc-hint">Supported mimes: jpg, jpeg, png, pdf, doc, docx</small>
-                  <span className="prodash-file-name">{kycForm.frontFileName || "No file chosen"}</span>
-                </label>
-
-                <label>
-                  Back Part Photo
-                  <input
-                    type="file"
-                    accept={KYC_ACCEPT_ATTR}
+                  <KycDocumentUploadCard
+                    label="Back Part Photo"
+                    icon="fa-address-card"
+                    fileName={kycForm.backFileName}
+                    fileData={kycForm.backFileData}
+                    fileSizeBytes={kycForm.backFileSizeBytes}
+                    mimeType={kycForm.backFileMimeType}
+                    disabled={isKycSubmissionLocked || kycSubmitting}
                     onChange={(event) => handleKycFileSelect("back", event)}
-                    disabled={isKycSubmissionLocked || kycSubmitting}
+                    onRemove={() => removeKycFile("back")}
                   />
-                  <small className="prodash-kyc-hint">Supported mimes: jpg, jpeg, png, pdf, doc, docx</small>
-                  <span className="prodash-file-name">{kycForm.backFileName || "No file chosen"}</span>
-                </label>
+                </div>
 
-                <label>
-                  SSN
-                  <input
-                    type="text"
-                    value={kycForm.ssn}
-                    onChange={(event) => handleKycFieldChange("ssn", event.target.value)}
-                    placeholder="Serial number"
-                    disabled={isKycSubmissionLocked || kycSubmitting}
-                  />
-                </label>
+                <p className="prodash-kyc-hint prodash-kyc-upload-note">
+                  Upload a clear, uncropped document image. Large images are optimized before submit. Supported files: JPG, JPEG, PNG, WEBP, PDF, DOC, DOCX.
+                </p>
 
                 {kycError ? <p className="prodash-form-error">{kycError}</p> : null}
                 {isKycSubmissionLocked ? <p className="prodash-form-notice">KYC is already approved. New submission is disabled.</p> : null}
