@@ -1600,7 +1600,7 @@ export default function PremiumDashboardPage({
                 <i className="fas fa-chevron-right" />
               </button>
 
-              {profileNotice ? <p className="prodash-page-notice">{profileNotice}</p> : null}
+              {/* {profileNotice ? <p className="prodash-page-notice">{profileNotice}</p> : null} */}
               {dashboardNoticeUpdatedAt ? (
                 <p className="prodash-page-notice">
                   Notice updated:{" "}
