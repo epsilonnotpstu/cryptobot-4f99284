@@ -178,13 +178,26 @@ export default function AppUpdateManagementPage({
             <span>{normalizedSettings.updatedAt ? new Date(normalizedSettings.updatedAt).toLocaleString() : "Default settings"}</span>
           </div>
           <div className="adminx-app-update-card">
-            <img src={previewLogo} alt="RampX Trading logo" />
-            <small>RampX Trading</small>
+            <div className="adminx-app-update-card-logo">
+              <img src={previewLogo} alt="App logo" />
+              <span>RampX Trading</span>
+            </div>
+            <span className={`adminx-app-update-card-badge ${form.forceUpdateEnabled ? "is-forced" : ""}`}>
+              {form.forceUpdateEnabled ? "Update Required" : "Update Available"}
+            </span>
             <h3>{form.title || DEFAULT_SETTINGS.title}</h3>
+            <p className="adminx-app-update-card-version">
+              v{form.latestVersionName} · Build {form.latestBuildCode}
+            </p>
             <p>{form.message || DEFAULT_SETTINGS.message}</p>
-            <button type="button" className="btn btn-primary">
-              Download Update
-            </button>
+            <div className="adminx-app-update-card-actions">
+              {!form.forceUpdateEnabled ? (
+                <button type="button" className="adminx-app-update-card-later">Later</button>
+              ) : null}
+              <span className="adminx-app-update-card-download">
+                <i className="fas fa-download" /> Download Update
+              </span>
+            </div>
           </div>
           <div className="adminx-simple-list">
             <p><span>Updated By</span><strong>{normalizedSettings.updatedBy || "system"}</strong></p>

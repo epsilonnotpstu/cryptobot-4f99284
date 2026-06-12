@@ -1548,6 +1548,7 @@ export default function PremiumDashboardPage({
   };
 
   return (
+    <>
     <main className="prodash-page">
       <div className="prodash-background-orb prodash-background-orb-left" />
       <div className="prodash-background-orb prodash-background-orb-right" />
@@ -2536,20 +2537,21 @@ export default function PremiumDashboardPage({
         </div>
       ) : null}
 
-      <nav className="prodash-floating-nav" aria-label="Primary">
-        {BOTTOM_NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={activeMainTab === item.id ? "active" : ""}
-            onClick={() => handleMainNavClick(item.id)}
-          >
-            <i className={`fas ${item.icon}`} />
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
     </main>
+    <nav className="prodash-floating-nav" aria-label="Primary">
+      {BOTTOM_NAV_ITEMS.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={activeMainTab === item.id ? "active" : ""}
+          onClick={() => handleMainNavClick(item.id)}
+        >
+          <i className={`fas ${item.icon}`} />
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
+    </>
   );
 }
 //test
