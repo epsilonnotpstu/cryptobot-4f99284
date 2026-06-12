@@ -20,6 +20,7 @@ import HomeContentManagementPage from "./HomeContentManagementPage";
 import LoanManagementPage from "./LoanManagementPage";
 import NoticeManagementPage from "./NoticeManagementPage";
 import LaunchpadManagementPage from "./LaunchpadManagementPage";
+import AppUpdateManagementPage from "./AppUpdateManagementPage";
 
 function buildLinePath(points, width, height, min, max) {
   const range = Math.max(1, max - min);
@@ -92,6 +93,7 @@ export default function AdminDashboardPage({
   assetCenter,
   supportCenter,
   webContent,
+  appUpdateCenter,
   loanCenter,
   noticeCenter,
   activeSection,
@@ -157,6 +159,7 @@ export default function AdminDashboardPage({
   onReplySupportLiveThread,
   onUpdateSupportLiveThread,
   onSaveHomeContent,
+  onSaveAppUpdateSettings,
   onSaveLoanPage,
   onSaveLoanSettings,
   onCreateNotice,
@@ -937,6 +940,14 @@ export default function AdminDashboardPage({
             onSaveContent={onSaveHomeContent}
           />
         ) : null}
+        {activeSection === "appUpdate" ? (
+          <AppUpdateManagementPage
+            settings={appUpdateCenter?.settings || {}}
+            loading={loading}
+            onRefresh={onRefresh}
+            onSaveSettings={onSaveAppUpdateSettings}
+          />
+        ) : null}
         {activeSection === "loanCenter" ? (
           <LoanManagementPage
             loanCenter={loanCenter || {}}
@@ -972,6 +983,7 @@ export default function AdminDashboardPage({
         activeSection !== "assetCenter" &&
         activeSection !== "supportCenter" &&
         activeSection !== "webContent" &&
+        activeSection !== "appUpdate" &&
         activeSection !== "loanCenter" &&
         activeSection !== "notifications"
           ? renderPlaceholder()

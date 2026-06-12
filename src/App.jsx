@@ -16,6 +16,7 @@ import BinaryPage from "./features/binary/BinaryPage";
 import TransactionPage from "./features/transaction/TransactionPage";
 import AssetsPage from "./features/assets/AssetsPage";
 import LaunchpadPage from "./features/launchpad/LaunchpadPage";
+import SupportChatModal from "./features/support/SupportChatModal";
 import AdminSectionPage from "./admin/AdminSectionPage";
 
 const ROUTES = {
@@ -865,7 +866,7 @@ function mapDeepLinkToTarget(deepLink = null) {
     return { screen: "dashboard", tab: "profile", entityId: normalized.entityId };
   }
   if (screen === "support" || screen === "live_chat" || screen === "chat") {
-    return { screen: "dashboard", tab: "support", entityId: normalized.entityId };
+    return { screen: "support", tab: normalized.tab, entityId: normalized.entityId };
   }
   if (screen === "notice" || screen === "notices") {
     return { screen: "dashboard", tab: "home", entityId: normalized.entityId };
@@ -1870,6 +1871,13 @@ const remoteAuthService = {
     storeAuthUser(data.user);
     return data;
   },
+  async checkAppUpdate({ sessionToken, currentVersionName = "", currentBuildCode = 0, platform = "android" }) {
+    return this.requestGatewayAction({
+      action: "app.update.check",
+      sessionToken,
+      payload: { currentVersionName, currentBuildCode, platform },
+    });
+  },
   async logout({ sessionToken }) {
     if (sessionToken) {
       try {
@@ -2624,6 +2632,19 @@ const remoteAuthService = {
       action: "admin.notice.status",
       sessionToken,
       payload: { noticeId, status, isActive },
+    });
+  },
+  async adminGetAppUpdateSettings({ sessionToken }) {
+    return this.requestGatewayAction({
+      action: "admin.app-update.get",
+      sessionToken,
+    });
+  },
+  async adminSaveAppUpdateSettings({ sessionToken, ...payload }) {
+    return this.requestGatewayAction({
+      action: "admin.app-update.save",
+      sessionToken,
+      payload,
     });
   },
   async adminGetHomeContent({ sessionToken }) {
@@ -4488,6 +4509,8 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [launchPopup, setLaunchPopup] = useState(null);
+  const [appUpdatePopup, setAppUpdatePopup] = useState(null);
+  const appUpdateCheckDoneRef = useRef(false);
   const [nativeNotice, setNativeNotice] = useState("");
   const [lastBackPressedAt, setLastBackPressedAt] = useState(0);
   const [notificationLoading, setNotificationLoading] = useState(false);
@@ -4915,6 +4938,37 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
 
   useEffect(() => {
     if (!isNativeAppRuntime() || !authSnapshot?.sessionToken || !authSnapshot?.isLoggedIn) {
+      return;
+    }
+    if (appUpdateCheckDoneRef.current) {
+      return;
+    }
+    appUpdateCheckDoneRef.current = true;
+
+    const runUpdateCheck = async () => {
+      try {
+        const appInfo = await CapacitorApp.getInfo();
+        const buildCode = appInfo?.build ? Number(appInfo.build) : 0;
+        const result = await authService.checkAppUpdate({
+          sessionToken: authSnapshot.sessionToken,
+          currentVersionName: appInfo?.version || "",
+          currentBuildCode: buildCode,
+          platform: "android",
+        });
+        if (result?.shouldShowUpdate) {
+          setAppUpdatePopup(result);
+        }
+      } catch {
+        // Update check failure must never block app usage.
+      }
+    };
+
+    void runUpdateCheck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSnapshot?.sessionToken, authSnapshot?.isLoggedIn]);
+
+  useEffect(() => {
+    if (!isNativeAppRuntime() || !authSnapshot?.sessionToken || !authSnapshot?.isLoggedIn) {
       return undefined;
     }
 
@@ -5043,6 +5097,18 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
       if (!active) {
         return;
       }
+      if (appUpdatePopup?.forceUpdateRequired) {
+        try {
+          await CapacitorApp.minimizeApp();
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      if (appUpdatePopup) {
+        setAppUpdatePopup(null);
+        return;
+      }
       if (inboxOpen) {
         setInboxOpen(false);
         return;
@@ -5095,7 +5161,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
       active = false;
       listenerPromise.then((listener) => listener.remove());
     };
-  }, [activeAppScreen, dashboardEntryTab, screenHistory, inboxOpen, launchPopup, lastBackPressedAt]);
+  }, [activeAppScreen, dashboardEntryTab, screenHistory, inboxOpen, launchPopup, appUpdatePopup, lastBackPressedAt]);
 
   const handleLogout = async () => {
     await authService.logout({ sessionToken: authSnapshot.sessionToken });
@@ -5758,6 +5824,51 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
             </section>
           </div>
         ) : null}
+        {appUpdatePopup ? (
+          <div className={`native-app-update-overlay ${appUpdatePopup.forceUpdateRequired ? "is-forced" : ""}`}>
+            <section className="native-app-update-popup" onClick={(e) => e.stopPropagation()}>
+              <div className="native-app-update-logo">
+                <img
+                  src={appUpdatePopup.logoUrl || "/favicon-32x32.png"}
+                  alt={appUpdatePopup.appName || "RampX Trading"}
+                />
+                <span>{appUpdatePopup.appName || "RampX Trading"}</span>
+              </div>
+              <p className={`native-app-update-badge ${appUpdatePopup.forceUpdateRequired ? "is-forced" : ""}`}>
+                {appUpdatePopup.forceUpdateRequired ? "Update Required" : "Update Available"}
+              </p>
+              <h3 className="native-app-update-title">{appUpdatePopup.title || "A new version is available"}</h3>
+              <p className="native-app-update-version">
+                v{appUpdatePopup.latestVersionName} · Build {appUpdatePopup.latestBuildCode}
+              </p>
+              <p className="native-app-update-message">{appUpdatePopup.message}</p>
+              <div className="native-app-update-actions">
+                {!appUpdatePopup.forceUpdateRequired ? (
+                  <button
+                    type="button"
+                    className="native-app-update-later"
+                    onClick={() => setAppUpdatePopup(null)}
+                  >
+                    Later
+                  </button>
+                ) : null}
+                <a
+                  className="native-app-update-download"
+                  href={appUpdatePopup.apkUrl || "https://download.rampxtrading.org/rampxtrading-latest.apk"}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <i className="fas fa-download" /> Download Update
+                </a>
+              </div>
+              {appUpdatePopup.forceUpdateRequired ? (
+                <p className="native-app-update-required-hint">
+                  This update is required to continue using the app.
+                </p>
+              ) : null}
+            </section>
+          </div>
+        ) : null}
         {nativeNotice ? <div className="native-back-hint">{nativeNotice}</div> : null}
       </>
     );
@@ -5976,6 +6087,23 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
       );
     }
 
+    if (activeAppScreen === "support") {
+      return renderMobileContentWithNativeOverlay(
+        <SupportChatModal
+          open
+          pageMode
+          onClose={() => navigateToScreen("dashboard", { withHistory: false })}
+          onLoadTickets={handleSupportTicketsList}
+          onLoadTicketDetail={handleSupportTicketDetail}
+          onCreateTicket={handleSupportTicketCreate}
+          onSendTicketMessage={handleSupportTicketMessageSend}
+          onUpdateTicketStatus={handleSupportTicketStatusUpdate}
+          onLoadLiveThread={handleSupportLiveThreadLoad}
+          onSendLiveMessage={handleSupportLiveMessageSend}
+        />
+      );
+    }
+
     return renderMobileContentWithNativeOverlay(
       <PremiumDashboardPage
         user={authSnapshot}
@@ -5995,6 +6123,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
         onOpenAssetsPage={() => navigateToScreen("assets")}
         onOpenLoanPage={() => navigateToScreen("loan")}
         onOpenLaunchpadPage={() => navigateToScreen("launchpad")}
+        onOpenSupportPage={() => navigateToScreen("support")}
         biometricAuthState={biometricStatus}
         onEnableBiometricLogin={enableBiometricLogin}
         onDisableBiometricLogin={disableBiometricLogin}

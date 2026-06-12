@@ -16,6 +16,7 @@ export const ADMIN_SIDEBAR_ITEMS = [
   { key: "assetCenter", label: "Asset Management", icon: "fa-wallet" },
   { key: "supportCenter", label: "Support Management", icon: "fa-headset" },
   { key: "webContent", label: "Website Content", icon: "fa-globe" },
+  { key: "appUpdate", label: "App Update", icon: "fa-mobile-screen-button" },
   // { key: "bots", label: "Bot Management", icon: "fa-robot" },
   // { key: "trades", label: "Trades & Orders", icon: "fa-arrow-trend-up" },
   // { key: "strategies", label: "Strategies", icon: "fa-brain" },
@@ -86,6 +87,11 @@ export const ADMIN_SECTION_META = {
     icon: "fa-globe",
     title: "Website Content Management",
     description: "Control and publish the full public home page content from a single JSON-driven editor.",
+  },
+  appUpdate: {
+    icon: "fa-mobile-screen-button",
+    title: "Mobile App Update",
+    description: "Control Android APK update prompts, minimum supported build, and forced update behavior.",
   },
   notifications: {
     icon: "fa-bell",

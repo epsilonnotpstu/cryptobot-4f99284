@@ -40,6 +40,7 @@ const FCM_PRIVATE_KEY = String(process.env.FCM_PRIVATE_KEY || process.env.FIREBA
   .replace(/\\n/g, "\n");
 const FCM_SERVICE_ACCOUNT_JSON = String(process.env.FCM_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
 const FCM_SERVER_KEY = String(process.env.FCM_SERVER_KEY || process.env.FIREBASE_SERVER_KEY || "").trim();
+const DEFAULT_ANDROID_APK_DOWNLOAD_URL = "https://download.rampxtrading.org/rampxtrading-latest.apk";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -610,6 +611,20 @@ db.exec(`
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     updated_by TEXT NOT NULL DEFAULT ''
+  );
+
+  CREATE TABLE IF NOT EXISTS app_update_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    latest_version_name TEXT NOT NULL DEFAULT '1.0.0',
+    latest_build_code INTEGER NOT NULL DEFAULT 1,
+    minimum_build_code INTEGER NOT NULL DEFAULT 1,
+    force_update_enabled INTEGER NOT NULL DEFAULT 0,
+    apk_url TEXT NOT NULL DEFAULT '${DEFAULT_ANDROID_APK_DOWNLOAD_URL}',
+    title TEXT NOT NULL DEFAULT 'RampX Trading update available',
+    message TEXT NOT NULL DEFAULT 'A newer version of RampX Trading is available. Download the latest APK to continue with the best experience.',
+    logo_url TEXT NOT NULL DEFAULT '/favicon-32x32.png',
+    updated_at TEXT NOT NULL,
+    updated_by TEXT NOT NULL DEFAULT 'system'
   );
 
   CREATE TABLE IF NOT EXISTS deposit_assets (
@@ -1380,6 +1395,52 @@ const clearActiveHomePageConfigsStatement = db.prepare(`
 const insertHomePageConfigStatement = db.prepare(`
   INSERT INTO home_page_configs (config_json, is_active, created_at, updated_at, updated_by)
   VALUES (@configJson, @isActive, @createdAt, @updatedAt, @updatedBy)
+`);
+const findAppUpdateSettingsStatement = db.prepare(`
+  SELECT *
+  FROM app_update_settings
+  WHERE id = 1
+  LIMIT 1
+`);
+const upsertAppUpdateSettingsStatement = db.prepare(`
+  INSERT INTO app_update_settings (
+    id,
+    latest_version_name,
+    latest_build_code,
+    minimum_build_code,
+    force_update_enabled,
+    apk_url,
+    title,
+    message,
+    logo_url,
+    updated_at,
+    updated_by
+  )
+  VALUES (
+    1,
+    @latestVersionName,
+    @latestBuildCode,
+    @minimumBuildCode,
+    @forceUpdateEnabled,
+    @apkUrl,
+    @title,
+    @message,
+    @logoUrl,
+    @updatedAt,
+    @updatedBy
+  )
+  ON CONFLICT(id)
+  DO UPDATE SET
+    latest_version_name = excluded.latest_version_name,
+    latest_build_code = excluded.latest_build_code,
+    minimum_build_code = excluded.minimum_build_code,
+    force_update_enabled = excluded.force_update_enabled,
+    apk_url = excluded.apk_url,
+    title = excluded.title,
+    message = excluded.message,
+    logo_url = excluded.logo_url,
+    updated_at = excluded.updated_at,
+    updated_by = excluded.updated_by
 `);
 const listDepositAssetsStatement = db.prepare(`
   SELECT * FROM deposit_assets
@@ -3227,6 +3288,103 @@ function normalizeBoolean(value, fallback = false) {
     return false;
   }
   return fallback;
+}
+
+function toNonNegativeInteger(value, fallback = 0) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(0, Math.floor(numeric));
+}
+
+function sanitizeAppUpdateUrl(value = "", fallback = "") {
+  const normalized = sanitizeShortText(value, 700);
+  if (!normalized) {
+    return fallback;
+  }
+  if (/^https?:\/\//i.test(normalized) || normalized.startsWith("/")) {
+    return normalized;
+  }
+  return fallback;
+}
+
+function buildDefaultAppUpdateSettings() {
+  return {
+    latestVersionName: "1.0.0",
+    latestBuildCode: 1,
+    minimumBuildCode: 1,
+    forceUpdateEnabled: false,
+    apkUrl: DEFAULT_ANDROID_APK_DOWNLOAD_URL,
+    title: "RampX Trading update available",
+    message: "A newer version of RampX Trading is available. Download the latest APK to continue with the best experience.",
+    logoUrl: "/favicon-32x32.png",
+    updatedAt: "",
+    updatedBy: "system",
+  };
+}
+
+function buildAppUpdateSettingsPayload(row = null) {
+  const defaults = buildDefaultAppUpdateSettings();
+  if (!row) {
+    return defaults;
+  }
+  return {
+    latestVersionName: sanitizeShortText(row.latest_version_name || defaults.latestVersionName, 80) || defaults.latestVersionName,
+    latestBuildCode: toNonNegativeInteger(row.latest_build_code, defaults.latestBuildCode),
+    minimumBuildCode: toNonNegativeInteger(row.minimum_build_code, defaults.minimumBuildCode),
+    forceUpdateEnabled: Number(row.force_update_enabled || 0) === 1,
+    apkUrl: sanitizeAppUpdateUrl(row.apk_url || "", defaults.apkUrl),
+    title: sanitizeShortText(row.title || defaults.title, 140) || defaults.title,
+    message: sanitizeShortText(row.message || defaults.message, 700) || defaults.message,
+    logoUrl: sanitizeAppUpdateUrl(row.logo_url || "", defaults.logoUrl),
+    updatedAt: String(row.updated_at || ""),
+    updatedBy: sanitizeShortText(row.updated_by || defaults.updatedBy, 80) || defaults.updatedBy,
+  };
+}
+
+function getAppUpdateSettings() {
+  return buildAppUpdateSettingsPayload(findAppUpdateSettingsStatement.get());
+}
+
+function buildAppUpdateWriteInput(raw = {}, actor = "admin") {
+  const current = getAppUpdateSettings();
+  const latestVersionName = sanitizeShortText(raw.latestVersionName ?? raw.latest_version_name ?? current.latestVersionName, 80);
+  const latestBuildCode = toNonNegativeInteger(raw.latestBuildCode ?? raw.latest_build_code ?? current.latestBuildCode, current.latestBuildCode);
+  const minimumBuildCode = toNonNegativeInteger(raw.minimumBuildCode ?? raw.minimum_build_code ?? current.minimumBuildCode, current.minimumBuildCode);
+  const apkUrl = sanitizeAppUpdateUrl(raw.apkUrl ?? raw.apk_url ?? current.apkUrl, current.apkUrl || DEFAULT_ANDROID_APK_DOWNLOAD_URL);
+  const title = sanitizeShortText(raw.title ?? current.title, 140) || current.title;
+  const message = sanitizeShortText(raw.message ?? current.message, 700) || current.message;
+  const logoUrl = sanitizeAppUpdateUrl(raw.logoUrl ?? raw.logo_url ?? current.logoUrl, current.logoUrl || "/favicon-32x32.png");
+
+  if (!latestVersionName) {
+    throw new Error("Latest version name is required.");
+  }
+  if (latestBuildCode < 1) {
+    throw new Error("Latest build code must be at least 1.");
+  }
+  if (minimumBuildCode < 1) {
+    throw new Error("Minimum build code must be at least 1.");
+  }
+  if (minimumBuildCode > latestBuildCode) {
+    throw new Error("Minimum build code cannot be higher than latest build code.");
+  }
+  if (!apkUrl) {
+    throw new Error("Valid APK download URL is required.");
+  }
+
+  return {
+    latestVersionName,
+    latestBuildCode,
+    minimumBuildCode,
+    forceUpdateEnabled: normalizeBoolean(raw.forceUpdateEnabled ?? raw.force_update_enabled, current.forceUpdateEnabled) ? 1 : 0,
+    apkUrl,
+    title,
+    message,
+    logoUrl,
+    updatedAt: toIso(getNow()),
+    updatedBy: sanitizeShortText(actor, 80) || "admin",
+  };
 }
 
 function parseDepositScreenshotData(rawData = "") {
@@ -7702,6 +7860,81 @@ async function handleNoticeDismiss(req, res) {
   }
 }
 
+function buildAppUpdateCheckPayload({ currentVersionName = "", currentBuildCode = 0, platform = "android" } = {}) {
+  const settings = getAppUpdateSettings();
+  const safeCurrentBuildCode = toNonNegativeInteger(currentBuildCode, 0);
+  const latestBuildCode = toNonNegativeInteger(settings.latestBuildCode, 0);
+  const minimumBuildCode = toNonNegativeInteger(settings.minimumBuildCode, 0);
+  const updateAvailable = safeCurrentBuildCode > 0 && latestBuildCode > 0 && safeCurrentBuildCode < latestBuildCode;
+  const forceUpdateRequired =
+    Boolean(settings.forceUpdateEnabled) &&
+    safeCurrentBuildCode > 0 &&
+    minimumBuildCode > 0 &&
+    safeCurrentBuildCode < minimumBuildCode;
+  const shouldShowUpdate = updateAvailable || forceUpdateRequired;
+
+  return {
+    appName: "RampX Trading",
+    platform: sanitizeShortText(platform || "android", 40) || "android",
+    currentVersionName: sanitizeShortText(currentVersionName, 80),
+    currentBuildCode: safeCurrentBuildCode,
+    latestVersionName: settings.latestVersionName,
+    latestBuildCode,
+    minimumBuildCode,
+    forceUpdateEnabled: Boolean(settings.forceUpdateEnabled),
+    forceUpdateRequired,
+    updateAvailable,
+    shouldShowUpdate,
+    apkUrl: settings.apkUrl,
+    title: settings.title,
+    message: settings.message,
+    logoUrl: settings.logoUrl,
+    updatedAt: settings.updatedAt,
+  };
+}
+
+function handleAppUpdateCheck(req, res) {
+  try {
+    cleanupExpiredRecords();
+    res.json(
+      buildAppUpdateCheckPayload({
+        currentVersionName: req.body?.currentVersionName || req.body?.current_version_name || "",
+        currentBuildCode: req.body?.currentBuildCode ?? req.body?.current_build_code ?? 0,
+        platform: req.body?.platform || "android",
+      }),
+    );
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not check app update." });
+  }
+}
+
+function handleAdminAppUpdateGet(_req, res) {
+  try {
+    cleanupExpiredRecords();
+    res.json({
+      settings: getAppUpdateSettings(),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not load app update settings." });
+  }
+}
+
+async function handleAdminAppUpdateSave(req, res) {
+  try {
+    cleanupExpiredRecords();
+    const actor = sanitizeShortText(req.currentUser?.userId || "admin", 80) || "admin";
+    const nextSettings = buildAppUpdateWriteInput(req.body || {}, actor);
+    upsertAppUpdateSettingsStatement.run(nextSettings);
+    await persistDbToBlobSafe("admin.app-update.save");
+    res.json({
+      message: "App update settings saved successfully.",
+      settings: getAppUpdateSettings(),
+    });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not save app update settings." });
+  }
+}
+
 function handleHomeContentGet(_req, res) {
   try {
     cleanupExpiredRecords();
@@ -8242,6 +8475,9 @@ app.post("/api/auth/gateway", async (req, res) => {
     case "session":
       requireSession(req, res, () => handleSession(req, res));
       return;
+    case "app.update.check":
+      requireSession(req, res, () => handleAppUpdateCheck(req, res));
+      return;
     case "logout":
       requireSession(req, res, () => handleLogout(req, res));
       return;
@@ -8622,6 +8858,12 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.notice.status":
       requireAdminSession(req, res, () => handleAdminNoticeStatus(req, res));
+      return;
+    case "admin.app-update.get":
+      requireAdminSession(req, res, () => handleAdminAppUpdateGet(req, res));
+      return;
+    case "admin.app-update.save":
+      requireAdminSession(req, res, () => handleAdminAppUpdateSave(req, res));
       return;
     case "admin.home.content.get":
       requireAdminSession(req, res, () => handleAdminHomeContentGet(req, res));

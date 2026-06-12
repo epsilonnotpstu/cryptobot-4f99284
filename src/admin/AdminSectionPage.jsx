@@ -858,6 +858,10 @@ const DEFAULT_WEB_CONTENT = {
   },
 };
 
+const DEFAULT_APP_UPDATE_CENTER = {
+  settings: {},
+};
+
 const DEFAULT_LOAN_CENTER = {
   page: {
     config: {},
@@ -922,6 +926,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
   const [assetCenter, setAssetCenter] = useState(DEFAULT_ASSET_CENTER);
   const [supportCenter, setSupportCenter] = useState(DEFAULT_SUPPORT_CENTER);
   const [webContent, setWebContent] = useState(DEFAULT_WEB_CONTENT);
+  const [appUpdateCenter, setAppUpdateCenter] = useState(DEFAULT_APP_UPDATE_CENTER);
   const [loanCenter, setLoanCenter] = useState(DEFAULT_LOAN_CENTER);
   const [noticeCenter, setNoticeCenter] = useState(DEFAULT_NOTICE_CENTER);
   const [launchpadCenter, setLaunchpadCenter] = useState(DEFAULT_LAUNCHPAD_CENTER);
@@ -1266,6 +1271,15 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       } catch {
         setWebContent(DEFAULT_WEB_CONTENT);
       }
+      }
+
+      if (activeSection === "appUpdate") {
+        try {
+          const appUpdatePayload = await authService.adminGetAppUpdateSettings({ sessionToken: snapshot.sessionToken });
+          setAppUpdateCenter({ settings: appUpdatePayload?.settings || {} });
+        } catch {
+          setAppUpdateCenter(DEFAULT_APP_UPDATE_CENTER);
+        }
       }
 
       if (activeSection === "loanCenter") {
@@ -2117,6 +2131,19 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const saveAppUpdateSettings = useCallback(async (payload) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminSaveAppUpdateSettings({
+      sessionToken: snapshot.sessionToken,
+      ...payload,
+    });
+    setAppUpdateCenter({ settings: data?.settings || {} });
+    return data;
+  }, [authService]);
+
   const saveLoanPage = useCallback(async ({ config, isActive }) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -2399,6 +2426,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       setAssetCenter(DEFAULT_ASSET_CENTER);
       setSupportCenter(DEFAULT_SUPPORT_CENTER);
       setWebContent(DEFAULT_WEB_CONTENT);
+      setAppUpdateCenter(DEFAULT_APP_UPDATE_CENTER);
       setNoticeCenter(DEFAULT_NOTICE_CENTER);
       setLaunchpadCenter(DEFAULT_LAUNCHPAD_CENTER);
       clearAuthFeedback();
@@ -2444,6 +2472,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       assetCenter={assetCenter}
       supportCenter={supportCenter}
       webContent={webContent}
+      appUpdateCenter={appUpdateCenter}
       loanCenter={loanCenter}
       noticeCenter={noticeCenter}
       launchpadCenter={launchpadCenter}
@@ -2510,6 +2539,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onReplySupportLiveThread={replySupportLiveThread}
       onUpdateSupportLiveThread={updateSupportLiveThread}
       onSaveHomeContent={saveHomeContent}
+      onSaveAppUpdateSettings={saveAppUpdateSettings}
       onSaveLoanPage={saveLoanPage}
       onSaveLoanSettings={saveLoanSettings}
       onCreateNotice={createNotice}

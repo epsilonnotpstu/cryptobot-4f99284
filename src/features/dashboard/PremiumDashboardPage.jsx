@@ -626,6 +626,7 @@ export default function PremiumDashboardPage({
   onOpenAssetsPage,
   onOpenLoanPage,
   onOpenLaunchpadPage,
+  onOpenSupportPage,
   biometricAuthState = null,
   onEnableBiometricLogin = null,
   onDisableBiometricLogin = null,
@@ -700,6 +701,18 @@ export default function PremiumDashboardPage({
   const biometricState = biometricAuthState && typeof biometricAuthState === "object"
     ? biometricAuthState
     : { supported: false, enabled: false, checking: false, processing: false, message: "" };
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+    document.documentElement.classList.add("prodash-scroll-root");
+    document.body?.classList.add("prodash-scroll-root");
+    return () => {
+      document.documentElement.classList.remove("prodash-scroll-root");
+      document.body?.classList.remove("prodash-scroll-root");
+    };
+  }, []);
 
   const [depositSearch, setDepositSearch] = useState("");
   const [selectedDepositAssetId, setSelectedDepositAssetId] = useState(null);
@@ -1000,7 +1013,11 @@ export default function PremiumDashboardPage({
   const openDrawerRoute = (route) => {
     setDrawerOpen(false);
     if (route === "support") {
-      setChatOpen(true);
+      if (onOpenSupportPage) {
+        onOpenSupportPage();
+      } else {
+        setChatOpen(true);
+      }
       setActiveView("home");
       return;
     }
@@ -1014,6 +1031,18 @@ export default function PremiumDashboardPage({
   };
 
   const handleMainNavClick = (nextTab) => {
+    if (nextTab === "support") {
+      if (!isUserKycAuthenticated) {
+        setProfileNotice("KYC authentication pending. Complete authentication to unlock Customer Service.");
+        return;
+      }
+      if (onOpenSupportPage) {
+        onOpenSupportPage();
+      } else {
+        setChatOpen(true);
+      }
+      return;
+    }
     if (nextTab === "binary" && onOpenBinaryPage) {
       if (!isUserKycAuthenticated) {
         setProfileNotice("KYC authentication pending. Complete authentication before using Binary Options.");
@@ -1357,7 +1386,11 @@ export default function PremiumDashboardPage({
     setDrawerOpen(false);
     setActiveMainTab("home");
     setActiveView("home");
-    setChatOpen(true);
+    if (onOpenSupportPage) {
+      onOpenSupportPage();
+    } else {
+      setChatOpen(true);
+    }
   };
 
   const handleSelectDepositAsset = (assetId) => {
@@ -1585,7 +1618,13 @@ export default function PremiumDashboardPage({
             type="button"
             className="prodash-icon-btn prodash-chat-btn"
             aria-label="Support"
-            onClick={() => setChatOpen(true)}
+            onClick={() => {
+              if (onOpenSupportPage) {
+                onOpenSupportPage();
+              } else {
+                setChatOpen(true);
+              }
+            }}
           >
             <i className="far fa-comment-dots" />
           </button>
