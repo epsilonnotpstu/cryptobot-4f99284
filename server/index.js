@@ -2358,32 +2358,63 @@ function createSmtpTransporters() {
 }
 
 function getOtpEmailTemplate({ email, otp, purpose, name }) {
+  const LOGO_URL = "https://rampxtrading.org/image.png"; // আপনার hosted logo URL দিন
   const expiresInText = `${OTP_TTL_MINUTES} minute${OTP_TTL_MINUTES > 1 ? "s" : ""}`;
-  const title = purpose === "signup" ? "Your signup verification code" : "Your password reset code";
+  const title = purpose === "signup" ? "Your Signup Verification Code" : "Your Password Reset Code";
   const intro =
     purpose === "signup"
-      ? "Use this code to complete your RampXTrading signup."
-      : "Use this code to continue your RampXTrading password reset.";
+      ? "Use the verification code below to complete your RampXTrading signup."
+      : "Use the verification code below to continue your RampXTrading password reset.";
 
   return {
     to: email,
     subject: `${APP_NAME}: ${title}`,
-    text: `${intro}\n\nOTP: ${otp}\nExpires in: ${expiresInText}\n\nIf you did not request this, please ignore this email.`,
+    text: `${intro}\n\nOTP: ${otp}\nExpires in: ${expiresInText}\n\nIf you did not request this, please ignore this email.\n\n— ${APP_NAME} Team`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #0f172a;">
-        <h2 style="margin-bottom: 12px;">${APP_NAME}</h2>
-        <p style="margin-bottom: 8px;">Hello ${name || "Trader"},</p>
-        <p style="margin-bottom: 16px;">${intro}</p>
-        <div style="font-size: 32px; letter-spacing: 8px; font-weight: 700; color: #2563eb; margin: 24px 0;">
-          ${otp}
+      <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06);">
+
+        <!-- Header -->
+        <div style="background-color: #0f172a; padding: 24px; text-align: center;">
+          <h1 style="color: #ffffff; font-size: 22px; margin: 0; letter-spacing: 1px;">${APP_NAME}</h1>
         </div>
-        <p style="margin-bottom: 8px;">This code will expire in ${expiresInText}.</p>
-        <p style="color: #64748b;">If you did not request this, you can ignore this email.</p>
+
+        <!-- Body -->
+        <div style="padding: 32px;">
+          <p style="font-size: 16px; color: #0f172a; margin-bottom: 8px;">Hello ${name || "Trader"},</p>
+          <p style="font-size: 15px; color: #334155; margin-bottom: 24px; line-height: 1.6;">${intro}</p>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <div style="display: inline-block; background-color: #f1f5f9; border-radius: 8px; padding: 16px 32px;">
+              <span style="font-size: 36px; letter-spacing: 10px; font-weight: 700; color: #2563eb;">${otp}</span>
+            </div>
+          </div>
+
+          <p style="font-size: 14px; color: #475569; text-align: center; margin-bottom: 4px;">
+            This code will expire in <strong>${expiresInText}</strong>.
+          </p>
+          <p style="font-size: 13px; color: #94a3b8; text-align: center; margin-top: 24px;">
+            If you did not request this, you can safely ignore this email.
+          </p>
+        </div>
+
+        <!-- Divider -->
+        <div style="border-top: 1px solid #e2e8f0;"></div>
+
+        <!-- Footer with Logo -->
+        <div style="padding: 24px; text-align: center; background-color: #f8fafc;">
+          <img src="${LOGO_URL}" alt="${APP_NAME}" style="max-width: 120px; margin-bottom: 12px;" />
+          <p style="font-size: 12px; color: #94a3b8; margin: 0;">
+            © ${new Date().getFullYear()} ${APP_NAME}. All rights reserved.
+          </p>
+          <p style="font-size: 12px; color: #cbd5e1; margin: 4px 0 0;">
+            This is an automated message, please do not reply.
+          </p>
+        </div>
+
       </div>
     `,
   };
 }
-
 async function sendOtpViaResend({ to, subject, text, html }) {
   const { apiKey, from } = getResendConfig();
   if (!apiKey || !from) {
