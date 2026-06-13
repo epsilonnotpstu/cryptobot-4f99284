@@ -2634,6 +2634,13 @@ const remoteAuthService = {
       payload: { noticeId, status, isActive },
     });
   },
+  async adminDeleteNotice({ sessionToken, noticeId }) {
+    return this.requestGatewayAction({
+      action: "admin.notice.delete",
+      sessionToken,
+      payload: { noticeId },
+    });
+  },
   async adminGetAppUpdateSettings({ sessionToken }) {
     return this.requestGatewayAction({
       action: "admin.app-update.get",

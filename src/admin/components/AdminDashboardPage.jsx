@@ -166,6 +166,7 @@ export default function AdminDashboardPage({
   onUpdateNotice,
   onUpdateNoticeStatus,
   onQuickPublishNotice,
+  onDeleteNotice,
   onCreateLaunchpadLaunch,
   onUpdateLaunchpadLaunch,
   onUpdateLaunchpadLaunchStatus,
@@ -969,6 +970,7 @@ export default function AdminDashboardPage({
             onUpdateNotice={onUpdateNotice}
             onUpdateNoticeStatus={onUpdateNoticeStatus}
             onQuickPublish={onQuickPublishNotice}
+            onDeleteNotice={onDeleteNotice}
             userOptions={Array.isArray(userDirectory?.users) ? userDirectory.users : []}
           />
         ) : null}

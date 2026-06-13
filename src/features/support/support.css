@@ -586,7 +586,7 @@
 
 .supportchat-message header strong {
   color: var(--support-text);
-  font-size: 0.78rem;
+  font-size: 1rem;
 }
 
 .supportchat-message p {

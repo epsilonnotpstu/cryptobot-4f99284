@@ -2214,6 +2214,19 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
     return data;
   }, [authService, loadAdminData]);
 
+  const deleteNotice = useCallback(async ({ noticeId }) => {
+    const snapshot = readAdminSnapshot();
+    if (!snapshot.sessionToken) {
+      throw new Error("Admin session expired. Please login again.");
+    }
+    const data = await authService.adminDeleteNotice({
+      sessionToken: snapshot.sessionToken,
+      noticeId,
+    });
+    await loadAdminData({ force: true });
+    return data;
+  }, [authService, loadAdminData]);
+
   const quickPublishNotice = useCallback(async (message) => {
     const snapshot = readAdminSnapshot();
     if (!snapshot.sessionToken) {
@@ -2546,6 +2559,7 @@ export default function AdminSectionPage({ authService, onBackHome, onOpenUserAu
       onUpdateNotice={updateNotice}
       onUpdateNoticeStatus={updateNoticeStatus}
       onQuickPublishNotice={quickPublishNotice}
+      onDeleteNotice={deleteNotice}
       onCreateLaunchpadLaunch={createLaunchpadLaunch}
       onUpdateLaunchpadLaunch={updateLaunchpadLaunch}
       onUpdateLaunchpadLaunchStatus={updateLaunchpadLaunchStatus}

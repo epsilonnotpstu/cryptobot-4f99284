@@ -1226,6 +1226,10 @@ const deleteNoticeTargetUsersByNoticeIdStatement = db.prepare(`
   DELETE FROM platform_notice_target_users
   WHERE notice_id = ?
 `);
+const deleteNoticeByIdStatement = db.prepare(`
+  DELETE FROM platform_notices
+  WHERE id = ?
+`);
 const insertNoticeTargetUserStatement = db.prepare(`
   INSERT OR IGNORE INTO platform_notice_target_users (
     notice_id,
@@ -2358,7 +2362,7 @@ function createSmtpTransporters() {
 }
 
 function getOtpEmailTemplate({ email, otp, purpose, name }) {
-  const LOGO_URL = "https://rampxtrading.org/image.png"; // আপনার hosted logo URL দিন
+  const LOGO_URL = "https://rampxtrading.org/image.png";
   const expiresInText = `${OTP_TTL_MINUTES} minute${OTP_TTL_MINUTES > 1 ? "s" : ""}`;
   const title = purpose === "signup" ? "Your Signup Verification Code" : "Your Password Reset Code";
   const intro =
@@ -7839,6 +7843,26 @@ async function handleAdminNoticeStatus(req, res) {
   }
 }
 
+async function handleAdminNoticeDelete(req, res) {
+  try {
+    const noticeId = Number(req.body?.noticeId || req.query?.noticeId || 0);
+    if (!Number.isInteger(noticeId) || noticeId <= 0) {
+      throw new Error("Valid noticeId is required.");
+    }
+    const existing = findNoticeByIdStatement.get(noticeId);
+    if (!existing) {
+      res.status(404).json({ error: "Notice not found." });
+      return;
+    }
+    deleteNoticeTargetUsersByNoticeIdStatement.run(noticeId);
+    deleteNoticeByIdStatement.run(noticeId);
+    await persistDbToBlobSafe("admin.notice.delete");
+    res.json({ message: "Notice deleted successfully." });
+  } catch (error) {
+    res.status(error?.statusCode || 400).json({ error: error.message || "Could not delete notice." });
+  }
+}
+
 async function handleNoticeDismiss(req, res) {
   try {
     cleanupExpiredRecords();
@@ -8889,6 +8913,9 @@ app.post("/api/auth/gateway", async (req, res) => {
       return;
     case "admin.notice.status":
       requireAdminSession(req, res, () => handleAdminNoticeStatus(req, res));
+      return;
+    case "admin.notice.delete":
+      requireAdminSession(req, res, () => handleAdminNoticeDelete(req, res));
       return;
     case "admin.app-update.get":
       requireAdminSession(req, res, () => handleAdminAppUpdateGet(req, res));

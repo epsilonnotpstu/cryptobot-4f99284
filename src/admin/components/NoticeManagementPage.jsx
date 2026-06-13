@@ -94,6 +94,7 @@ export default function NoticeManagementPage({
   onUpdateNotice,
   onUpdateNoticeStatus,
   onQuickPublish,
+  onDeleteNotice,
   userOptions,
 }) {
   const [form, setForm] = useState(buildEmptyForm);
@@ -230,6 +231,17 @@ export default function NoticeManagementPage({
       setError(requestError.message || "Could not save notice.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteNotice = async (row) => {
+    setError("");
+    setNoticeMessage("");
+    try {
+      const response = await onDeleteNotice({ noticeId: row.noticeId });
+      setNoticeMessage(response?.message || "Notice deleted.");
+    } catch (requestError) {
+      setError(requestError.message || "Could not delete notice.");
     }
   };
 
@@ -587,6 +599,13 @@ export default function NoticeManagementPage({
                           Activate
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="adminx-filter-btn"
+                        onClick={() => deleteNotice(row)}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
