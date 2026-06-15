@@ -1,6 +1,16 @@
+import { useEffect } from "react";
 import { categoryLabel, formatMoney } from "./lum-utils";
 
 export default function LUMPlanDetailModal({ open, plan, loading, onClose, onContinue }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
@@ -8,8 +18,9 @@ export default function LUMPlanDetailModal({ open, plan, loading, onClose, onCon
   const activeContents = (Array.isArray(plan?.contents) ? plan.contents : []).filter((block) => block?.isActive !== false);
 
   return (
-    <div className="lum-modal-backdrop" role="dialog" aria-modal="true" aria-label="LUM plan details">
-      <div className="lum-modal-card lum-detail-modal">
+    <div className="lum-modal-backdrop" role="dialog" aria-modal="true" aria-label="LUM plan details" onClick={onClose}>
+      <div className="lum-modal-card lum-detail-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="lum-sheet-handle" aria-hidden="true" />
         <header>
           <h3>{loading ? "Loading plan..." : plan?.title || "Plan Detail"}</h3>
           <button type="button" className="lum-close-btn" onClick={onClose}>

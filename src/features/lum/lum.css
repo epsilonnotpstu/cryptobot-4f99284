@@ -220,10 +220,10 @@
 }
 
 .lum-plan-actions {
-  display: grid;
-  grid-auto-flow: column;
+  display: flex;
   align-items: center;
   gap: 0.45rem;
+  flex-shrink: 0;
 }
 
 .lum-plan-badge {
@@ -245,6 +245,14 @@
   padding: 0.5rem 0.72rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.lum-info-btn {
+  width: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .lum-info-btn,
@@ -285,12 +293,30 @@
   font-size: 0.92rem;
 }
 
+.lum-plan-card-title {
+  min-width: 0;
+  flex: 1;
+}
+
 .lum-plan-card footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem 0.75rem;
+  gap: 0.3rem 0.6rem;
   color: #8da4c1;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
+  border-top: 1px solid rgba(85, 113, 149, 0.22);
+  padding-top: 0.55rem;
+  margin-top: 0.1rem;
+}
+
+.lum-plan-rate {
+  color: #fbbf24 !important;
+  font-size: 1.08rem !important;
+}
+
+.lum-plan-rate-cell {
+  border-color: rgba(251, 191, 36, 0.24) !important;
+  background: rgba(251, 191, 36, 0.07) !important;
 }
 
 .lum-modal-backdrop {
@@ -303,6 +329,7 @@
   justify-content: center;
   padding: 1rem;
   z-index: 120;
+  overscroll-behavior: contain;
 }
 
 .lum-modal-card {
@@ -312,6 +339,22 @@
   background: #09152c;
   box-shadow: 0 30px 55px rgba(0, 0, 0, 0.38);
   overflow: hidden;
+}
+
+.lum-detail-modal {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.lum-sheet-handle {
+  display: none;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(180, 200, 225, 0.3);
+  margin: 10px auto 0;
+  flex-shrink: 0;
 }
 
 .lum-modal-card > header {
@@ -648,8 +691,8 @@
   }
 
   .lum-plan-actions {
-    grid-auto-flow: row;
-    justify-items: end;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .lum-plan-tabs {
@@ -667,8 +710,16 @@
   .lum-info-modal,
   .lum-entrust-modal {
     width: 100%;
-    max-height: 92vh;
-    border-radius: 16px 16px 0 0;
+    max-height: 88vh;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .lum-sheet-handle {
+    display: block;
+  }
+
+  .lum-modal-card > header {
+    border-radius: 0;
   }
 }
 

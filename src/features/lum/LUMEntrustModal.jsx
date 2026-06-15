@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import LUMInvestmentTable from "./LUMInvestmentTable";
 import { formatMoney } from "./lum-utils";
 
@@ -12,6 +12,15 @@ const FILTERS = [
 
 export default function LUMEntrustModal({ open, loading, data, onClose }) {
   const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   const merged = useMemo(() => {
     const active = Array.isArray(data?.activeInvestments) ? data.activeInvestments : [];

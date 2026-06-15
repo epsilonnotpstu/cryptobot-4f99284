@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calculateProjection, formatMoney } from "./lum-utils";
 
 export default function LUMInvestModal({
@@ -10,6 +10,15 @@ export default function LUMInvestModal({
   submitting,
   submitError,
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const [amountUsd, setAmountUsd] = useState("");
 
   const projection = useMemo(() => {

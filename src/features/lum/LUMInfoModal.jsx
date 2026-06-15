@@ -5,7 +5,18 @@ function formatBlockType(value = "") {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+import { useEffect } from "react";
+
 export default function LUMInfoModal({ open, title, blocks, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
