@@ -4,7 +4,10 @@ export default function BinaryPeriodSelector({ periods, selectedPeriod, onSelect
   return (
     <section className={`binary-period-section ${modeClass}`}>
       <header>
-        <h3>Choose Period</h3>
+        <div>
+          <h3>Trade Period</h3>
+          <p className="binary-period-hint">Select duration &amp; payout rate</p>
+        </div>
       </header>
 
       <div className="binary-period-grid">

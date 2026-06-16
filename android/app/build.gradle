@@ -8,8 +8,8 @@ android {
         applicationId "com.rampxtrading.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -26,6 +26,12 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "rampxtrading_v${variant.versionName}_build${variant.versionCode}_debug.apk"
+        }
     }
 }
 

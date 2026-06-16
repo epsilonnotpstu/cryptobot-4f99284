@@ -1734,3 +1734,227 @@
 .binary-period-section.is-short .binary-period-grid button.active span {
   color: #fecdd3;
 }
+
+/* ===== BINARY POLISH ===== */
+
+/* Direction toggle — column layout for buttons */
+.binary-direction-toggle button {
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 68px;
+  border-radius: 18px;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.binary-direction-toggle button i {
+  font-size: 1.3rem;
+}
+
+.binary-direction-toggle button strong {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.binary-direction-toggle button small {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.binary-direction-toggle button:hover {
+  transform: translateY(-2px);
+}
+
+.binary-direction-toggle button.active.long {
+  box-shadow: 0 14px 28px rgba(20, 184, 166, 0.22), inset 0 1px 0 rgba(220, 255, 240, 0.12);
+}
+
+.binary-direction-toggle button.active.short {
+  box-shadow: 0 14px 28px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(255, 220, 224, 0.1);
+}
+
+/* Period hint */
+.binary-period-hint {
+  margin: 0.16rem 0 0;
+  color: #7fa3c4;
+  font-size: 0.74rem;
+}
+
+.binary-period-section header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.binary-period-grid button {
+  border-radius: 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.binary-period-grid button:hover {
+  transform: translateY(-1px);
+}
+
+.binary-period-grid button strong {
+  font-size: 1rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.binary-period-grid button span {
+  font-size: 0.72rem;
+  color: #7fa0be;
+}
+
+.binary-period-grid button.active span {
+  color: #a0eeff;
+}
+
+/* Wallet summary in amount card */
+.binary-wallet-summary {
+  margin-top: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.binary-wallet-item {
+  border-radius: 11px;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  background: rgba(4, 12, 25, 0.62);
+  padding: 0.48rem 0.56rem;
+}
+
+.binary-wallet-item span {
+  display: block;
+  color: #85a6c5;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.binary-wallet-item strong {
+  display: block;
+  margin-top: 0.2rem;
+  color: #dff4ff;
+  font-size: 0.88rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+.binary-profit-value {
+  color: #5de8b4 !important;
+}
+
+/* Quick percent buttons */
+.binary-quick-grid button {
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.binary-quick-grid button:hover {
+  border-color: rgba(70, 211, 255, 0.5);
+  background: rgba(70, 211, 255, 0.14);
+  color: #dff9ff;
+}
+
+/* Projection row polish */
+.binary-projection-row p {
+  border-radius: 12px;
+  border-color: rgba(125, 211, 252, 0.16);
+}
+
+/* Result modal color coding */
+.binary-result-modal.result-won .binary-result-banner {
+  border-color: rgba(52, 211, 153, 0.36);
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.2), rgba(14, 165, 233, 0.1));
+}
+
+.binary-result-modal.result-won .binary-result-banner span {
+  color: #5de8b4;
+}
+
+.binary-result-modal.result-lost .binary-result-banner {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: linear-gradient(145deg, rgba(185, 28, 28, 0.22), rgba(239, 68, 68, 0.12));
+}
+
+.binary-result-modal.result-lost .binary-result-banner span {
+  color: #ff9aa6;
+}
+
+.binary-result-modal.result-draw .binary-result-banner {
+  border-color: rgba(70, 211, 255, 0.32);
+  background: linear-gradient(145deg, rgba(70, 211, 255, 0.16), rgba(37, 183, 255, 0.1));
+}
+
+.binary-result-modal.result-draw .binary-result-banner span {
+  color: #9eedff;
+}
+
+/* Countdown ring color by direction */
+.binary-countdown-ring {
+  transition: border-color 0.3s ease;
+}
+
+/* Record items polish */
+.binary-record-item {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.binary-record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.binary-record-header strong {
+  font-size: 0.94rem;
+}
+
+/* Amount input polish */
+.binary-amount-input input {
+  margin-top: 0.32rem;
+  font-size: 1rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+  border-color: rgba(125, 211, 252, 0.22);
+  transition: border-color 0.18s ease;
+}
+
+.binary-amount-input input:focus {
+  outline: none;
+  border-color: rgba(70, 211, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(70, 211, 255, 0.1);
+}
+
+/* Category tabs */
+.binary-category-tabs button {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* Header selected asset card */
+.binary-selected-asset-card {
+  border-radius: 16px;
+}
+
+.binary-selected-asset-card em {
+  font-size: 1.08rem;
+  font-family: "Outfit", "Plus Jakarta Sans", sans-serif;
+}
+
+/* Mobile: direction toggle side by side minimum height */
+@media (max-width: 740px) {
+  .binary-direction-toggle button {
+    min-height: 62px;
+    border-radius: 16px;
+  }
+
+  .binary-wallet-summary {
+    grid-template-columns: 1fr;
+  }
+}

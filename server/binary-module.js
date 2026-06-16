@@ -211,6 +211,10 @@ const METALS_DEV_API_KEY = String(process.env.METALS_DEV_API_KEY || "GEOCUXJRPTV
 const METALS_DEV_SYNC_INTERVAL_MS = 8 * 60 * 60 * 1000; // 3 calls/day
 const METALS_DEV_RETRY_INTERVAL_MS = 20 * 60 * 1000;
 
+const METALS_YAHOO_TICKERS = { gold: "GC=F", silver: "SI=F" };
+const METALS_BINANCE_FALLBACKS = { gold: ["PAXGUSDT", "XAUTUSDT"] };
+const METALS_FALLBACK_CACHE_TTL_MS = 5 * 60 * 1000;
+
 const BINANCE_SYMBOL_ALIASES = {
   XAUUSDT: ["XAUTUSDT", "PAXGUSDT"],
   XAGUSDT: ["SILVERUSDT"],
@@ -1767,6 +1771,53 @@ export function createBinaryModule({
   let metalsDevSyncToken = 0;
   const metalsDevPriceCache = new Map();
   const metalsDevAppliedSyncTokenByPair = new Map();
+  const metalsFallbackCache = new Map();
+
+  async function fetchYahooFinanceMetalPrice(ticker) {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1m&range=1d`;
+    const payload = await fetchJsonWithTimeout(url, 4200);
+    return toNumber(payload?.chart?.result?.[0]?.meta?.regularMarketPrice, 0);
+  }
+
+  async function fetchMetalPriceFallback(metalKey) {
+    const cached = metalsFallbackCache.get(metalKey);
+    if (cached && cached.price > 0 && nowUnixMs() - cached.fetchedAtMs < METALS_FALLBACK_CACHE_TTL_MS) {
+      return cached.price;
+    }
+
+    // Try Binance crypto proxies (PAXG ≈ 1 oz gold, XAUT ≈ 1 oz gold)
+    const binanceFallbacks = METALS_BINANCE_FALLBACKS[metalKey] || [];
+    for (const symbol of binanceFallbacks) {
+      for (const endpoint of BINANCE_PRICE_ENDPOINTS) {
+        try {
+          const payload = await fetchJsonWithTimeout(`${endpoint}?symbol=${encodeURIComponent(symbol)}`, 2500);
+          const price = toNumber(payload?.price, 0);
+          if (price > 0) {
+            metalsFallbackCache.set(metalKey, { price, fetchedAtMs: nowUnixMs() });
+            return price;
+          }
+        } catch {
+          // Try next endpoint.
+        }
+      }
+    }
+
+    // Try Yahoo Finance futures as final fallback
+    const yahooTicker = METALS_YAHOO_TICKERS[metalKey];
+    if (yahooTicker) {
+      try {
+        const price = await fetchYahooFinanceMetalPrice(yahooTicker);
+        if (price > 0) {
+          metalsFallbackCache.set(metalKey, { price, fetchedAtMs: nowUnixMs() });
+          return price;
+        }
+      } catch {
+        // Yahoo Finance unavailable.
+      }
+    }
+
+    return 0;
+  }
 
   function resolveMetalsDevKeyForPair(pair = {}) {
     const byAsset = resolveMetalsDevKeyForSymbol(pair.baseAsset || "");
@@ -1877,11 +1928,14 @@ export function createBinaryModule({
     await syncMetalsDevCache();
     for (const pair of metalExternalPairs) {
       const metalKey = resolveMetalsDevKeyForPair(pair);
-      const realPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+      let realPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+      if (realPrice <= 0) {
+        realPrice = await fetchMetalPriceFallback(metalKey);
+      }
       const previous = toNumber(pair?.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
       const appliedToken = Number(metalsDevAppliedSyncTokenByPair.get(pair.pairId) || 0);
       const shouldApplyFreshReal = realPrice > 0 && metalsDevSyncToken > 0 && appliedToken !== metalsDevSyncToken;
-      const nextPrice = shouldApplyFreshReal ? realPrice : randomWalkPriceAroundAnchor(previous, realPrice, 0.0016);
+      const nextPrice = realPrice > 0 ? realPrice : randomWalkPriceAroundAnchor(previous, realPrice, 0.0016);
 
       updatePairPriceStatement.run({
         id: pair.pairId,
@@ -1894,7 +1948,7 @@ export function createBinaryModule({
         pairId: pair.pairId,
         price: nextPrice,
         tickTime: nowIso,
-        sourceType: shouldApplyFreshReal ? "external_api" : "internal_feed",
+        sourceType: realPrice > 0 ? "external_api" : "internal_feed",
         createdAt: nowIso,
       });
 
@@ -1950,6 +2004,12 @@ export function createBinaryModule({
         const metalPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
         if (metalPrice > 0) {
           resolvedMap.set(symbol, metalPrice);
+        } else {
+          // metals.dev unavailable — fall back to Binance proxy (PAXG/XAUT) then Yahoo Finance
+          const fallbackPrice = await fetchMetalPriceFallback(metalKey);
+          if (fallbackPrice > 0) {
+            resolvedMap.set(symbol, fallbackPrice);
+          }
         }
       }
     }
@@ -2145,11 +2205,14 @@ export function createBinaryModule({
     await syncMetalsDevCache();
     for (const pair of metalExternalPairs) {
       const metalKey = resolveMetalsDevKeyForPair(pair);
-      const realPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+      let realPrice = toNumber(metalsDevPriceCache.get(metalKey), 0);
+      if (realPrice <= 0) {
+        realPrice = await fetchMetalPriceFallback(metalKey);
+      }
       const previous = toNumber(pair.currentPrice, 0) > 0 ? toNumber(pair.currentPrice, 0) : pickSeedPrice(pair.pairCode);
       const appliedToken = Number(metalsDevAppliedSyncTokenByPair.get(pair.pairId) || 0);
       const shouldApplyFreshReal = realPrice > 0 && metalsDevSyncToken > 0 && appliedToken !== metalsDevSyncToken;
-      const nextPrice = shouldApplyFreshReal ? realPrice : randomWalkPriceAroundAnchor(previous, realPrice, 0.0016);
+      const nextPrice = realPrice > 0 ? realPrice : randomWalkPriceAroundAnchor(previous, realPrice, 0.0016);
 
       updatePairPriceStatement.run({
         id: pair.pairId,
@@ -2162,7 +2225,7 @@ export function createBinaryModule({
         pairId: pair.pairId,
         price: nextPrice,
         tickTime: nowIso,
-        sourceType: shouldApplyFreshReal ? "external_api" : "internal_feed",
+        sourceType: realPrice > 0 ? "external_api" : "internal_feed",
         createdAt: nowIso,
       });
 

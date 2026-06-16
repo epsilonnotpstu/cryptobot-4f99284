@@ -11,7 +11,8 @@ export default function BinaryDirectionToggle({ value, onChange }) {
         onClick={() => onChange("long")}
       >
         <i className="fas fa-arrow-trend-up" />
-        <span>Long</span>
+        <strong>Long</strong>
+        <small>Price goes UP</small>
       </button>
       <button
         type="button"
@@ -19,7 +20,8 @@ export default function BinaryDirectionToggle({ value, onChange }) {
         onClick={() => onChange("short")}
       >
         <i className="fas fa-arrow-trend-down" />
-        <span>Short</span>
+        <strong>Short</strong>
+        <small>Price goes DOWN</small>
       </button>
     </section>
   );

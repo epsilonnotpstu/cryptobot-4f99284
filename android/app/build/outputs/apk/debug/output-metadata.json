@@ -11,9 +11,9 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 1,
-      "versionName": "1.0",
-      "outputFile": "app-debug.apk"
+      "versionCode": 3,
+      "versionName": "1.1",
+      "outputFile": "rampxtrading_v1.1_build3_debug.apk"
     }
   ],
   "elementType": "File",

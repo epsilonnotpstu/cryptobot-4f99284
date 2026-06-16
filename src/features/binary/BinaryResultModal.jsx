@@ -80,7 +80,7 @@ export default function BinaryResultModal({ open, trade, summary, onClose, onTra
 
   return (
     <div className="binary-modal-backdrop" onClick={onClose}>
-      <section className="binary-modal-card binary-result-modal" onClick={(event) => event.stopPropagation()}>
+      <section className={`binary-modal-card binary-result-modal result-${status}`} onClick={(event) => event.stopPropagation()}>
         <header>
           <h3>{trade.pairDisplayName || "Pair"}</h3>
           <button type="button" className="binary-icon-btn" onClick={onClose}>

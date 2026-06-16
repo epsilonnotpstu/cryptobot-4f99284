@@ -32,9 +32,15 @@ export default function BinaryAmountCard({
         <span>{currency}</span>
       </div>
 
-      <div className="binary-wallet-row">
-        <strong>Binary Wallet: {formatMoney(binaryWallet, currency)}</strong>
-        <span>Expected: {formatMoney(expectedProfit, currency)}</span>
+      <div className="binary-wallet-summary">
+        <div className="binary-wallet-item">
+          <span>Binary Wallet</span>
+          <strong>{formatMoney(binaryWallet, currency)}</strong>
+        </div>
+        <div className="binary-wallet-item">
+          <span>Expected Profit</span>
+          <strong className="binary-profit-value">{formatMoney(expectedProfit, currency)}</strong>
+        </div>
       </div>
       {autoTransferFromSpot ? (
         <div className="binary-wallet-note">
