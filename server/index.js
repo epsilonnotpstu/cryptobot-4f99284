@@ -40,7 +40,7 @@ const FCM_PRIVATE_KEY = String(process.env.FCM_PRIVATE_KEY || process.env.FIREBA
   .replace(/\\n/g, "\n");
 const FCM_SERVICE_ACCOUNT_JSON = String(process.env.FCM_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "").trim();
 const FCM_SERVER_KEY = String(process.env.FCM_SERVER_KEY || process.env.FIREBASE_SERVER_KEY || "").trim();
-const DEFAULT_ANDROID_APK_DOWNLOAD_URL = "https://download.rampxtrading.org/rampxtrading-latest.apk";
+const DEFAULT_ANDROID_APK_DOWNLOAD_URL = "https://download.rampxtrading.org/rampxtrading_v1.41_build8_debug.apk";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

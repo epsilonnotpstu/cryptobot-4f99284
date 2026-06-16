@@ -7,7 +7,7 @@ const DEFAULT_SETTINGS = {
   latestBuildCode: 1,
   minimumBuildCode: 1,
   forceUpdateEnabled: false,
-  apkUrl: "https://download.rampxtrading.org/rampxtrading-latest.apk",
+  apkUrl: "https://download.rampxtrading.org/rampxtrading_v1.41_build8_debug.apk",
   title: "RampX Trading update available",
   message: "A newer version of RampX Trading is available. Download the latest APK to continue with the best experience.",
   logoUrl: "/favicon-32x32.png",

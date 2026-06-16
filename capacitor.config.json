@@ -1,7 +1,7 @@
 {
   "appId": "com.rampxtrading.app",
   "appName": "RampX Trading",
-  "appVersion": "1.32",
+  "appVersion": "1.41",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "plugins": {

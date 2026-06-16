@@ -28,7 +28,7 @@ const ROUTES = {
 };
 const NATIVE_ALLOWED_ROUTES = new Set([ROUTES.app, ROUTES.login, ROUTES.signup]);
 const ANDROID_APK_DOWNLOAD_URL =
-  "https://download.rampxtrading.org/rampxtrading-latest.apk";
+  "https://download.rampxtrading.org/rampxtrading_v1.41_build8_debug.apk";
 class GoogleAuthRenderBoundary extends Component {
   constructor(props) {
     super(props);
@@ -5861,7 +5861,7 @@ function MobileAppFlowPage({ authSnapshot, onAuthChanged, authReady }) {
                 ) : null}
                 <a
                   className="native-app-update-download"
-                  href={appUpdatePopup.apkUrl || "https://download.rampxtrading.org/rampxtrading-latest.apk"}
+                  href={appUpdatePopup.apkUrl || "https://download.rampxtrading.org/rampxtrading_v1.41_build8_debug.apk"}
                   target="_blank"
                   rel="noreferrer"
                 >
