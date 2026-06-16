@@ -19,6 +19,7 @@ function normalizeSettings(settings = {}) {
   return {
     ...DEFAULT_SETTINGS,
     ...(settings || {}),
+    apkUrl: DEFAULT_SETTINGS.apkUrl,
     latestBuildCode: Number(settings?.latestBuildCode ?? DEFAULT_SETTINGS.latestBuildCode),
     minimumBuildCode: Number(settings?.minimumBuildCode ?? DEFAULT_SETTINGS.minimumBuildCode),
     forceUpdateEnabled: Boolean(settings?.forceUpdateEnabled),
@@ -149,7 +150,8 @@ export default function AppUpdateManagementPage({
             </label>
             <label className="span-2">
               APK Download URL
-              <input value={form.apkUrl} onChange={(event) => updateField("apkUrl", event.target.value)} />
+              <span style={{ display: "block", padding: "8px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", fontSize: "0.8rem", wordBreak: "break-all", color: "var(--color-text-muted, #a0aec0)", userSelect: "all" }}>{form.apkUrl}</span>
+              <small style={{ marginTop: "4px", display: "block", opacity: 0.6 }}>Auto-set via <code>npm run android:bump</code></small>
             </label>
             <label className="span-2">
               Logo URL
